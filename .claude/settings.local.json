@@ -11,7 +11,18 @@
       "Bash(git check-ignore:*)",
       "Bash(git commit:*)",
       "Bash(chmod:*)",
-      "Bash(.venv/bin/python:*)"
+      "Bash(.venv/bin/python:*)",
+      "Bash(pandoc:*)",
+      "Bash(port search:*)",
+      "Bash(sudo port install:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:roamresearch.com)",
+      "WebFetch(domain:www.postman.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:pipedream.com)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

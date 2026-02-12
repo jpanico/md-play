@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Tuple
 from unittest.mock import Mock, MagicMock, patch, mock_open
 import requests
 
-from fetch_roam_file import ApiEndpointURL, RoamFile, FetchRoamFile
+from mdplay.fetch_roam_file import ApiEndpointURL, RoamFile, FetchRoamFile
 
 logger = logging.getLogger(__name__)
 

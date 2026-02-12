@@ -13,8 +13,28 @@ exclude = '''
 )/
 '''
 
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mdplay"
+version = "0.1.0"
+description = "Markdown utilities for working with Roam Research exports"
+requires-python = ">=3.14"
+dependencies = [
+    "pydantic>=2.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+convert-roam-images = "mdplay.convert_roam_images:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.pytest.ini_options]
-testpaths = ["."]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

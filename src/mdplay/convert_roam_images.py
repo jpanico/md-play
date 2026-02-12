@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import List, Tuple
 from pydantic import HttpUrl
 
-from fetch_roam_file import ApiEndpointURL, FetchRoamFile, RoamFile
+from mdplay.fetch_roam_file import ApiEndpointURL, FetchRoamFile, RoamFile
 
 # Configure logging
 logging.basicConfig(

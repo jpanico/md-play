@@ -1,0 +1,160 @@
+# \[\[Illustration\]\] Mood Boards
+
+# Text Vignettes
+
+## Incomprehensible source code is ***dangerous***/***threatening*** to humans (but computers/AIs don't care)
+
+### The Toyota "Unintended Acceleration" Case (2005–2010) – 89 deaths
+
+This is perhaps the most famous modern example of "spaghetti code"
+having lethal consequences. After a series of crashes involving Toyota
+vehicles accelerating uncontrollably, NASA and software experts (Barr
+Group) audited the source code for the Electronic Throttle Control
+System (ETCS).
+
+**The State of the Code:** Experts found over **10,000 global
+variables** (data points that can be changed from anywhere in the
+program). The code violated almost every standard for safety-critical
+systems. It had a "Cyclomatic Complexity" score (a measure of how many
+paths code can take) that was off the charts—literally un-testable.
+
+**The Disaster:** Because the code was a "spaghetti" mess, it suffered
+from stack overflows and memory corruption that would kill the
+"failsafe" task. When the failsafe died, the engine would lock into a
+wide-open throttle state.
+
+**The Fallout:** Toyota recalled millions of vehicles and paid over
+**\$1.2 billion** in a DOJ settlement.
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2FcsMkaeTwvL.png.enc?alt=media&token=7fdab127-f725-4ee2-b3fe-c8f22343f500)
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2Fqtxkl5tpV9.png.enc?alt=media&token=d6f04940-bcd0-4cf2-be6f-b5a851bfc8a3)
+
+### Therac-25 Radiation Overdoses (1985-1987) – 3 deaths, 3 maimings
+
+This is perhaps the most tragic example of "spaghetti code" and a lack
+of fundamental understanding of source code. The Therac-25 radiation
+therapy machine gave patients radiation doses hundreds of times greater
+than normal due to concurrent programming errors (race conditions),
+killing at least three people and seriously injuring three others.
+
+**The Root Cause:** The Therac-25 was a radiation therapy machine.
+Unlike its predecessors, it relied almost entirely on software for
+safety interlocks rather than hardware.
+
+**The Lack of Understanding:** The software was largely reused from
+older models (Therac-6 and Therac-20). The developers didn't realize
+that the older code had bugs that were previously "masked" by hardware
+safety switches. When moved to a software-only environment, a subtle
+"race condition" occurred.
+
+**The Catastrophe:** If an operator typed commands too quickly, the
+software would fail to set the machine's physical shield in place but
+still fire a high-intensity beam. Several patients received lethal doses
+of radiation because the programmers didn't understand the timing
+nuances of their own inherited code.
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2FcFAKz4y7Gv.png.enc?alt=media&token=c4e04653-bb21-4f2c-86f8-77817e78143f)
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2Fx5WK_1eKQj.jpg.enc?alt=media&token=51fe2c29-d862-45c9-ab5f-07c427eef1c5)
+
+### Knight Capital Trading Disaster (2012) – \$440 Million in 45 Minutes
+
+An old, dormant piece of code was accidentally reactivated during a
+software deployment. The incomprehensible legacy code began executing
+unintended trades at a massive scale, causing Knight Capital to lose
+\$440 million in just 45 minutes and nearly bankrupting the company.
+
+**The Root Cause:** The firm deployed new software to servers, but one
+server was accidentally left running a dormant, decade-old piece of code
+called "Power Peg."
+
+**The Lack of Understanding:** The current engineering team didn't
+realize this old code still existed or how it functioned. When the new
+system triggered a specific flag, the "zombie" code woke up and began
+buying millions of shares at high prices and selling them low.
+
+**The Catastrophe:** Because no one understood how the old code
+interacted with the new deployment, they couldn't stop it in time. They
+eventually had to shut down the entire system to kill the process.
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F5soAXkNc6d.png.enc?alt=media&token=fd73f9de-7c7d-49bf-88f4-18808429be0f)
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2FXxvptMp5A0.jpg.enc?alt=media&token=aa440253-3d85-4a37-993d-352b0e479e5a)
+
+### UK Post Office Horizon Scandal (2000-2020) – 736 False Convictions
+
+The UK Post Office Horizon scandal is often cited as one of the most
+widespread miscarriages of justice in British history. While the scandal
+involved institutional cover-ups and legal failures, **source code
+incomprehensibility** and systemic software bugs were the technical
+engines of the disaster.
+
+### The "Black Box" Fallacy in Court
+
+The central legal issue was a presumption in English law that "computers
+are reliable unless proven otherwise." Because the Horizon source code
+was a proprietary, multimillion-line "black box" owned by Fujitsu,
+sub-postmasters had no way to inspect it.
+
+**Incomprehensibility as a Shield:** When postmasters reported "phantom
+shortfalls" (money missing from accounts that they hadn't taken), the
+Post Office and Fujitsu claimed the system was "robust."
+
+**The Burden of Proof:** Because the code was too complex for a
+layperson (or even a general IT expert) to audit without full access,
+defendants could not prove the existence of bugs. They were essentially
+told, "The computer says you stole money, and we can't see anything
+wrong with the computer."
+
+### Specific Technical Failures
+
+When the source code was eventually audited during the 2019 High Court
+case (*Bates v Post Office*), several critical flaws were found that had
+been hidden by the system's complexity
+
+The incomprehensibility of the code meant that even when Fujitsu
+engineers found bugs (which they did as early as 1999), the complexity
+of the legacy system made them hesitant to admit how deep the rot went.
+It was easier to blame "human error" than to untangle a "spaghetti code"
+mess that governed thousands of branches.
+
+**Spaghetti Code** made it nearly impossible for independent experts to
+find bugs quickly.
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2FFJKQWwffGg.png.enc?alt=media&token=4f605611-af28-4959-9db3-2e22dfaefa24)
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F0J-pbMPCXr.jpg.enc?alt=media&token=998c0d85-88b5-434f-b071-ded4c2ba1910)
+
+### *A Fire Upon the Deep* by Vernor Vinge (Fiction) – entire star systems consumed by computer virus
+
+This is the definitive "programmer archaeology" novel. Vinge (who was a
+computer science professor) imagines a future where software is
+thousands of years old.
+
+**The Catastrophe:** An ancient, dormant super-intelligence (The Blight)
+is "woken up" by researchers poking around in a 5-billion-year-old data
+archive. Because the researchers don't understand the "spaghetti code"
+of the archive, they accidentally unleash a virus that consumes entire
+star systems.
+
+**The Concept:** Software is rarely written from scratch; instead, it is
+built on top of "legacy code" from thousands of years prior. Engineers
+are called "Archaeoprogrammers" because their job is to dig through
+layers of incomprehensible, ancient operating systems to find functions.
+
+# Image Vignettes
+
+## Complex (spaghetti) code is incomprehensible to humans, but doesn't bother machines at all
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2Fz7Dt36jWXR.png.enc?alt=media&token=a727c524-fffb-4064-8a9c-44138c9532fb)
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2FF4KjPZ-GjB.png.enc?alt=media&token=caaf9c38-ad36-4f28-8a6c-404c4f274524)
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F9fhcZbAZW_.png.enc?alt=media&token=6188870a-9cd2-4dbb-84b5-7c188e5efedc)
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2Fr_YZuxc3oF.png.enc?alt=media&token=8826bed1-fa03-4fe8-97df-af3ceeb57a1f)
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F9RXGpac4u6.jpg.enc?alt=media&token=4153dc85-2415-4733-a51b-eb8313557d6d)
+
+![](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2FDj9nWzOAJf.jpg.enc?alt=media&token=1ad64dce-a919-4846-9b69-c853d1e16a17)

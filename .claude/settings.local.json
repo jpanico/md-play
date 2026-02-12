@@ -28,7 +28,8 @@
       "Bash(pip install:*)",
       "Bash(mypy:*)",
       "Bash(pip uninstall:*)",
-      "Bash(black:*)"
+      "Bash(black:*)",
+      "Bash(python:*)"
     ]
   }
 }

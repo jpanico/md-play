@@ -279,7 +279,12 @@ class TestFetchRoamFileFetch:
         with pytest.raises(TypeError, match="file_url cannot be None"):
             FetchRoamFile.fetch(api_endpoint=endpoint, firebase_url=None)  # type: ignore[arg-type]
 
+    # @pytest.mark.skip(reason="Requires Roam Desktop app running and user logged in")
     def test_live(self) -> None:
+        """
+        Because this goes through the Local API, the Roam Research native App must be running at the time
+        this method is called, and the user must be logged into the graph having `graph_name`
+        """
         endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
         url: HttpUrl = HttpUrl(
             "https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94"

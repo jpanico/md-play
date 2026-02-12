@@ -87,7 +87,8 @@ class FetchRoamFile:
     def fetch(api_endpoint: ApiEndpointURL, firebase_url: HttpUrl) -> RoamFile:
         """
         Fetch a file from Roam Research **Local** API. Because this goes through the Local API, the Roam Research
-        native App must be running at the time this method is called
+        native App must be running at the time this method is called, and the user must be logged into the graph having 
+        `graph_name`
 
         Args:
             api_endpoint: The API endpoint URL (validated by Pydantic)

@@ -31,7 +31,8 @@
       "Bash(black:*)",
       "Bash(python:*)",
       "Bash(autoflake:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(grep:*)"
     ]
   }
 }

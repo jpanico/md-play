@@ -31,7 +31,7 @@ class ApiEndpointURL(BaseModel):
         return f"{self.SCHEME}://{self.HOST}:{self.local_api_port}{self.API_PATH_STEM}{self.graph_name}"
 
 
-class RoamFile(BaseModel):
+class RoamAsset(BaseModel):
     """
     Immutable representation of a file fetched from Roam Research.
 
@@ -47,7 +47,7 @@ class RoamFile(BaseModel):
     contents: bytes = Field(..., description="Binary file contents")
 
 
-class FetchRoamFile:
+class FetchRoamAsset:
     REQUEST_HEADERS: Final[dict] = {"Content-Type": "application/json"}
     REQUEST_PAYLOAD_TEMPLATE: Final[Template] = Template("""
     {
@@ -62,7 +62,7 @@ class FetchRoamFile:
     """)
 
     @staticmethod
-    def roam_file_from_response_text(response_text: str) -> RoamFile:
+    def roam_file_from_response_text(response_text: str) -> RoamAsset:
         logger.debug(f"response_text: {response_text}")
         if response_text is None:
             raise TypeError("response_text cannot be None")
@@ -75,8 +75,8 @@ class FetchRoamFile:
 
         logger.info(f"Successfully fetched file: {file_name}")
 
-        # Return RoamFile object
-        return RoamFile(
+        # Return RoamAsset object
+        return RoamAsset(
             file_name=file_name,
             last_modified=datetime.now(),
             media_type=media_type,
@@ -84,7 +84,7 @@ class FetchRoamFile:
         )
 
     @staticmethod
-    def fetch(api_endpoint: ApiEndpointURL, firebase_url: HttpUrl) -> RoamFile:
+    def fetch(api_endpoint: ApiEndpointURL, firebase_url: HttpUrl) -> RoamAsset:
         """
         Fetch a file from Roam Research **Local** API. Because this goes through the Local API, the Roam Research
         native App must be running at the time this method is called, and the user must be logged into the graph having 
@@ -95,7 +95,7 @@ class FetchRoamFile:
             firebase_url: The Firebase URL that appears in Roam Markdown
 
         Returns:
-            RoamFile object containing the fetched file data
+            RoamAsset object containing the fetched file data
 
         Raises:
             TypeError: If api_endpoint or file_url is None
@@ -109,19 +109,19 @@ class FetchRoamFile:
         if firebase_url is None:
             raise TypeError("file_url cannot be None")
 
-        request_payload_str: str = FetchRoamFile.REQUEST_PAYLOAD_TEMPLATE.substitute(file_url=firebase_url)
+        request_payload_str: str = FetchRoamAsset.REQUEST_PAYLOAD_TEMPLATE.substitute(file_url=firebase_url)
         request_payload: dict = json.loads(request_payload_str)
         logger.info(
-            f"request_payload: {request_payload}, headers: {FetchRoamFile.REQUEST_HEADERS}, api: {api_endpoint}"
+            f"request_payload: {request_payload}, headers: {FetchRoamAsset.REQUEST_HEADERS}, api: {api_endpoint}"
         )
 
         # The Local API expects a POST request with the file URL
         response: requests.Response = requests.post(
-            str(api_endpoint), json=request_payload, headers=FetchRoamFile.REQUEST_HEADERS, stream=False
+            str(api_endpoint), json=request_payload, headers=FetchRoamAsset.REQUEST_HEADERS, stream=False
         )
 
         if response.status_code == 200:
-            return FetchRoamFile.roam_file_from_response_text(response.text)
+            return FetchRoamAsset.roam_file_from_response_text(response.text)
         else:
             error_msg: str = f"Failed to fetch file. Status Code: {response.status_code}, Response: {response.text}"
             logger.error(error_msg)

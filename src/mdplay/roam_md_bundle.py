@@ -125,6 +125,26 @@ def normalize_link_text(markdown_text: str) -> str:
     return re.sub(pattern, replace_newlines, markdown_text)
 
 
+def remove_escaped_double_brackets(markdown_text: str) -> str:
+    """
+    Remove escaped double brackets from Markdown text.
+
+    Roam Research uses [[page links]] syntax which gets escaped to \\[\\[ and \\]\\]
+    when exported. This function removes those escaped brackets.
+
+    Args:
+        markdown_text: The Markdown content to process
+
+    Returns:
+        Markdown text with escaped double brackets removed
+    """
+    # Remove escaped opening double brackets: \[\[
+    text = markdown_text.replace(r"\[\[", "")
+    # Remove escaped closing double brackets: \]\]
+    text = text.replace(r"\]\]", "")
+    return text
+
+
 def fetch_all_images(
     image_links: List[Tuple[str, HttpUrl]], api_endpoint: ApiEndpointURL, output_dir: Path
 ) -> List[Tuple[HttpUrl, str]]:
@@ -194,6 +214,9 @@ def bundle_md_file(
 
         # Normalize link text to remove line breaks
         updated_text = normalize_link_text(updated_text)
+
+        # Remove escaped double brackets from Roam page links
+        updated_text = remove_escaped_double_brackets(updated_text)
 
         # Write the updated Markdown file
         output_file: Path = output_dir / markdown_file.name

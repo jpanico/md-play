@@ -7,6 +7,7 @@ from mdplay.roam_md_bundle import (
     fetch_all_images,
     replace_image_links,
     normalize_link_text,
+    remove_escaped_double_brackets,
     bundle_md_file,
 )
 
@@ -19,5 +20,6 @@ __all__ = [
     "fetch_all_images",
     "replace_image_links",
     "normalize_link_text",
+    "remove_escaped_double_brackets",
     "bundle_md_file",
 ]

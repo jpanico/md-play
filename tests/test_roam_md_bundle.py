@@ -10,6 +10,7 @@ from mdplay.roam_md_bundle import (
     fetch_and_save_image,
     replace_image_links,
     normalize_link_text,
+    remove_escaped_double_brackets,
     bundle_md_file,
 )
 from mdplay.roam_asset import ApiEndpointURL, RoamAsset, FetchRoamAsset
@@ -244,6 +245,46 @@ More text"""
         assert "Some paragraph text" in result
         assert "More text" in result
         assert "![Image with breaks](img.png)" in result
+
+
+class TestRemoveEscapedDoubleBrackets:
+    """Tests for the remove_escaped_double_brackets function."""
+
+    def test_removes_escaped_opening_brackets(self) -> None:
+        """Test that escaped opening double brackets are removed."""
+        markdown_text: str = r"This is a \[\[page link\]\]"
+        result: str = remove_escaped_double_brackets(markdown_text)
+        assert result == "This is a page link"
+
+    def test_removes_multiple_bracket_pairs(self) -> None:
+        """Test that multiple pairs of escaped brackets are removed."""
+        markdown_text: str = r"\[\[First\]\] and \[\[Second\]\]"
+        result: str = remove_escaped_double_brackets(markdown_text)
+        assert result == "First and Second"
+
+    def test_removes_brackets_in_heading(self) -> None:
+        """Test that escaped brackets in headings are removed."""
+        markdown_text: str = r"# \[\[Illustration\]\] Mood Boards"
+        result: str = remove_escaped_double_brackets(markdown_text)
+        assert result == "# Illustration Mood Boards"
+
+    def test_preserves_text_without_brackets(self) -> None:
+        """Test that text without escaped brackets is unchanged."""
+        markdown_text: str = "This is normal text with no brackets"
+        result: str = remove_escaped_double_brackets(markdown_text)
+        assert result == "This is normal text with no brackets"
+
+    def test_preserves_regular_markdown_links(self) -> None:
+        """Test that regular markdown links are not affected."""
+        markdown_text: str = "[Regular link](url.com) and ![Image](img.png)"
+        result: str = remove_escaped_double_brackets(markdown_text)
+        assert result == "[Regular link](url.com) and ![Image](img.png)"
+
+    def test_handles_mixed_content(self) -> None:
+        """Test that function handles text with both escaped brackets and normal content."""
+        markdown_text: str = r"# \[\[Page\]\] Title" + "\n\n" + r"Some text [link](url) and more \[\[refs\]\]"
+        result: str = remove_escaped_double_brackets(markdown_text)
+        assert result == "# Page Title\n\nSome text [link](url) and more refs"
 
 
 class TestBundleMdFile:

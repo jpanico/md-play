@@ -39,8 +39,14 @@ def main() -> None:
     graph_name: str = sys.argv[3]
     output_dir: Path = Path(sys.argv[4])
 
+    # Create bundle directory: <output_dir>/<markdown_file_name>.bundle/
+    bundle_dir_name: str = f"{markdown_file.name}.bundle"
+    bundle_dir: Path = output_dir / bundle_dir_name
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Created bundle directory: {bundle_dir}")
+
     try:
-        bundle_md_file(markdown_file, local_api_port, graph_name, output_dir)
+        bundle_md_file(markdown_file, local_api_port, graph_name, bundle_dir)
     except Exception as e:
         logger.error(f"Error processing file: {e}")
         sys.exit(1)

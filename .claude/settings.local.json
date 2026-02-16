@@ -32,7 +32,9 @@
       "Bash(python:*)",
       "Bash(autoflake:*)",
       "Bash(git checkout:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(gh repo rename:*)",
+      "Bash(git remote set-url:*)"
     ]
   }
 }

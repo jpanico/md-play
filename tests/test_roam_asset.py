@@ -6,7 +6,7 @@ import base64
 from datetime import datetime
 from typing import List, Tuple
 
-from mdplay.roam_asset import ApiEndpointURL, RoamAsset, FetchRoamAsset
+from roam_pub.roam_asset import ApiEndpointURL, RoamAsset, FetchRoamAsset
 
 logger = logging.getLogger(__name__)
 

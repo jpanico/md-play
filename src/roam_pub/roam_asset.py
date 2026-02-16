@@ -89,7 +89,7 @@ class FetchRoamAsset:
     def fetch(api_endpoint: ApiEndpointURL, firebase_url: HttpUrl) -> RoamAsset:
         """
         Fetch an asset (file) from Roam Research **Local** API. Because this goes through the Local API, the Roam Research
-        native App must be running at the time this method is called, and the user must be logged into the graph having 
+        native App must be running at the time this method is called, and the user must be logged into the graph having
         `graph_name`
 
         Args:

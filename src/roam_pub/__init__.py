@@ -1,7 +1,7 @@
-"""mdplay - Markdown utilities for working with Roam Research exports."""
+"""roam-pub - Markdown utilities for working with Roam Research exports."""
 
-from mdplay.roam_asset import ApiEndpointURL, FetchRoamAsset, RoamAsset
-from mdplay.roam_md_bundle import (
+from roam_pub.roam_asset import ApiEndpointURL, FetchRoamAsset, RoamAsset
+from roam_pub.roam_md_bundle import (
     find_markdown_image_links,
     fetch_and_save_image,
     fetch_all_images,

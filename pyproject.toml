@@ -14,11 +14,11 @@ exclude = '''
 '''
 
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
-name = "mdplay"
+name = "roam-pub"
 version = "0.1.0"
 description = "Markdown utilities for working with Roam Research exports"
 requires-python = ">=3.14"
@@ -27,11 +27,14 @@ dependencies = [
     "requests>=2.31.0",
 ]
 
-[project.scripts]
-bundle-roam-md = "mdplay.bundle_roam_md:main"
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black>=23.0",
+]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.scripts]
+bundle-roam-md = "roam_pub.bundle_roam_md:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

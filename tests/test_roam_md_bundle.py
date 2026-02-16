@@ -5,7 +5,7 @@ from typing import List, Tuple
 from unittest.mock import Mock, patch, mock_open
 from pydantic import HttpUrl
 
-from mdplay.roam_md_bundle import (
+from roam_pub.roam_md_bundle import (
     find_markdown_image_links,
     fetch_and_save_image,
     replace_image_links,
@@ -13,7 +13,7 @@ from mdplay.roam_md_bundle import (
     remove_escaped_double_brackets,
     bundle_md_file,
 )
-from mdplay.roam_asset import ApiEndpointURL, RoamAsset, FetchRoamAsset
+from roam_pub.roam_asset import ApiEndpointURL, RoamAsset, FetchRoamAsset
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -106,7 +106,7 @@ class TestFindMarkdownImageLinks:
 class TestFetchAndSaveImage:
     """Tests for the fetch_and_save_image function."""
 
-    @patch('mdplay.roam_md_bundle.FetchRoamAsset.fetch')
+    @patch('roam_pub.roam_md_bundle.FetchRoamAsset.fetch')
     @patch('builtins.open', new_callable=mock_open)
     def test_fetches_and_saves_image_successfully(self, mock_file: Mock, mock_fetch: Mock) -> None:
         """Test successful image fetch and save."""
@@ -133,7 +133,7 @@ class TestFetchAndSaveImage:
         mock_fetch.assert_called_once()
         mock_file.assert_called_once_with(output_dir / "test_image.png", "wb")
 
-    @patch('mdplay.roam_md_bundle.FetchRoamAsset.fetch')
+    @patch('roam_pub.roam_md_bundle.FetchRoamAsset.fetch')
     def test_fetch_failure_raises_exception(self, mock_fetch: Mock) -> None:
         """Test that fetch failure raises an exception."""
         api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
@@ -297,7 +297,7 @@ class TestBundleMdFile:
         with pytest.raises(FileNotFoundError, match="Markdown file not found"):
             bundle_md_file(markdown_file, 3333, "test-graph", tmp_path)
 
-    @patch('mdplay.roam_md_bundle.find_markdown_image_links')
+    @patch('roam_pub.roam_md_bundle.find_markdown_image_links')
     def test_no_firebase_links_exits_early(self, mock_find: Mock, tmp_path: Path) -> None:
         """Test that function exits early when no Firebase links found."""
         # Create separate input and output directories
@@ -319,8 +319,8 @@ class TestBundleMdFile:
         output_file: Path = output_dir / "test.md"
         assert not output_file.exists()
 
-    @patch('mdplay.roam_md_bundle.fetch_and_save_image')
-    @patch('mdplay.roam_md_bundle.find_markdown_image_links')
+    @patch('roam_pub.roam_md_bundle.fetch_and_save_image')
+    @patch('roam_pub.roam_md_bundle.find_markdown_image_links')
     def test_processes_file_successfully(self, mock_find: Mock, mock_fetch: Mock, tmp_path: Path) -> None:
         """Test successful file processing."""
         # Create separate input and output directories
@@ -355,8 +355,8 @@ class TestBundleMdFile:
         assert "local_image.png" in output_content
         assert "firebasestorage.googleapis.com" not in output_content
 
-    @patch('mdplay.roam_md_bundle.fetch_and_save_image')
-    @patch('mdplay.roam_md_bundle.find_markdown_image_links')
+    @patch('roam_pub.roam_md_bundle.fetch_and_save_image')
+    @patch('roam_pub.roam_md_bundle.find_markdown_image_links')
     def test_continues_on_fetch_error(self, mock_find: Mock, mock_fetch: Mock, tmp_path: Path) -> None:
         """Test that processing continues when one image fetch fails."""
         # Create separate input and output directories

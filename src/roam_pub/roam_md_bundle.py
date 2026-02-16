@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Tuple
 from pydantic import HttpUrl
 
-from mdplay.roam_asset import ApiEndpointURL, FetchRoamAsset, RoamAsset
+from roam_pub.roam_asset import ApiEndpointURL, FetchRoamAsset, RoamAsset
 
 logger = logging.getLogger(__name__)
 

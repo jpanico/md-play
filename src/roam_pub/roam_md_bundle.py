@@ -5,6 +5,7 @@ This module provides utilities for finding Firebase image links in Markdown file
 fetching images via the Roam Local API, and updating Markdown files with local references.
 """
 
+import unicodedata
 import re
 import logging
 from pathlib import Path
@@ -14,6 +15,67 @@ from pydantic import HttpUrl, validate_call
 from roam_pub.roam_asset import ApiEndpointURL, FetchRoamAsset, RoamAsset
 
 logger = logging.getLogger(__name__)
+
+
+@validate_call
+def normalize_for_posix(text: str) -> str:
+    """
+    Normalize a string to be safe for POSIX filenames without shell escaping.
+
+    Converts the string to use only characters that are safe in POSIX filenames
+    and don't require escaping in standard Unix shells (bash, zsh, etc.).
+
+    Safe characters: a-z, A-Z, 0-9, underscore (_), hyphen (-), period (.)
+
+    Args:
+        text: The string to normalize
+
+    Returns:
+        A normalized string safe for use as a POSIX filename
+
+    Raises:
+        ValidationError: If text is None or invalid
+    """
+    # 1. Decompose Unicode (e.g., convert 'é' to 'e' + accent)
+    text = unicodedata.normalize('NFKD', text)
+    # 2. Convert to ASCII and ignore non-ascii characters
+    text = text.encode('ascii', 'ignore').decode('ascii')
+    # 3. Replace runs of one or more spaces with a single underscore
+    text = re.sub(r' +', '_', text)
+    # 4. Remove anything that isn't alphanumeric, underscore, hyphen, or period
+    text = re.sub(r'[^a-zA-Z0-9._-]', '', text)
+    # 5. Collapse multiple consecutive underscores into a single underscore
+    text = re.sub(r'_+', '_', text)
+    # 6. Remove leading/trailing underscores
+    text = text.strip('_')
+    return text
+
+
+@validate_call
+def create_bundle_directory(markdown_file: Path, output_dir: Path) -> Path:
+    """
+    Create the .mdbundle directory for the markdown file.
+
+    Args:
+        markdown_file: Path to the markdown file being bundled
+        output_dir: Parent directory where the .mdbundle folder will be created
+
+    Returns:
+        Path to the created bundle directory
+
+    Raises:
+        ValidationError: If any parameter is None or invalid
+    """
+
+    bundle_dir_stem: str = normalize_for_posix(markdown_file.stem)
+    # Create bundle directory: <output_dir>/<markdown_file_stem>.mdbundle/
+    # Use stem to remove file extension (e.g., "my_notes.md" -> "my_notes")
+    bundle_dir_name: str = f"{bundle_dir_stem}.mdbundle"
+    bundle_dir: Path = output_dir / bundle_dir_name
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Created bundle directory: {bundle_dir}")
+
+    return bundle_dir
 
 
 @validate_call
@@ -240,11 +302,7 @@ def bundle_md_file(
     if not markdown_file.exists():
         raise FileNotFoundError(f"Markdown file not found: {markdown_file}")
 
-    # Create bundle directory: <output_dir>/<markdown_file_name>.mdbundle/
-    bundle_dir_name: str = f"{markdown_file.name}.mdbundle"
-    bundle_dir: Path = output_dir / bundle_dir_name
-    bundle_dir.mkdir(parents=True, exist_ok=True)
-    logger.info(f"Created bundle directory: {bundle_dir}")
+    bundle_dir: Path = create_bundle_directory(markdown_file, output_dir)
 
     logger.info(f"Processing Markdown file: {markdown_file}")
 
@@ -277,7 +335,7 @@ def bundle_md_file(
         updated_text = remove_escaped_double_brackets(updated_text)
 
         # Write the updated Markdown file to the bundle directory
-        output_file: Path = bundle_dir / markdown_file.name
+        output_file: Path = bundle_dir / f"{bundle_dir.stem}.md"
         output_file.write_text(updated_text, encoding="utf-8")
         logger.info(f"Wrote updated Markdown to: {output_file}")
         logger.info(f"Successfully processed {len(url_replacements)} images")

@@ -12,11 +12,87 @@ from roam_pub.roam_md_bundle import (
     normalize_link_text,
     remove_escaped_double_brackets,
     bundle_md_file,
+    normalize_for_posix,
 )
 from roam_pub.roam_asset import ApiEndpointURL, RoamAsset, FetchRoamAsset
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+class TestNormalizeForPosix:
+    """Tests for the normalize_for_posix function."""
+
+    def test_replaces_spaces_with_underscores(self) -> None:
+        """Test that spaces are replaced with underscores."""
+        result: str = normalize_for_posix("hello world test")
+        assert result == "hello_world_test"
+
+    def test_removes_special_characters(self) -> None:
+        """Test that special characters are removed."""
+        result: str = normalize_for_posix("hello@world!test#file.txt")
+        assert result == "helloworldtestfile.txt"
+
+    def test_preserves_safe_characters(self) -> None:
+        """Test that safe characters (alphanumeric, underscore, hyphen, period) are preserved."""
+        result: str = normalize_for_posix("file_name-123.txt")
+        assert result == "file_name-123.txt"
+
+    def test_handles_unicode_characters(self) -> None:
+        """Test that Unicode characters are converted to ASCII equivalents."""
+        result: str = normalize_for_posix("café résumé naïve")
+        assert result == "cafe_resume_naive"
+
+    def test_handles_empty_string(self) -> None:
+        """Test handling of empty string."""
+        result: str = normalize_for_posix("")
+        assert result == ""
+
+    def test_handles_only_special_characters(self) -> None:
+        """Test handling of string with only special characters."""
+        result: str = normalize_for_posix("@#$%^&*()")
+        assert result == ""
+
+    def test_handles_parentheses_and_brackets(self) -> None:
+        """Test that parentheses and brackets are removed."""
+        result: str = normalize_for_posix("My Document (2024) [Draft].txt")
+        assert result == "My_Document_2024_Draft.txt"
+
+    def test_handles_mixed_case(self) -> None:
+        """Test that mixed case is preserved."""
+        result: str = normalize_for_posix("MyDocumentFile.TXT")
+        assert result == "MyDocumentFile.TXT"
+
+    def test_handles_multiple_spaces(self) -> None:
+        """Test that multiple consecutive spaces become single underscores."""
+        result: str = normalize_for_posix("hello    world")
+        assert result == "hello_world"
+
+    def test_handles_email_addresses(self) -> None:
+        """Test normalization of email-like strings."""
+        result: str = normalize_for_posix("user@example.com")
+        assert result == "userexample.com"
+
+    def test_handles_urls(self) -> None:
+        """Test normalization of URL-like strings."""
+        result: str = normalize_for_posix("https://example.com/path")
+        assert result == "httpsexample.compath"
+
+    def test_preserves_file_extensions(self) -> None:
+        """Test that file extensions with periods are preserved."""
+        result: str = normalize_for_posix("document.backup.tar.gz")
+        assert result == "document.backup.tar.gz"
+
+    def test_handles_accented_characters(self) -> None:
+        """Test various accented characters are normalized."""
+        result: str = normalize_for_posix("Zürich Москва 北京")
+        # Zürich -> Zurich, Cyrillic and Chinese characters removed
+        assert result == "Zurich"
+
+    def test_handles_leading_trailing_special_chars(self) -> None:
+        """Test that leading/trailing special characters are removed."""
+        result: str = normalize_for_posix("!!!filename###.txt")
+        assert result == "filename.txt"
 
 
 class TestFindMarkdownImageLinks:
@@ -426,8 +502,8 @@ class TestBundleMdFile:
         # Execute
         bundle_md_file(markdown_file, 3333, "test-graph", "test-token", output_dir)
 
-        # Verify bundle directory was created
-        bundle_dir: Path = output_dir / "test.md.mdbundle"
+        # Verify bundle directory was created (without .md extension)
+        bundle_dir: Path = output_dir / "test.mdbundle"
         assert bundle_dir.exists()
         assert bundle_dir.is_dir()
 
@@ -479,8 +555,8 @@ class TestBundleMdFile:
         # Execute - should not raise exception
         bundle_md_file(markdown_file, 3333, "test-graph", "test-token", output_dir)
 
-        # Verify bundle directory was created
-        bundle_dir: Path = output_dir / "test.md.mdbundle"
+        # Verify bundle directory was created (without .md extension)
+        bundle_dir: Path = output_dir / "test.mdbundle"
         assert bundle_dir.exists()
 
         # Verify output file was still created in the bundle directory

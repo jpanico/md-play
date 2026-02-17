@@ -1,6 +1,7 @@
 """Tests for the bundle_roam_md CLI validation."""
 
 import logging
+import os
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -126,3 +127,24 @@ class TestBundleRoamMdValidation:
         finally:
             # Restore permissions for cleanup
             output_dir.chmod(0o755)
+
+    @patch("roam_pub.bundle_roam_md.bundle_md_file")
+    def test_uses_environment_variables(self, mock_bundle: Mock, tmp_path: Path, monkeypatch) -> None:
+        """Test that environment variables are used when CLI args are not provided."""
+        # Set up test files
+        markdown_file = tmp_path / "test.md"
+        markdown_file.write_text("# Test")
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        # Set environment variables
+        monkeypatch.setenv("ROAM_LOCAL_API_PORT", "3333")
+        monkeypatch.setenv("ROAM_GRAPH_NAME", "test-graph")
+        monkeypatch.setenv("ROAM_API_TOKEN", "test-token")
+
+        # Call main with only required args (markdown_file and output_dir)
+        # Port, graph, and token should come from env vars
+        main(markdown_file, 3333, "test-graph", "test-token", output_dir)
+
+        # Verify bundle_md_file was called with the environment variable values
+        mock_bundle.assert_called_once_with(markdown_file, 3333, "test-graph", "test-token", output_dir)

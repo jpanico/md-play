@@ -111,6 +111,26 @@ Example with short flags:
 bundle-roam-md -m my_notes.md -p 3333 -g SCFH -t your-bearer-token -o ./output
 ```
 
+**Using Environment Variables**
+
+To avoid passing sensitive tokens on the command line, you can use environment variables:
+
+```bash
+export ROAM_LOCAL_API_PORT=3333
+export ROAM_GRAPH_NAME=SCFH
+export ROAM_API_TOKEN=your-bearer-token
+
+# Now you can omit these flags
+bundle-roam-md -m my_notes.md -o ./output
+```
+
+Supported environment variables:
+- `ROAM_LOCAL_API_PORT` - Port for Roam Local API
+- `ROAM_GRAPH_NAME` - Name of the Roam graph
+- `ROAM_API_TOKEN` - Bearer token for authentication
+
+Command-line arguments always override environment variables.
+
 **Method 2: Using the shell wrapper script**
 
 For direct execution without activating the virtual environment:

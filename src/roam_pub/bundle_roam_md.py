@@ -99,13 +99,40 @@ def validate_output_dir(output_dir: Path) -> None:
 @app.command()
 def main(
     markdown_file: Annotated[Path, typer.Option("--markdown-file", "-m", help="Path to the Markdown file to process")],
-    local_api_port: Annotated[int, typer.Option("--port", "-p", help="Port for Roam Local API")],
-    graph_name: Annotated[str, typer.Option("--graph", "-g", help="Name of the Roam graph")],
+    local_api_port: Annotated[
+        int,
+        typer.Option(
+            "--port",
+            "-p",
+            envvar="ROAM_LOCAL_API_PORT",
+            help="Port for Roam Local API",
+        ),
+    ],
+    graph_name: Annotated[
+        str,
+        typer.Option(
+            "--graph",
+            "-g",
+            envvar="ROAM_GRAPH_NAME",
+            help="Name of the Roam graph",
+        ),
+    ],
     api_bearer_token: Annotated[
-        str, typer.Option("--token", "-t", help="Bearer token for Roam Local API authentication")
+        str,
+        typer.Option(
+            "--token",
+            "-t",
+            envvar="ROAM_API_TOKEN",
+            help="Bearer token for Roam Local API authentication",
+        ),
     ],
     output_dir: Annotated[
-        Path, typer.Option("--output", "-o", help="Parent directory where .mdbundle folder will be created")
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Parent directory where .mdbundle folder will be created",
+        ),
     ],
 ) -> None:
     """

@@ -37,17 +37,17 @@ def normalize_for_posix(text: str) -> str:
         ValidationError: If text is None or invalid
     """
     # 1. Decompose Unicode (e.g., convert 'é' to 'e' + accent)
-    text = unicodedata.normalize('NFKD', text)
+    text = unicodedata.normalize("NFKD", text)
     # 2. Convert to ASCII and ignore non-ascii characters
-    text = text.encode('ascii', 'ignore').decode('ascii')
+    text = text.encode("ascii", "ignore").decode("ascii")
     # 3. Replace runs of one or more spaces with a single underscore
-    text = re.sub(r' +', '_', text)
+    text = re.sub(r" +", "_", text)
     # 4. Remove anything that isn't alphanumeric, underscore, hyphen, or period
-    text = re.sub(r'[^a-zA-Z0-9._-]', '', text)
+    text = re.sub(r"[^a-zA-Z0-9._-]", "", text)
     # 5. Collapse multiple consecutive underscores into a single underscore
-    text = re.sub(r'_+', '_', text)
+    text = re.sub(r"_+", "_", text)
     # 6. Remove leading/trailing underscores
-    text = text.strip('_')
+    text = text.strip("_")
     return text
 
 

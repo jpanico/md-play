@@ -5,6 +5,8 @@ This module provides utilities for finding Firebase image links in Markdown file
 fetching images via the Roam Local API, and updating Markdown files with local references.
 """
 
+import hashlib
+import shutil
 import unicodedata
 import re
 import logging
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @validate_call
-def normalize_for_posix(text: str) -> str:
+def _normalize_for_posix(text: str) -> str:
     """
     Normalize a string to be safe for POSIX filenames without shell escaping.
 
@@ -37,18 +39,18 @@ def normalize_for_posix(text: str) -> str:
         ValidationError: If text is None or invalid
     """
     # 1. Decompose Unicode (e.g., convert 'é' to 'e' + accent)
-    text = unicodedata.normalize("NFKD", text)
+    result: str = unicodedata.normalize("NFKD", text)
     # 2. Convert to ASCII and ignore non-ascii characters
-    text = text.encode("ascii", "ignore").decode("ascii")
+    result = result.encode("ascii", "ignore").decode("ascii")
     # 3. Replace runs of one or more spaces with a single underscore
-    text = re.sub(r" +", "_", text)
+    result = re.sub(r" +", "_", result)
     # 4. Remove anything that isn't alphanumeric, underscore, hyphen, or period
-    text = re.sub(r"[^a-zA-Z0-9._-]", "", text)
+    result = re.sub(r"[^a-zA-Z0-9._-]", "", result)
     # 5. Collapse multiple consecutive underscores into a single underscore
-    text = re.sub(r"_+", "_", text)
+    result = re.sub(r"_+", "_", result)
     # 6. Remove leading/trailing underscores
-    text = text.strip("_")
-    return text
+    result = result.strip("_")
+    return result
 
 
 @validate_call
@@ -67,7 +69,7 @@ def create_bundle_directory(markdown_file: Path, output_dir: Path) -> Path:
         ValidationError: If any parameter is None or invalid
     """
 
-    bundle_dir_stem: str = normalize_for_posix(markdown_file.stem)
+    bundle_dir_stem: str = _normalize_for_posix(markdown_file.stem)
     # Create bundle directory: <output_dir>/<markdown_file_stem>.mdbundle/
     # Use stem to remove file extension (e.g., "my_notes.md" -> "my_notes")
     bundle_dir_name: str = f"{bundle_dir_stem}.mdbundle"
@@ -97,7 +99,7 @@ def find_markdown_image_links(markdown_text: str) -> List[Tuple[str, HttpUrl]]:
     # Regex pattern for Markdown images: ![alt text](url)
     # Matches: ![...](...) where the URL is a Firebase storage URL
     # re.DOTALL makes . match newlines, allowing multi-line alt text
-    pattern = r"!\[((?:[^\]]|\n)*?)\]\((https://firebasestorage\.googleapis\.com/[^\)]+)\)"
+    pattern: str = r"!\[((?:[^\]]|\n)*?)\]\((https://firebasestorage\.googleapis\.com/[^\)]+)\)"
 
     matches: List[Tuple[str, HttpUrl]] = []
     for match in re.finditer(pattern, markdown_text):
@@ -110,18 +112,32 @@ def find_markdown_image_links(markdown_text: str) -> List[Tuple[str, HttpUrl]]:
     return matches
 
 
+def _cache_key(firebase_url: HttpUrl) -> str:
+    """Compute a SHA-256 hex digest of the Firebase URL for use as a cache key."""
+    return hashlib.sha256(str(firebase_url).encode()).hexdigest()
+
+
 @validate_call
 def fetch_and_save_image(
-    api_endpoint: ApiEndpointURL, api_bearer_token: str, firebase_url: HttpUrl, output_dir: Path
+    api_endpoint: ApiEndpointURL,
+    api_bearer_token: str,
+    firebase_url: HttpUrl,
+    output_dir: Path,
+    cache_dir: Path | None = None,
 ) -> Tuple[HttpUrl, str]:
     """
-    Fetch an image from Roam and save it locally.
+    Fetch an image from Roam and save it locally, using a cache if provided.
+
+    When cache_dir is set, the asset is looked up by a SHA-256 hash of its Firebase URL.
+    On a cache hit the file is copied directly to output_dir without calling the Roam API.
+    On a cache miss the file is fetched from the API and stored in both the cache and output_dir.
 
     Args:
         api_endpoint: The Roam Local API endpoint
         api_bearer_token: The bearer token for authenticating with the Roam Local API
         firebase_url: The Firebase storage URL
         output_dir: Directory where the image should be saved
+        cache_dir: Optional directory for caching downloaded assets across runs
 
     Returns:
         Tuple of (firebase_url, local_file_path)
@@ -130,6 +146,17 @@ def fetch_and_save_image(
         ValidationError: If any parameter is None or invalid
         Exception: If fetch or save fails
     """
+    # Check the cache first
+    if cache_dir is not None:
+        key: str = _cache_key(firebase_url)
+        cached_files: List[Path] = list(cache_dir.glob(f"{key}.*"))
+        if cached_files:
+            cached_file: Path = cached_files[0]
+            dest: Path = output_dir / cached_file.name
+            shutil.copy2(cached_file, dest)
+            logger.info(f"Cache hit for {firebase_url} -> {cached_file.name}")
+            return (firebase_url, cached_file.name)
+
     logger.info(f"Fetching image from: {firebase_url}")
 
     # Fetch the file from Roam
@@ -137,14 +164,29 @@ def fetch_and_save_image(
         api_endpoint=api_endpoint, api_bearer_token=api_bearer_token, firebase_url=firebase_url
     )
 
+    # Determine the file name to use in the bundle output directory
+    file_name: str = roam_asset.file_name
+
+    # Save to the cache if a cache directory was provided
+    if cache_dir is not None:
+        key = _cache_key(firebase_url)
+        ext: str = Path(roam_asset.file_name).suffix  # e.g. ".jpeg"
+        cache_file_name: str = f"{key}{ext}"
+        cache_path: Path = cache_dir / cache_file_name
+        with open(cache_path, "wb") as f:
+            f.write(roam_asset.contents)
+        logger.info(f"Cached asset to: {cache_path}")
+        # Use the cache file name in the bundle so repeated runs produce identical output
+        file_name = cache_file_name
+
     # Save the file to the output directory
-    output_path: Path = output_dir / roam_asset.file_name
+    output_path: Path = output_dir / file_name
     with open(output_path, "wb") as f:
         f.write(roam_asset.contents)
 
     logger.info(f"Saved image to: {output_path}")
 
-    return (firebase_url, roam_asset.file_name)
+    return (firebase_url, file_name)
 
 
 @overload
@@ -237,7 +279,7 @@ def remove_escaped_double_brackets(markdown_text: str) -> str:
         ValidationError: If markdown_text is None or invalid
     """
     # Remove escaped opening double brackets: \[\[
-    text = markdown_text.replace(r"\[\[", "")
+    text: str = markdown_text.replace(r"\[\[", "")
     # Remove escaped closing double brackets: \]\]
     text = text.replace(r"\]\]", "")
     return text
@@ -245,7 +287,11 @@ def remove_escaped_double_brackets(markdown_text: str) -> str:
 
 @validate_call
 def fetch_all_images(
-    image_links: List[Tuple[str, HttpUrl]], api_endpoint: ApiEndpointURL, api_bearer_token: str, output_dir: Path
+    image_links: List[Tuple[str, HttpUrl]],
+    api_endpoint: ApiEndpointURL,
+    api_bearer_token: str,
+    output_dir: Path,
+    cache_dir: Path | None = None,
 ) -> List[Tuple[HttpUrl, str]]:
     """
     Fetch and save all images from the provided list of image links.
@@ -255,6 +301,7 @@ def fetch_all_images(
         api_endpoint: The Roam Local API endpoint
         api_bearer_token: The bearer token for authenticating with the Roam Local API
         output_dir: Directory where images should be saved
+        cache_dir: Optional directory for caching downloaded assets across runs
 
     Returns:
         List of (firebase_url, local_filename) tuples for successfully fetched images
@@ -266,7 +313,7 @@ def fetch_all_images(
     for full_match, firebase_url in image_links:
         try:
             firebase_url_result, local_filename = fetch_and_save_image(
-                api_endpoint, api_bearer_token, firebase_url, output_dir
+                api_endpoint, api_bearer_token, firebase_url, output_dir, cache_dir
             )
             url_replacements.append((firebase_url_result, local_filename))
         except Exception as e:
@@ -278,7 +325,12 @@ def fetch_all_images(
 
 @validate_call
 def bundle_md_file(
-    markdown_file: Path, local_api_port: int, graph_name: str, api_bearer_token: str, output_dir: Path
+    markdown_file: Path,
+    local_api_port: int,
+    graph_name: str,
+    api_bearer_token: str,
+    output_dir: Path,
+    cache_dir: Path | None = None,
 ) -> None:
     """
     Bundle a Markdown file: fetch and save Firebase-hosted images and update image links in <markdown_file>
@@ -293,6 +345,7 @@ def bundle_md_file(
         graph_name: Name of the Roam graph
         api_bearer_token: The bearer token for authenticating with the Roam Local API
         output_dir: Parent directory where the .mdbundle folder will be created
+        cache_dir: Optional directory for caching downloaded assets across runs
 
     Raises:
         ValidationError: If any parameter is None or invalid
@@ -321,7 +374,7 @@ def bundle_md_file(
 
     # Fetch and save all images to the bundle directory
     url_replacements: List[Tuple[HttpUrl, str]] = fetch_all_images(
-        image_links, api_endpoint, api_bearer_token, bundle_dir
+        image_links, api_endpoint, api_bearer_token, bundle_dir, cache_dir
     )
 
     # Replace URLs in the Markdown text

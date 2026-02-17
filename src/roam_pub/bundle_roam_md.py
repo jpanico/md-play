@@ -134,6 +134,14 @@ def main(
             help="Parent directory where .mdbundle folder will be created",
         ),
     ],
+    cache_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "--cache-dir",
+            "-c",
+            help="Directory for caching downloaded Firebase assets across runs. Skips re-downloading unchanged assets.",
+        ),
+    ] = None,
 ) -> None:
     """
     Bundle a Roam Research Markdown file by fetching Firebase-hosted images
@@ -145,8 +153,11 @@ def main(
     validate_markdown_file(markdown_file)
     validate_output_dir(output_dir)
 
+    if cache_dir is not None:
+        validate_output_dir(cache_dir)
+
     try:
-        bundle_md_file(markdown_file, local_api_port, graph_name, api_bearer_token, output_dir)
+        bundle_md_file(markdown_file, local_api_port, graph_name, api_bearer_token, output_dir, cache_dir)
     except Exception as e:
         logger.error(f"Error processing file: {e}")
         raise typer.Exit(code=1)

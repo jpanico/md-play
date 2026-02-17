@@ -49,7 +49,7 @@ class TestBundleRoamMdValidation:
 
         main(markdown_file, 3333, "test-graph", "test-token", output_dir)
 
-        mock_bundle.assert_called_once_with(markdown_file, 3333, "test-graph", "test-token", output_dir)
+        mock_bundle.assert_called_once_with(markdown_file, 3333, "test-graph", "test-token", output_dir, None)
 
     @patch("roam_pub.bundle_roam_md.bundle_md_file")
     def test_bundle_md_file_exception_raises_exit(self, mock_bundle: Mock, tmp_path: Path) -> None:
@@ -147,4 +147,4 @@ class TestBundleRoamMdValidation:
         main(markdown_file, 3333, "test-graph", "test-token", output_dir)
 
         # Verify bundle_md_file was called with the environment variable values
-        mock_bundle.assert_called_once_with(markdown_file, 3333, "test-graph", "test-token", output_dir)
+        mock_bundle.assert_called_once_with(markdown_file, 3333, "test-graph", "test-token", output_dir, None)

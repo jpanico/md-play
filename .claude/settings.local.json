@@ -56,7 +56,8 @@
       "Bash(__NEW_LINE_5d706d0762e59769__ echo \"Replaced CFBundleDocumentTypes\")",
       "Bash(__NEW_LINE_f9809690c6f2709b__ echo \"Added UTExportedTypeDeclarations\")",
       "Bash(killall:*)",
-      "Bash(./setup-mdbundle-handler-v2.sh:*)"
+      "Bash(./setup-mdbundle-handler-v2.sh:*)",
+      "Bash(ruff check:*)"
     ]
   }
 }

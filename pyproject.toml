@@ -37,6 +37,16 @@ dev = [
 [project.scripts]
 bundle-roam-md = "roam_pub.bundle_roam_md:app"
 
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

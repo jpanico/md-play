@@ -1,3 +1,5 @@
+"""Tests for the roam_asset module."""
+
 import logging
 from pydantic import HttpUrl, ValidationError
 import pytest
@@ -285,9 +287,11 @@ class TestFetchRoamAssetFetch:
 
     # @pytest.mark.skip(reason="Requires Roam Desktop app running and user logged in")
     def test_live(self) -> None:
-        """
-        Because this goes through the Local API, the Roam Research native App must be running at the time
-        this method is called, and the user must be logged into the graph having `graph_name`
+        """Live integration test requiring the Roam Desktop app to be running.
+
+        Because this goes through the Local API, the Roam Research native App must be
+        running at the time this method is called, and the user must be logged into the
+        graph having ``graph_name``.
         """
         endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
         url: HttpUrl = HttpUrl(

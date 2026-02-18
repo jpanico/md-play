@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""
-Script to bundle Roam Research Markdown files by fetching Firebase-hosted images
-and replacing them with local file references.
+"""Script to bundle Roam Research Markdown files with local image references.
+
+Fetches Firebase-hosted images and replaces them with local file references.
 
 Example:
     bundle-roam-md -m my_notes.md -p 3333 -g SCFH -t your-bearer-token -o ./output
@@ -27,8 +27,7 @@ app = typer.Typer()
 
 
 def validate_markdown_file(markdown_file: Path) -> None:
-    """
-    Validate that the markdown file exists and is readable.
+    """Validate that the markdown file exists and is readable.
 
     Args:
         markdown_file: Path to the markdown file to validate
@@ -59,8 +58,7 @@ def validate_markdown_file(markdown_file: Path) -> None:
 
 
 def validate_output_dir(output_dir: Path) -> None:
-    """
-    Validate that the output directory exists, is a directory, and is writable.
+    """Validate that the output directory exists, is a directory, and is writable.
 
     Args:
         output_dir: Path to the output directory to validate
@@ -143,10 +141,9 @@ def main(
         ),
     ] = None,
 ) -> None:
-    """
-    Bundle a Roam Research Markdown file by fetching Firebase-hosted images
-    and replacing them with local file references.
+    """Bundle a Roam Research Markdown file with local image references.
 
+    Fetches Firebase-hosted images, replacing them with local file references.
     Creates a <markdown_file>.mdbundle/ directory in output_dir containing
     the updated markdown file and all downloaded images.
     """

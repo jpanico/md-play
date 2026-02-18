@@ -1,5 +1,4 @@
-"""
-Functions for processing Roam Research Markdown files.
+"""Functions for processing Roam Research Markdown files.
 
 This module provides utilities for finding Firebase image links in Markdown files,
 fetching images via the Roam Local API, and updating Markdown files with local references.
@@ -21,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 @validate_call
 def _normalize_for_posix(text: str) -> str:
-    """
-    Normalize a string to be safe for POSIX filenames without shell escaping.
+    """Normalize a string to be safe for POSIX filenames without shell escaping.
 
     Converts the string to use only characters that are safe in POSIX filenames
     and don't require escaping in standard Unix shells (bash, zsh, etc.).
@@ -55,8 +53,7 @@ def _normalize_for_posix(text: str) -> str:
 
 @validate_call
 def create_bundle_directory(markdown_file: Path, output_dir: Path) -> Path:
-    """
-    Create the .mdbundle directory for the markdown file.
+    """Create the .mdbundle directory for the markdown file.
 
     Args:
         markdown_file: Path to the markdown file being bundled
@@ -68,7 +65,6 @@ def create_bundle_directory(markdown_file: Path, output_dir: Path) -> Path:
     Raises:
         ValidationError: If any parameter is None or invalid
     """
-
     bundle_dir_stem: str = _normalize_for_posix(markdown_file.stem)
     # Create bundle directory: <output_dir>/<markdown_file_stem>.mdbundle/
     # Use stem to remove file extension (e.g., "my_notes.md" -> "my_notes")
@@ -82,8 +78,7 @@ def create_bundle_directory(markdown_file: Path, output_dir: Path) -> Path:
 
 @validate_call
 def find_markdown_image_links(markdown_text: str) -> List[Tuple[str, HttpUrl]]:
-    """
-    Find all Markdown image links in the text.
+    """Find all Markdown image links in the text.
 
     Args:
         markdown_text: The Markdown content to search
@@ -95,7 +90,6 @@ def find_markdown_image_links(markdown_text: str) -> List[Tuple[str, HttpUrl]]:
     Raises:
         ValidationError: If markdown_text is None or invalid
     """
-
     # Regex pattern for Markdown images: ![alt text](url)
     # Matches: ![...](...) where the URL is a Firebase storage URL
     # re.DOTALL makes . match newlines, allowing multi-line alt text
@@ -125,8 +119,7 @@ def fetch_and_save_image(
     output_dir: Path,
     cache_dir: Path | None = None,
 ) -> Tuple[HttpUrl, str]:
-    """
-    Fetch an image from Roam and save it locally, using a cache if provided.
+    """Fetch an image from Roam and save it locally, using a cache if provided.
 
     When cache_dir is set, the asset is looked up by a SHA-256 hash of its Firebase URL.
     On a cache hit the file is copied directly to output_dir without calling the Roam API.
@@ -199,8 +192,7 @@ def replace_image_links(markdown_text: str, url_replacements: List[Tuple[HttpUrl
 
 @validate_call
 def replace_image_links(markdown_text: str | None, url_replacements: List[Tuple[HttpUrl, str]]) -> str | None:
-    """
-    Replace Firebase URLs with local file paths in Markdown text.
+    """Replace Firebase URLs with local file paths in Markdown text.
 
     Args:
         markdown_text: The original Markdown content (can be None)
@@ -228,8 +220,7 @@ def replace_image_links(markdown_text: str | None, url_replacements: List[Tuple[
 
 @validate_call
 def normalize_link_text(markdown_text: str) -> str:
-    """
-    Remove line breaks from link text in Markdown links.
+    """Remove line breaks from link text in Markdown links.
 
     Markdown links should not have multi-line link text. This function finds all
     Markdown links (both images and regular links) and removes any line breaks
@@ -263,8 +254,7 @@ def normalize_link_text(markdown_text: str) -> str:
 
 @validate_call
 def remove_escaped_double_brackets(markdown_text: str) -> str:
-    """
-    Remove escaped double brackets from Markdown text.
+    r"""Remove escaped double brackets from Markdown text.
 
     Roam Research uses [[page links]] syntax which gets escaped to \\[\\[ and \\]\\]
     when exported. This function removes those escaped brackets.
@@ -293,8 +283,7 @@ def fetch_all_images(
     output_dir: Path,
     cache_dir: Path | None = None,
 ) -> List[Tuple[HttpUrl, str]]:
-    """
-    Fetch and save all images from the provided list of image links.
+    """Fetch and save all images from the provided list of image links.
 
     Args:
         image_links: List of (full_match, firebase_url) tuples
@@ -332,8 +321,9 @@ def bundle_md_file(
     output_dir: Path,
     cache_dir: Path | None = None,
 ) -> None:
-    """
-    Bundle a Markdown file: fetch and save Firebase-hosted images and update image links in <markdown_file>
+    """Bundle a Markdown file with its referenced images.
+
+    Fetches and saves Firebase-hosted images, updating image links in the markdown file
     to use local file references in place of Firebase URLs.
 
     Creates a .mdbundle directory named <markdown_file>.mdbundle/ in the output_dir,

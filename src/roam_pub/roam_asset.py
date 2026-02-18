@@ -1,3 +1,5 @@
+"""Roam Research asset fetching via the Local API."""
+
 from datetime import datetime
 from string import Template
 from typing import ClassVar, Final, final
@@ -11,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class ApiEndpointURL(BaseModel):
-    """
-    Immutable API endpoint URL for Roam Research Local API.
+    """Immutable API endpoint URL for Roam Research Local API.
 
     Pydantic ensures that `local_api_port` and `graph_name` are required and non-null by default.
     Once created, instances cannot be modified (frozen).
@@ -27,15 +28,16 @@ class ApiEndpointURL(BaseModel):
     HOST: ClassVar[Final[str]] = "127.0.0.1"
     API_PATH_STEM: ClassVar[Final[str]] = "/api/"
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the full API endpoint URL string."""
         return f"{self.SCHEME}://{self.HOST}:{self.local_api_port}{self.API_PATH_STEM}{self.graph_name}"
 
 
 class RoamAsset(BaseModel):
-    """
-    Roam uploads all user assets (files, media) to Firebase, and stores only Firebase locators (URLS) within the Roam graph DB
-    itself (nodes). This class is an immutable representation of an asset that is fetched from Firebase *through*
-    the Roam api.
+    """Immutable representation of an asset fetched from Firebase through the Roam API.
+
+    Roam uploads all user assets (files, media) to Firebase, and stores only Firebase
+    locators (URLs) within the Roam graph DB itself (nodes).
 
     Once created, instances cannot be modified (frozen). All fields are required
     and validated at construction time.
@@ -51,8 +53,7 @@ class RoamAsset(BaseModel):
 
 @final
 class FetchRoamAsset:
-    """
-    Stateless utility class for fetching Roam assets from the Roam Research Local API.
+    """Stateless utility class for fetching Roam assets from the Roam Research Local API.
 
     Class Attributes:
         REQUEST_HEADERS: HTTP headers used for all API requests
@@ -62,7 +63,8 @@ class FetchRoamAsset:
             data in base64-encoded format.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Prevent instantiation of this stateless utility class."""
         raise TypeError("FetchRoamAsset is a stateless utility class and cannot be instantiated")
 
     REQUEST_HEADERS_TEMPLATE: Final[Template] = Template("""
@@ -87,6 +89,7 @@ class FetchRoamAsset:
     @staticmethod
     @validate_call
     def roam_file_from_response_json(response_json: str) -> RoamAsset:
+        """Parse a Roam Local API JSON response into a RoamAsset."""
         logger.debug(f"response_json: {response_json}")
 
         response_payload: dict = json.loads(response_json)
@@ -108,10 +111,11 @@ class FetchRoamAsset:
     @staticmethod
     @validate_call
     def fetch(api_endpoint: ApiEndpointURL, api_bearer_token: str, firebase_url: HttpUrl) -> RoamAsset:
-        """
-        Fetch an asset (file) from Roam Research **Local** API. Because this goes through the Local API, the Roam Research
-        native App must be running at the time this method is called, and the user must be logged into the graph having
-        `graph_name`
+        """Fetch an asset (file) from the Roam Research Local API.
+
+        Because this goes through the Local API, the Roam Research native App must be
+        running at the time this method is called, and the user must be logged into the
+        graph having ``graph_name``.
 
         Args:
             api_endpoint: The API endpoint URL (validated by Pydantic)
@@ -126,7 +130,6 @@ class FetchRoamAsset:
             requests.exceptions.ConnectionError: If unable to connect to API
             requests.exceptions.HTTPError: If API returns error status
         """
-
         logger.debug(f"api_endpoint: {api_endpoint}, firebase_url: {firebase_url}")
 
         request_headers_str: str = FetchRoamAsset.REQUEST_HEADERS_TEMPLATE.substitute(

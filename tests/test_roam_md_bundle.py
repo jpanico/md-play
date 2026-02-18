@@ -1,3 +1,5 @@
+"""Tests for the roam_md_bundle module."""
+
 import logging
 import pytest
 from pathlib import Path

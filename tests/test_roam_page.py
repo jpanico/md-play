@@ -3,6 +3,8 @@
 import logging
 from unittest.mock import MagicMock, patch
 from pydantic import ValidationError
+
+# pyright: basic
 import pytest
 import json
 from typing import Any

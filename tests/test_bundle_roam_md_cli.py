@@ -1,10 +1,10 @@
 """Tests for the bundle_roam_md CLI validation."""
 
 import logging
-import os
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+# pyright: basic
 import pytest
 import typer
 

@@ -1,6 +1,8 @@
 """Tests for the roam_md_bundle module."""
 
 import logging
+
+# pyright: basic
 import pytest
 from pathlib import Path
 from typing import List, Tuple

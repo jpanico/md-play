@@ -4,6 +4,7 @@ import json
 import logging
 from pathlib import Path
 
+# pyright: basic
 import pytest
 from pydantic import ValidationError
 

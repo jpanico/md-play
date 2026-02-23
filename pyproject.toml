@@ -50,7 +50,7 @@ convention = "google"
 
 [tool.pyright]
 include = ["src"]
-exclude = [".venv"]
+exclude = [".venv", "tests"]
 typeCheckingMode = "strict"
 pythonVersion = "3.14"
 

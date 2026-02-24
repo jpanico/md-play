@@ -285,7 +285,7 @@ class TestFetchRoamAssetFetch:
         with pytest.raises(ValidationError):
             FetchRoamAsset.fetch(api_endpoint=endpoint, api_bearer_token="test-token", firebase_url=None)  # type: ignore[arg-type]
 
-    # @pytest.mark.skip(reason="Requires Roam Desktop app running and user logged in")
+    @pytest.mark.live
     def test_live(self) -> None:
         """Live integration test requiring the Roam Desktop app to be running.
 

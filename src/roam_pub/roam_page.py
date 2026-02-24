@@ -1,6 +1,6 @@
 """Roam Research page fetching via the Local API."""
 
-from string import Template
+import textwrap
 from typing import Any, Final, TypedDict, cast, final
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 import requests
@@ -58,41 +58,28 @@ class FetchRoamPage:
     given title.
 
     Class Attributes:
-        REQUEST_HEADERS_TEMPLATE: HTTP headers template for all API requests.
-        REQUEST_PAYLOAD_TEMPLATE: JSON template for the ``data.q`` request payload.
-            Expects ``$page_title`` substitution. The ``args`` array passes the Datalog
-            query string first, then the title value as an input binding (``?title``).
+        DATALOG_PAGE_QUERY: Datalog query string for fetching a page by title.
+            The ``args`` array passes the query string first, then the title value
+            as an input binding (``?title``).
     """
 
     def __init__(self) -> None:
         """Prevent instantiation of this stateless utility class."""
         raise TypeError("FetchRoamPage is a stateless utility class and cannot be instantiated")
 
-    REQUEST_HEADERS_TEMPLATE: Final[Template] = Template("""
-    {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $roam_local_api_token"
-    }
-    """)
-
-    REQUEST_PAYLOAD_TEMPLATE: Final[Template] = Template("""
-    {
-        "action": "data.q",
-        "args": [
-            "[:find (pull ?page [*]) :in $$ ?title :where [?page :node/title ?title]]",
-            "$page_title"
-        ]
-    }
-    """)
+    DATALOG_PAGE_QUERY: Final[str] = textwrap.dedent("""\
+        [:find (pull ?page [*])
+         :in $ ?title
+         :where
+         [?page :node/title ?title]]""")
 
     @staticmethod
     @validate_call
-    def roam_page_from_response_json(response_json: str, title: str) -> RoamPage | None:
+    def roam_page_from_response_json(response_json: str) -> RoamPage | None:
         """Parse a Roam Local API ``data.q`` JSON response into a RoamPage.
 
         Args:
             response_json: The raw JSON response text from the Local API.
-            title: The page title that was queried (carried through to populate RoamPage.title).
 
         Returns:
             A RoamPage instance if the page was found, or None if the result set is empty
@@ -108,12 +95,12 @@ class FetchRoamPage:
         result: list[list[dict[str, Any]]] = response_payload["result"]
 
         if not result:
-            logger.info(f"No page found with title: {title!r}")
             return None
 
         # Datalog :find returns an array-of-arrays; (pull ...) value is at result[0][0]
         pull_block: dict[str, Any] = result[0][0]
-        uid: str = cast(str, pull_block[":block/uid"])
+        title: str = cast(str, pull_block["title"])
+        uid: str = cast(str, pull_block["uid"])
 
         logger.info(f"Successfully fetched page: {title!r} (uid={uid})")
 
@@ -144,13 +131,15 @@ class FetchRoamPage:
         """
         logger.debug(f"api_endpoint: {api_endpoint}, page_title: {page_title!r}")
 
-        request_headers_str: str = FetchRoamPage.REQUEST_HEADERS_TEMPLATE.substitute(
-            roam_local_api_token=api_bearer_token
-        )
-        request_headers: dict[str, str] = cast(dict[str, str], json.loads(request_headers_str))
+        request_headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_bearer_token}",
+        }
 
-        request_payload_str: str = FetchRoamPage.REQUEST_PAYLOAD_TEMPLATE.substitute(page_title=page_title)
-        request_payload: _DataQPayload = cast(_DataQPayload, json.loads(request_payload_str))
+        request_payload: _DataQPayload = {
+            "action": "data.q",
+            "args": [FetchRoamPage.DATALOG_PAGE_QUERY, page_title],
+        }
         logger.info(f"request_payload: {request_payload}, headers: {request_headers}, api: {api_endpoint}")
 
         response: requests.Response = requests.post(
@@ -158,7 +147,11 @@ class FetchRoamPage:
         )
 
         if response.status_code == 200:
-            return FetchRoamPage.roam_page_from_response_json(response.text, page_title)
+            result_page: RoamPage | None = FetchRoamPage.roam_page_from_response_json(response.text)
+            if not result_page:
+                logger.info(f"no page found with title: {page_title}")
+
+            return result_page
         else:
             error_msg: str = f"Failed to fetch page. Status Code: {response.status_code}, Response: {response.text}"
             logger.error(error_msg)

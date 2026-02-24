@@ -63,7 +63,8 @@
       "WebFetch(domain:davidbieber.com)",
       "Bash(curl:*)",
       "Bash(git -C /Users/jpanico/Documents/github/roam-pub add src/roam_pub/roam_transcribe.py)",
-      "Bash(git -C /Users/jpanico/Documents/github/roam-pub add tests/test_roam_transcribe.py)"
+      "Bash(git -C /Users/jpanico/Documents/github/roam-pub add tests/test_roam_transcribe.py)",
+      "WebFetch(domain:learn-some.com)"
     ]
   }
 }

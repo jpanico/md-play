@@ -81,11 +81,11 @@ class TestRoamPage:
 class TestRoamPageFromResponseJson:
     """Tests for FetchRoamPage.roam_page_from_response_json."""
 
-    def _make_response_json(self, title: str, uid: str, extra_attrs: dict | None = None) -> str:
+    def _make_response_json(self, title: str, uid: str, extra_attrs: dict[str, Any] | None = None) -> str:
         """Helper to build a realistic Local API data.q response JSON string."""
         pull_block: dict[str, Any] = {
-            ":node/title": title,
-            ":block/uid": uid,
+            "title": title,
+            "uid": uid,
         }
         if extra_attrs:
             pull_block.update(extra_attrs)
@@ -94,63 +94,60 @@ class TestRoamPageFromResponseJson:
     def test_valid_response_returns_roam_page(self) -> None:
         """Test that a well-formed response is parsed into a RoamPage."""
         response_json = self._make_response_json("My Page", "abc123xyz")
-        page: RoamPage | None = FetchRoamPage.roam_page_from_response_json(response_json, "My Page")
+        page: RoamPage | None = FetchRoamPage.roam_page_from_response_json(response_json)
 
         assert page is not None
         assert page.title == "My Page"
         assert page.uid == "abc123xyz"
-        assert page.pull_block[":node/title"] == "My Page"
+        assert page.pull_block["title"] == "My Page"
 
     def test_empty_result_returns_none(self) -> None:
         """Test that an empty result set (page not found) returns None."""
         response_json = json.dumps({"result": []})
-        page: RoamPage | None = FetchRoamPage.roam_page_from_response_json(response_json, "Nonexistent Page")
+        page: RoamPage | None = FetchRoamPage.roam_page_from_response_json(response_json)
 
         assert page is None
 
     def test_pull_block_fully_preserved(self) -> None:
         """Test that the full pull_block dict including extra attributes is preserved."""
         extra_attrs: dict[str, Any] = {
-            ":edit/time": 1700000000000,
-            ":create/time": 1690000000000,
-            ":block/children": [{":db/id": 42}],
+            "time": 1700000000000,
+            "children": [{"id": 42}],
         }
         response_json = self._make_response_json("Rich Page", "rich1234x", extra_attrs)
-        page: RoamPage | None = FetchRoamPage.roam_page_from_response_json(response_json, "Rich Page")
+        page: RoamPage | None = FetchRoamPage.roam_page_from_response_json(response_json)
 
         assert page is not None
-        assert page.pull_block[":edit/time"] == 1700000000000
-        assert page.pull_block[":create/time"] == 1690000000000
-        assert page.pull_block[":block/children"] == [{":db/id": 42}]
+        assert page.pull_block["time"] == 1700000000000
+        assert page.pull_block["children"] == [{"id": 42}]
 
     def test_null_response_json_raises_validation_error(self) -> None:
         """Test that None response_json raises ValidationError."""
         with pytest.raises(ValidationError, match="Input should be a valid string"):
-            FetchRoamPage.roam_page_from_response_json(response_json=None, title="My Page")  # type: ignore[arg-type]
+            FetchRoamPage.roam_page_from_response_json(response_json=None)  # type: ignore[arg-type]
 
     def test_invalid_json_raises_error(self) -> None:
         """Test that invalid JSON raises JSONDecodeError."""
         with pytest.raises(json.JSONDecodeError):
-            FetchRoamPage.roam_page_from_response_json("not valid json", "My Page")
+            FetchRoamPage.roam_page_from_response_json("not valid json")
 
     def test_missing_result_key_raises_key_error(self) -> None:
         """Test that a response missing the 'result' key raises KeyError."""
         response_json = json.dumps({"wrong_key": []})
         with pytest.raises(KeyError):
-            FetchRoamPage.roam_page_from_response_json(response_json, "My Page")
+            FetchRoamPage.roam_page_from_response_json(response_json)
 
-    def test_missing_block_uid_in_pull_raises_key_error(self) -> None:
-        """Test that a pull_block missing ':block/uid' raises KeyError."""
-        pull_block = {":node/title": "My Page"}  # No :block/uid
+    def test_missing_uid_in_pull_raises_key_error(self) -> None:
+        """Test that a pull_block missing 'uid' raises KeyError."""
+        pull_block = {"title": "My Page"}  # No uid
         response_json = json.dumps({"result": [[pull_block]]})
         with pytest.raises(KeyError):
-            FetchRoamPage.roam_page_from_response_json(response_json, "My Page")
+            FetchRoamPage.roam_page_from_response_json(response_json)
 
-    def test_title_parameter_populates_roam_page_title(self) -> None:
-        """Test that the title parameter (not :node/title from pull) populates RoamPage.title."""
-        # The title arg passed in is the authoritative source for RoamPage.title
+    def test_title_from_pull_block_populates_roam_page_title(self) -> None:
+        """Test that title from pull_block populates RoamPage.title."""
         response_json = self._make_response_json("Actual Title", "uid000001")
-        page: RoamPage | None = FetchRoamPage.roam_page_from_response_json(response_json, "Actual Title")
+        page: RoamPage | None = FetchRoamPage.roam_page_from_response_json(response_json)
 
         assert page is not None
         assert page.title == "Actual Title"
@@ -193,9 +190,9 @@ class TestFetchRoamPageFetch:
         """Test that a successful HTTP 200 response returns a RoamPage."""
         endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
         pull_block: dict[str, Any] = {
-            ":node/title": "My Page",
-            ":block/uid": "abc123xyz",
-            ":edit/time": 1700000000000,
+            "title": "My Page",
+            "uid": "abc123xyz",
+            "time": 1700000000000,
         }
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -209,7 +206,7 @@ class TestFetchRoamPageFetch:
         assert page is not None
         assert page.title == "My Page"
         assert page.uid == "abc123xyz"
-        assert page.pull_block[":edit/time"] == 1700000000000
+        assert page.pull_block["time"] == 1700000000000
 
     def test_page_not_found_returns_none(self) -> None:
         """Test that an empty result (page not found) returns None."""
@@ -255,7 +252,7 @@ class TestFetchRoamPageFetch:
         headers: dict = call_kwargs.kwargs["headers"]
         assert headers["Authorization"] == "Bearer my-secret-token"
 
-    @pytest.mark.skip(reason="Requires Roam Desktop app running and user logged in")
+    @pytest.mark.live
     def test_live(self) -> None:
         """Live integration test requiring the Roam Desktop app to be running.
 
@@ -265,7 +262,7 @@ class TestFetchRoamPageFetch:
         """
         endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
         api_bearer_token = "roam-graph-local-token-OR3s0AcJn5rwxPJ6MYaqnIyjNi7ai"
-        page_title = "[[Illustration]] Brief"
+        page_title = "Test Article"
 
         page: RoamPage | None = FetchRoamPage.fetch(
             api_endpoint=endpoint, api_bearer_token=api_bearer_token, page_title=page_title
@@ -276,5 +273,4 @@ class TestFetchRoamPageFetch:
         assert page.title == page_title
         assert len(page.uid) > 0
         assert isinstance(page.pull_block, dict)
-        assert page.pull_block.get(":node/title") == page_title
-        assert page.pull_block.get(":block/uid") == page.uid
+

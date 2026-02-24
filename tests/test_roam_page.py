@@ -1,6 +1,7 @@
 """Tests for the roam_page module."""
 
 import logging
+import os
 from unittest.mock import MagicMock, patch
 from pydantic import ValidationError
 
@@ -253,13 +254,9 @@ class TestFetchRoamPageFetch:
         assert headers["Authorization"] == "Bearer my-secret-token"
 
     @pytest.mark.live
-    def test_live(self) -> None:
-        """Live integration test requiring the Roam Desktop app to be running.
-
-        Because this goes through the Local API, the Roam Research native App must be
-        running at the time this method is called, and the user must be logged into the
-        graph having ``graph_name``.
-        """
+    @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
+    def test_fetch_testarticle(self) -> None:
+        """Fetch a page by title and verify the returned RoamPage is well-formed."""
         endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
         api_bearer_token = "roam-graph-local-token-OR3s0AcJn5rwxPJ6MYaqnIyjNi7ai"
         page_title = "Test Article"

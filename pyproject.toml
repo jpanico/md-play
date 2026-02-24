@@ -59,7 +59,6 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-m 'not live'"
 markers = [
     "live: requires external dependencies (e.g. Roam Desktop app running locally)",
 ]

@@ -43,6 +43,7 @@ class _DataQResponse(TypedDict):
     result: list[list[dict[str, Any]]]
 
 
+# Datalog query semantics used by FetchRoamPage: see docs/roam-datalog.md and docs/roam-schema.md
 @final
 class FetchRoamPage:
     """Stateless utility class for fetching Roam page content from the Roam Research Local API.

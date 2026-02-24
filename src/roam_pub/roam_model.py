@@ -12,9 +12,12 @@ SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, TypeAlias
+import textwrap
+from typing import Any, Final, TypeAlias, final
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from roam_pub.roam_asset import ApiEndpointURL
 
 Uid: TypeAlias = str
 """Nine-character alphanumeric stable block/page identifier (:block/uid)."""
@@ -347,3 +350,22 @@ class FollowLinksDirective(str, Enum):
     DONT_FOLLOW = "DONT_FOLLOW"
     SHALLOW = "SHALLOW"
     DEEP = "DEEP"
+
+@final
+class FetchRoamSchema:
+    """Stateless utility class for fetching Roam schema from the Roam Research Local API.
+
+    Executes a Datalog pull query via the Local API's ``data.q`` action, which proxies
+    ``roamAlphaAPI.data.q`` through the Roam Desktop app's local HTTP server.
+    """
+
+    def __init__(self) -> None:
+        """Prevent instantiation of this stateless utility class."""
+        raise TypeError("FetchRoamPage is a stateless utility class and cannot be instantiated")
+
+    DATALOG_SCHEMA_QUERY: Final[str] = textwrap.dedent("""\
+        [:find ?namespace ?attr
+         :where
+         [_ ?attr]
+         [(namespace ?attr) ?namespace]]""")
+    

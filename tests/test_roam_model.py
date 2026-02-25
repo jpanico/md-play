@@ -35,7 +35,7 @@ class TestFetchRoamSchema:
     
     
     DATALOG_PAGE_QUERY: Final[str] = textwrap.dedent("""\
-        [:find (pull ?block [:block/uid :block/string])
+        [:find (pull ?block [:db/id :block/uid :block/string :block/page :block/order :block/heading :block/parents :block/children])
          :in $ [?title ?uid]
          :where
          [?page :block/children ?block]

@@ -1,8 +1,8 @@
 # Querying Roam Research
 
-## Roam database
+## Roam Database
 
-Roam Research stores its graph in **[Datomic](https://www.datomic.com/)/[DataScript](https://github.com/tonsky/datascript)**. Roam Research acts as a bridge between the frontend and backend by using _DataScript_ as a local "mirror" of a _Datomic_ backend. Both store data as **Datoms** -- atomic facts. Whether a piece of data is in the cloud or in your browser, it looks exactly the same. 
+Roam Research stores its graph in **[Datomic](https://www.datomic.com/)/[DataScript](https://github.com/tonsky/datascript)**. Roam Research acts as a bridge between the frontend and backend by using _DataScript_ as a local "mirror" of a _Datomic_ backend. Both store data as **Datoms** -- atomic facts. Whether a piece of data is in the cloud (backend) or in your browser (front end), it looks exactly the same. 
 
 A datom is a 4-tuple of:
 - **E (Entity ID):** The unique ID of a block.
@@ -10,19 +10,18 @@ A datom is a 4-tuple of:
 - **V (Value):** The actual content or the ID of a child block.
 - **T (Transaction ID):** The "when" and "who" of the change.
 
-Every node in the Roam graph (page or block) is an *entity*; every property of that
-node is an *attribute* asserted against it. 
+Every _node_ in the Roam graph (_page_ or _block_) is an **Entity** in this scheme; every property of that node is an **Attribute** asserted against the Entity. 
 
 ![Roam database](./roam_database.png)
 
 ## Key Roam Attributes
 
-These are the attributes most relevant to this project's queries and data model:
+These are the **Attributes** most relevant to this project's queries and data model:
 
 | Attribute | Present on | Notes |
 |---|---|---|
 | `:db/id` | all entities | Datomic internal id; **not stable** across exports |
-| `:block/uid` | all entities | 9-char alphanumeric; **stable** identifier |
+| `:block/uid` | all entities | Roam generated 9-char alphanumeric; **stable** identifier |
 | `:node/title` | pages only | Distinguishes pages from blocks |
 | `:block/string` | blocks only | Raw Markdown text of the block |
 | `:block/order` | child blocks | Zero-based sibling position |
@@ -33,10 +32,22 @@ These are the attributes most relevant to this project's queries and data model:
 | `:block/page` | blocks | Containing page stub |
 | `:entity/attrs` | some entities | Structured attribute assertions (`LinkObject`) |
 
+As an example, for this Roam page ("Test Article"):
+
+![Test Article](./test_article_children.png)
+
+The following table shows the key Datoms (cells) for the 3 Roam _blocks_ (rows) that are the immediate children of the _Test Article_ _page_:
+
+| `:db/id` | `:block/uid` | `:block/string` | `:block/page` | `:block/order` | `:block/heading` | `:block/parents` | `:block/children` |
+|---|---|---|---|---|---|---|---|
+| 3328 | `0EgPyHSZi` | Section 1 | `{id:3327}` | 0 | 2 | `[{id:3327}]` | `[{id:3331}, {id:4029}]` |
+| 3329 | `wdMgyBiP9` | Section 2 | `{id:3327}` | 1 | 2 | `[{id:3327}]` | `[{id:3332}, {id:4025}, {id:4026}]` |
+| 3330 | `40bvW14UU` | Section 3 | `{id:3327}` | 2 | 2 | `[{id:3327}]` | `[{id:3333}]` |
+
 The full attribute schema discovered from a live graph is in [roam-schema.md](./roam-schema.md)
 
-## Datalog query language
-_Datomic_/_DataScript_ use [Datalog](https://en.wikipedia.org/wiki/Datalog) as the query language. _Datalog_ is a syntactic subset of Prolog, which is commonly used to interact with **deductive dabases**.
+## Datalog Query Language
+_Datomic_/_DataScript_ use [Datalog](https://en.wikipedia.org/wiki/Datalog) as the query language. _Datalog_ is a syntactic subset of Prolog, which is commonly used to interact with **deductive dabases**. A Datalog program consists of facts (Datoms), which are statements that are held to be true, and _Rules_, which say how to deduce new facts from known facts. 
 
 ## Datalog Query Structure
 
@@ -95,8 +106,7 @@ Common pull patterns used in this project:
 - Input binding: `?title` — the exact page title string (passed as `args[1]`).
 - Finds the entity whose `:node/title` equals the title, then pulls all its attributes.
 - Returns `result[0][0]` — the full PullBlock dict stored in `RoamPage.pull_block`.
-- Returns an empty `result` list (`[]`) when no page has that title → `FetchRoamPage.fetch`
-  returns `None`.
+
 
 ### 2. Schema introspection — `FetchRoamSchema.DATALOG_SCHEMA_QUERY`
 
@@ -127,8 +137,6 @@ Common pull patterns used in this project:
   as a two-element list in `args[1]`).
 - Finds direct child blocks of a page identified by both title and uid, pulling only
   `:block/uid` and `:block/string` for each child.
-- Note: this query has a structural bug (mismatched brackets) and is not yet used in
-  production code.
 
 ## Input Binding Forms
 
@@ -154,9 +162,6 @@ Nested references (`:block/children`, `:block/refs`, `:block/page`, `:block/pare
 returned as **`IdObject` stubs** — `{"id": <db-id>}` — not fully pulled sub-entities.
 Resolving stubs to stable UIDs requires a second query pass or a recursive pull pattern.
 
-The `Id2UidMap` type (`dict[str, OrderedUid]`) in `roam_model.py` is built during the
-normalization pass to resolve these stubs in a single pass, sorting children by
-`:block/order`.
 
 ## Datalog Rules
 
@@ -179,8 +184,4 @@ The `DATALOG_RULE` constant in `test_roam_model.py` shows the pattern:
 Rules are passed as an additional element of the `args` array and referenced in the
 `:where` clause by name. They are the mechanism used for recursive graph traversal
 (corresponding to `FollowLinksDirective.DEEP` in `roam_model.py`).
-
-## API
-
-Programmatically fetching (or exporting) content from Roam can only be done through the [Roam Alpha API](https://roamresearch.com/#/app/developer-documentation/page/tIaOPdXCj) if the graph is _encrypted_. The _Roam Alpha API_ is only accessible to [roam/js](https://roamresearch.com/#/app/developer-documentation/page/QE0bxjUwk) scripts that run within the Roam client. Because the client has access to the encryption key for the graph, so too does the _Roam Alpha API_, so that it can return clear-text content through its api. The [Roam Local API](https://roamresearch.com/#/app/developer-documentation/page/8ikgtLSXz) proxies the _Roam Alpha API_ through the running Roam Desktop app over HTTP.
 

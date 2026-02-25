@@ -21,6 +21,7 @@ build-backend = "hatchling.build"
 name = "roam-pub"
 version = "0.1.0"
 description = "Markdown utilities for working with Roam Research exports"
+license = { file = "LICENSE" }
 requires-python = ">=3.14"
 dependencies = [
     "pydantic>=2.0",

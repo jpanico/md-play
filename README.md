@@ -251,4 +251,4 @@ See [docs/MDBUNDLE_SETUP.md](docs/MDBUNDLE_SETUP.md) for detailed instructions a
 
 ## License
 
-TBD
+[MIT](LICENSE)

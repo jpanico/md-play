@@ -70,7 +70,8 @@
       "Bash(ruff:*)",
       "Bash(ruff format:*)",
       "Bash(pydocstringformatter:*)",
-      "Bash(hatch:*)"
+      "Bash(hatch:*)",
+      "Bash(ROAM_LIVE_TESTS=1 pytest:*)"
     ]
   }
 }

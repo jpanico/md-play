@@ -19,7 +19,7 @@ from roam_pub.roam_md_bundle import (
     _normalize_for_posix,
 )
 from roam_pub.roam_asset import RoamAsset, FetchRoamAsset
-from roam_pub.roam_local_api import ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -202,7 +202,10 @@ class TestFetchAndSaveImage:
     def test_fetches_and_saves_image_successfully(self, mock_file: Mock, mock_fetch: Mock) -> None:
         """Test successful image fetch and save."""
         # Setup
-        api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
+        api_endpoint: ApiEndpoint = ApiEndpoint(
+            url=ApiEndpointURL(local_api_port=3333, graph_name="test-graph"),
+            bearer_token="test-token",
+        )
         firebase_url: HttpUrl = HttpUrl(
             "https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc"
         )
@@ -217,7 +220,7 @@ class TestFetchAndSaveImage:
         mock_fetch.return_value = mock_roam_asset
 
         # Execute
-        result_url, result_filename = fetch_and_save_image(api_endpoint, "test-token", firebase_url, output_dir)
+        result_url, result_filename = fetch_and_save_image(api_endpoint, firebase_url, output_dir)
 
         # Verify
         assert result_url == firebase_url
@@ -229,7 +232,10 @@ class TestFetchAndSaveImage:
     @patch("roam_pub.roam_md_bundle.FetchRoamAsset.fetch")
     def test_fetch_failure_raises_exception(self, mock_fetch: Mock) -> None:
         """Test that fetch failure raises an exception."""
-        api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
+        api_endpoint: ApiEndpoint = ApiEndpoint(
+            url=ApiEndpointURL(local_api_port=3333, graph_name="test-graph"),
+            bearer_token="test-token",
+        )
         firebase_url: HttpUrl = HttpUrl(
             "https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc"
         )
@@ -238,7 +244,7 @@ class TestFetchAndSaveImage:
         mock_fetch.side_effect = Exception("Network error")
 
         with pytest.raises(Exception, match="Network error"):
-            fetch_and_save_image(api_endpoint, "test-token", firebase_url, output_dir)
+            fetch_and_save_image(api_endpoint, firebase_url, output_dir)
 
     def test_none_api_endpoint_raises_validation_error(self) -> None:
         """Test that None api_endpoint raises ValidationError."""
@@ -248,36 +254,31 @@ class TestFetchAndSaveImage:
         output_dir: Path = Path("/tmp/test")
 
         with pytest.raises(ValidationError):
-            fetch_and_save_image(None, "test-token", firebase_url, output_dir)  # type: ignore[arg-type]
-
-    def test_none_api_bearer_token_raises_validation_error(self) -> None:
-        """Test that None api_bearer_token raises ValidationError."""
-        api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
-        firebase_url: HttpUrl = HttpUrl(
-            "https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc"
-        )
-        output_dir: Path = Path("/tmp/test")
-
-        with pytest.raises(ValidationError):
-            fetch_and_save_image(api_endpoint, None, firebase_url, output_dir)  # type: ignore[arg-type]
+            fetch_and_save_image(None, firebase_url, output_dir)  # type: ignore[arg-type]
 
     def test_none_firebase_url_raises_validation_error(self) -> None:
         """Test that None firebase_url raises ValidationError."""
-        api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
+        api_endpoint: ApiEndpoint = ApiEndpoint(
+            url=ApiEndpointURL(local_api_port=3333, graph_name="test-graph"),
+            bearer_token="test-token",
+        )
         output_dir: Path = Path("/tmp/test")
 
         with pytest.raises(ValidationError):
-            fetch_and_save_image(api_endpoint, "test-token", None, output_dir)  # type: ignore[arg-type]
+            fetch_and_save_image(api_endpoint, None, output_dir)  # type: ignore[arg-type]
 
     def test_none_output_dir_raises_validation_error(self) -> None:
         """Test that None output_dir raises ValidationError."""
-        api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
+        api_endpoint: ApiEndpoint = ApiEndpoint(
+            url=ApiEndpointURL(local_api_port=3333, graph_name="test-graph"),
+            bearer_token="test-token",
+        )
         firebase_url: HttpUrl = HttpUrl(
             "https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc"
         )
 
         with pytest.raises(ValidationError):
-            fetch_and_save_image(api_endpoint, "test-token", firebase_url, None)  # type: ignore[arg-type]
+            fetch_and_save_image(api_endpoint, firebase_url, None)  # type: ignore[arg-type]
 
 
 class TestReplaceImageLinks:

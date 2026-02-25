@@ -9,7 +9,7 @@ import json
 import base64
 import logging
 
-from roam_pub.roam_local_api import ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpoint
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +119,7 @@ class FetchRoamAsset:
 
     @staticmethod
     @validate_call
-    def fetch(api_endpoint: ApiEndpointURL, api_bearer_token: str, firebase_url: HttpUrl) -> RoamAsset:
+    def fetch(api_endpoint: ApiEndpoint, firebase_url: HttpUrl) -> RoamAsset:
         """Fetch an asset (file) from the Roam Research Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -127,8 +127,7 @@ class FetchRoamAsset:
         graph having ``graph_name``.
 
         Args:
-            api_endpoint: The API endpoint URL (validated by Pydantic)
-            api_bearer_token: The bearer token for authenticating with the Roam Local API
+            api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
             firebase_url: The Cloud Firestore URL that appears in Roam Markdown
 
         Returns:
@@ -139,19 +138,19 @@ class FetchRoamAsset:
             requests.exceptions.ConnectionError: If unable to connect to API
             requests.exceptions.HTTPError: If API returns error status
         """
-        logger.debug(f"api_endpoint: {api_endpoint}, firebase_url: {firebase_url}")
+        logger.debug(f"api_endpoint: {api_endpoint.url}, firebase_url: {firebase_url}")
 
         request_headers_str: str = FetchRoamAsset.REQUEST_HEADERS_TEMPLATE.substitute(
-            roam_local_api_token=api_bearer_token
+            roam_local_api_token=api_endpoint.bearer_token
         )
         request_headers: dict[str, str] = cast(dict[str, str], json.loads(request_headers_str))
         request_payload_str: str = FetchRoamAsset.REQUEST_PAYLOAD_TEMPLATE.substitute(file_url=firebase_url)
         request_payload: _FileGetPayload = cast(_FileGetPayload, json.loads(request_payload_str))
-        logger.info(f"request_payload: {request_payload}, headers: {request_headers}, api: {api_endpoint}")
+        logger.info(f"request_payload: {request_payload}, headers: {request_headers}, api: {api_endpoint.url}")
 
         # The Local API expects a POST request with the file URL
         response: requests.Response = requests.post(
-            str(api_endpoint), json=request_payload, headers=request_headers, stream=False
+            str(api_endpoint.url), json=request_payload, headers=request_headers, stream=False
         )
 
         if response.status_code == 200:

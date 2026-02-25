@@ -1,6 +1,6 @@
 """Roam-pub - Markdown utilities for working with Roam Research exports."""
 
-from roam_pub.roam_local_api import ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 from roam_pub.roam_asset import FetchRoamAsset, RoamAsset
 from roam_pub.roam_page import FetchRoamPage, RoamPage
 from roam_pub.roam_md_bundle import (
@@ -14,6 +14,7 @@ from roam_pub.roam_md_bundle import (
 )
 
 __all__ = [
+    "ApiEndpoint",
     "ApiEndpointURL",
     "FetchRoamAsset",
     "RoamAsset",

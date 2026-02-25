@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import List, Tuple
 
 from roam_pub.roam_asset import RoamAsset, FetchRoamAsset
-from roam_pub.roam_local_api import ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 
 logger = logging.getLogger(__name__)
 
@@ -232,35 +232,32 @@ class TestRoamAssetFromResponseText:
 class TestFetchRoamAssetFetch:
     """Tests for the FetchRoamAsset.fetch static method."""
 
-    def test_null_api_endpoint_raises_type_error(self) -> None:
+    def test_null_api_endpoint_raises_validation_error(self) -> None:
         """Test that None api_endpoint raises ValidationError."""
         with pytest.raises(ValidationError):
-            FetchRoamAsset.fetch(api_endpoint=None, api_bearer_token="test-token", firebase_url="https://example.com/file.jpeg")  # type: ignore[arg-type]
+            FetchRoamAsset.fetch(api_endpoint=None, firebase_url="https://example.com/file.jpeg")  # type: ignore[arg-type]
 
-    def test_null_api_bearer_token_raises_type_error(self) -> None:
-        """Test that None api_bearer_token raises ValidationError."""
-        endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
-        with pytest.raises(ValidationError, match="Input should be a valid string"):
-            FetchRoamAsset.fetch(api_endpoint=endpoint, api_bearer_token=None, firebase_url="https://example.com/file.jpeg")  # type: ignore[arg-type]
-
-    def test_null_file_url_raises_type_error(self) -> None:
-        """Test that None file_url raises ValidationError."""
-        endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
+    def test_null_firebase_url_raises_validation_error(self) -> None:
+        """Test that None firebase_url raises ValidationError."""
+        endpoint: ApiEndpoint = ApiEndpoint(
+            url=ApiEndpointURL(local_api_port=3333, graph_name="test-graph"),
+            bearer_token="test-token",
+        )
         with pytest.raises(ValidationError):
-            FetchRoamAsset.fetch(api_endpoint=endpoint, api_bearer_token="test-token", firebase_url=None)  # type: ignore[arg-type]
+            FetchRoamAsset.fetch(api_endpoint=endpoint, firebase_url=None)  # type: ignore[arg-type]
 
     @pytest.mark.live
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
     def test_live(self) -> None:
         """Fetch a Cloud Firestore asset and verify the returned RoamAsset is well-formed."""
-        endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
+        endpoint: ApiEndpoint = ApiEndpoint(
+            url=ApiEndpointURL(local_api_port=3333, graph_name="SCFH"),
+            bearer_token="roam-graph-local-token-OR3s0AcJn5rwxPJ6MYaqnIyjNi7ai",
+        )
         url: HttpUrl = HttpUrl(
             "https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94"
         )
-        api_bearer_token = "roam-graph-local-token-OR3s0AcJn5rwxPJ6MYaqnIyjNi7ai"
-        roam_asset: RoamAsset = FetchRoamAsset.fetch(
-            api_endpoint=endpoint, api_bearer_token=api_bearer_token, firebase_url=url
-        )
+        roam_asset: RoamAsset = FetchRoamAsset.fetch(api_endpoint=endpoint, firebase_url=url)
         logger.info(f"roam_asset: {roam_asset}")
 
         # Read the expected JPEG file

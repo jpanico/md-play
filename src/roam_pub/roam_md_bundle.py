@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import List, Tuple, overload
 from pydantic import HttpUrl, validate_call
 
-from roam_pub.roam_local_api import ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_asset import FetchRoamAsset, RoamAsset
 
 logger = logging.getLogger(__name__)
@@ -114,8 +114,7 @@ def _cache_key(firebase_url: HttpUrl) -> str:
 
 @validate_call
 def fetch_and_save_image(
-    api_endpoint: ApiEndpointURL,
-    api_bearer_token: str,
+    api_endpoint: ApiEndpoint,
     firebase_url: HttpUrl,
     output_dir: Path,
     cache_dir: Path | None = None,
@@ -127,8 +126,7 @@ def fetch_and_save_image(
     On a cache miss the file is fetched from the API and stored in both the cache and output_dir.
 
     Args:
-        api_endpoint: The Roam Local API endpoint
-        api_bearer_token: The bearer token for authenticating with the Roam Local API
+        api_endpoint: The Roam Local API endpoint (URL + bearer token).
         firebase_url: The Cloud Firestore storage URL
         output_dir: Directory where the image should be saved
         cache_dir: Optional directory for caching downloaded assets across runs
@@ -154,9 +152,7 @@ def fetch_and_save_image(
     logger.info(f"Fetching image from: {firebase_url}")
 
     # Fetch the file from Roam
-    roam_asset: RoamAsset = FetchRoamAsset.fetch(
-        api_endpoint=api_endpoint, api_bearer_token=api_bearer_token, firebase_url=firebase_url
-    )
+    roam_asset: RoamAsset = FetchRoamAsset.fetch(api_endpoint=api_endpoint, firebase_url=firebase_url)
 
     # Determine the file name to use in the bundle output directory
     file_name: str = roam_asset.file_name
@@ -279,8 +275,7 @@ def remove_escaped_double_brackets(markdown_text: str) -> str:
 @validate_call
 def fetch_all_images(
     image_links: List[Tuple[str, HttpUrl]],
-    api_endpoint: ApiEndpointURL,
-    api_bearer_token: str,
+    api_endpoint: ApiEndpoint,
     output_dir: Path,
     cache_dir: Path | None = None,
 ) -> List[Tuple[HttpUrl, str]]:
@@ -288,8 +283,7 @@ def fetch_all_images(
 
     Args:
         image_links: List of (full_match, firebase_url) tuples
-        api_endpoint: The Roam Local API endpoint
-        api_bearer_token: The bearer token for authenticating with the Roam Local API
+        api_endpoint: The Roam Local API endpoint (URL + bearer token).
         output_dir: Directory where images should be saved
         cache_dir: Optional directory for caching downloaded assets across runs
 
@@ -303,7 +297,7 @@ def fetch_all_images(
     for _, firebase_url in image_links:
         try:
             firebase_url_result, local_filename = fetch_and_save_image(
-                api_endpoint, api_bearer_token, firebase_url, output_dir, cache_dir
+                api_endpoint, firebase_url, output_dir, cache_dir
             )
             url_replacements.append((firebase_url_result, local_filename))
         except Exception as e:
@@ -361,12 +355,12 @@ def bundle_md_file(
         return
 
     # Create API endpoint
-    api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=local_api_port, graph_name=graph_name)
+    api_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
+        local_api_port=local_api_port, graph_name=graph_name, bearer_token=api_bearer_token
+    )
 
     # Fetch and save all images to the bundle directory
-    url_replacements: List[Tuple[HttpUrl, str]] = fetch_all_images(
-        image_links, api_endpoint, api_bearer_token, bundle_dir, cache_dir
-    )
+    url_replacements: List[Tuple[HttpUrl, str]] = fetch_all_images(image_links, api_endpoint, bundle_dir, cache_dir)
 
     # Replace URLs in the Markdown text
     if url_replacements:

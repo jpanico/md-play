@@ -7,7 +7,7 @@ import logging
 import pytest
 from pydantic import ValidationError
 
-from roam_pub.roam_local_api import ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,11 @@ class TestApiEndpointURL:
         """Test that omitting graph_name raises ValidationError."""
         with pytest.raises(ValidationError):
             ApiEndpointURL(local_api_port=3333)  # type: ignore[call-arg]
+
+    def test_empty_graph_name_raises_validation_error(self) -> None:
+        """Test that an empty string for graph_name raises ValidationError."""
+        with pytest.raises(ValidationError):
+            ApiEndpointURL(local_api_port=3333, graph_name="")
 
     def test_non_coercible_port_raises_validation_error(self) -> None:
         """Test that a non-numeric port string raises ValidationError."""
@@ -95,3 +100,116 @@ class TestApiEndpointURL:
         endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
         with pytest.raises(Exception):
             endpoint.graph_name = "other-graph"  # type: ignore[misc]
+
+
+class TestApiEndpoint:
+    """Tests for the ApiEndpoint Pydantic model."""
+
+    # ------------------------------------------------------------------
+    # Construction
+    # ------------------------------------------------------------------
+
+    def test_valid_initialization(self) -> None:
+        """Test creating ApiEndpoint with a valid URL and bearer token."""
+        url: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
+        endpoint: ApiEndpoint = ApiEndpoint(url=url, bearer_token="my-secret-token")
+        assert endpoint.url == url
+        assert endpoint.bearer_token == "my-secret-token"
+
+    def test_missing_url_raises_validation_error(self) -> None:
+        """Test that omitting url raises ValidationError."""
+        with pytest.raises(ValidationError):
+            ApiEndpoint(bearer_token="my-secret-token")  # type: ignore[call-arg]
+
+    def test_missing_bearer_token_raises_validation_error(self) -> None:
+        """Test that omitting bearer_token raises ValidationError."""
+        url: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
+        with pytest.raises(ValidationError):
+            ApiEndpoint(url=url)  # type: ignore[call-arg]
+
+    def test_empty_bearer_token_raises_validation_error(self) -> None:
+        """Test that an empty string for bearer_token raises ValidationError."""
+        url: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
+        with pytest.raises(ValidationError):
+            ApiEndpoint(url=url, bearer_token="")
+
+    def test_null_url_raises_validation_error(self) -> None:
+        """Test that passing None for url raises ValidationError."""
+        with pytest.raises(ValidationError):
+            ApiEndpoint(url=None, bearer_token="my-secret-token")  # type: ignore[arg-type]
+
+    def test_null_bearer_token_raises_validation_error(self) -> None:
+        """Test that passing None for bearer_token raises ValidationError."""
+        url: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
+        with pytest.raises(ValidationError):
+            ApiEndpoint(url=url, bearer_token=None)  # type: ignore[arg-type]
+
+    def test_url_coercion_from_dict(self) -> None:
+        """Test that url can be coerced from a plain dict by Pydantic."""
+        endpoint: ApiEndpoint = ApiEndpoint(
+            url={"local_api_port": 3333, "graph_name": "SCFH"},  # type: ignore[arg-type]
+            bearer_token="my-secret-token",
+        )
+        assert endpoint.url.local_api_port == 3333
+        assert endpoint.url.graph_name == "SCFH"
+
+    # ------------------------------------------------------------------
+    # from_parts factory
+    # ------------------------------------------------------------------
+
+    def test_from_parts_valid(self) -> None:
+        """Test that from_parts constructs a correct ApiEndpoint from primitives."""
+        endpoint: ApiEndpoint = ApiEndpoint.from_parts(
+            local_api_port=3333, graph_name="SCFH", bearer_token="my-secret-token"
+        )
+        assert endpoint.url.local_api_port == 3333
+        assert endpoint.url.graph_name == "SCFH"
+        assert endpoint.bearer_token == "my-secret-token"
+
+    def test_from_parts_url_string(self) -> None:
+        """Test that from_parts produces the same URL string as direct construction."""
+        direct: ApiEndpoint = ApiEndpoint(
+            url=ApiEndpointURL(local_api_port=3333, graph_name="SCFH"),
+            bearer_token="my-secret-token",
+        )
+        from_parts: ApiEndpoint = ApiEndpoint.from_parts(
+            local_api_port=3333, graph_name="SCFH", bearer_token="my-secret-token"
+        )
+        assert str(from_parts.url) == str(direct.url)
+
+    def test_from_parts_empty_graph_name_raises_validation_error(self) -> None:
+        """Test that from_parts raises ValidationError when graph_name is empty."""
+        with pytest.raises(ValidationError):
+            ApiEndpoint.from_parts(local_api_port=3333, graph_name="", bearer_token="my-secret-token")
+
+    def test_from_parts_empty_bearer_token_raises_validation_error(self) -> None:
+        """Test that from_parts raises ValidationError when bearer_token is empty."""
+        with pytest.raises(ValidationError):
+            ApiEndpoint.from_parts(local_api_port=3333, graph_name="SCFH", bearer_token="")
+
+    def test_from_parts_result_is_frozen(self) -> None:
+        """Test that the instance returned by from_parts is immutable."""
+        endpoint: ApiEndpoint = ApiEndpoint.from_parts(
+            local_api_port=3333, graph_name="SCFH", bearer_token="my-secret-token"
+        )
+        with pytest.raises(Exception):
+            endpoint.bearer_token = "new-token"  # type: ignore[misc]
+
+    # ------------------------------------------------------------------
+    # Immutability
+    # ------------------------------------------------------------------
+
+    def test_immutable_url(self) -> None:
+        """Test that url cannot be reassigned on a frozen instance."""
+        url: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
+        endpoint: ApiEndpoint = ApiEndpoint(url=url, bearer_token="my-secret-token")
+        new_url: ApiEndpointURL = ApiEndpointURL(local_api_port=8080, graph_name="other-graph")
+        with pytest.raises(Exception):
+            endpoint.url = new_url  # type: ignore[misc]
+
+    def test_immutable_bearer_token(self) -> None:
+        """Test that bearer_token cannot be reassigned on a frozen instance."""
+        url: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
+        endpoint: ApiEndpoint = ApiEndpoint(url=url, bearer_token="my-secret-token")
+        with pytest.raises(Exception):
+            endpoint.bearer_token = "new-token"  # type: ignore[misc]

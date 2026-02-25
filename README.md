@@ -1,6 +1,6 @@
 # roam-pub
 
-Python 3.14 toolkit for bundling Roam Research markdown exports with their Firebase-hosted images into self-contained `.mdbundle` directories.
+Python 3.14 toolkit for bundling Roam Research markdown exports with their Cloud Firestore-hosted images into self-contained `.mdbundle` directories.
 
 ## Development Setup
 
@@ -101,7 +101,7 @@ roam-pub/
 │       ├── __init__.py
 │       ├── bundle_roam_md.py      # CLI entry point (Typer app)
 │       ├── roam_md_bundle.py      # Core bundling logic
-│       ├── roam_asset.py          # Firebase asset fetching
+│       ├── roam_asset.py          # Cloud Firestore asset fetching
 │       ├── roam_model.py          # Pydantic data model + FetchRoamSchema
 │       ├── roam_page.py           # FetchRoamPage — Datalog page queries
 │       └── roam_transcribe.py     # (in progress)
@@ -132,7 +132,7 @@ roam-pub/
 
 ### Running the Bundle Script
 
-The package provides the `bundle-roam-md` command-line utility for bundling Roam Research markdown files with their Firebase-hosted images.
+The package provides the `bundle-roam-md` command-line utility for bundling Roam Research markdown files with their Cloud Firestore-hosted images.
 
 **Method 1: Using the installed command (recommended)**
 
@@ -197,7 +197,7 @@ bundle-roam-md --help
 
 The script:
 1. Reads a Roam Research markdown file
-2. Finds all Firebase-hosted images (`firebasestorage.googleapis.com` URLs)
+2. Finds all Cloud Firestore-hosted images (`firebasestorage.googleapis.com` URLs)
 3. Fetches each image via the Roam Local API
 4. Saves images locally in a `.mdbundle` directory
 5. Updates the markdown file with local image references

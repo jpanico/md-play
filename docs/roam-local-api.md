@@ -48,6 +48,15 @@ Query the graph using datomic flavored datalog
 
 - `"action": "data.q"` -> `window.roamAlphaAPI.data.q`
 
+```json
+"args": [
+    {
+        "url" : "$file_url",
+        "format": "base64"
+    }
+]
+```
+
 ### `file.get`
 
 Fetch a file hosted on Roam

@@ -46,3 +46,4 @@ pytest                            # run tests
 - `ROAM_LOCAL_API_PORT` — port for Roam Local API
 - `ROAM_GRAPH_NAME` — Roam graph name
 - `ROAM_API_TOKEN` — bearer token for auth
+- `ROAM_CACHE_DIR` — directory for caching downloaded Cloud Firestore assets

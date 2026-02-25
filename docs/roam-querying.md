@@ -122,22 +122,6 @@ Common pull patterns used in this project:
 - Returns `[["block", :block/string], ["node", :node/title], ...]` — the full live schema.
 - Results documented in `docs/roam-schema.md`.
 
-### 3. Block fetch by page (experimental, in `test_roam_model.py`)
-
-```datalog
-[:find (pull ?block [:block/uid :block/string])
- :in $ [?title ?uid]
- :where
- [?page :block/children ?block]
- [?page :block/uid ?uid]]
- [?page :node/title ?title]]
-```
-
-- Input binding: `[?title ?uid]` — a **collection binding** (both values supplied together
-  as a two-element list in `args[1]`).
-- Finds direct child blocks of a page identified by both title and uid, pulling only
-  `:block/uid` and `:block/string` for each child.
-
 ## Input Binding Forms
 
 | `:in` syntax | `args` value | Meaning |

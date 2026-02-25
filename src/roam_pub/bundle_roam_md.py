@@ -137,6 +137,7 @@ def main(
         typer.Option(
             "--cache-dir",
             "-c",
+            envvar="ROAM_CACHE_DIR",
             help=(
                 "Directory for caching downloaded Cloud Firestore assets across runs. "
                 "Skips re-downloading unchanged assets."

@@ -2,7 +2,7 @@
 
 ## Project Overview
 Python 3.14 toolkit for bundling Roam Research markdown exports with their
-Firebase-hosted images into self-contained `.mdbundle` directories.
+Cloud Firestore-hosted images into self-contained `.mdbundle` directories.
 
 ## Setup
 ```bash
@@ -22,7 +22,7 @@ pyright         # type check (strict)
 - `src/roam_pub/` — main package
   - `bundle_roam_md.py` — CLI entry point (Typer app)
   - `roam_md_bundle.py` — core bundling logic
-  - `roam_asset.py` — Firebase asset fetching
+  - `roam_asset.py` — Cloud Firestore asset fetching
   - `roam_model.py`, `roam_page.py`, `roam_transcribe.py` — in progress
 - `tests/fixtures/` — sample markdown, images, JSON for tests
 

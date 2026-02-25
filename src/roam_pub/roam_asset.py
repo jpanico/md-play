@@ -34,9 +34,9 @@ class ApiEndpointURL(BaseModel):
 
 
 class RoamAsset(BaseModel):
-    """Immutable representation of an asset fetched from Firebase through the Roam API.
+    """Immutable representation of an asset fetched from Cloud Firestore through the Roam API.
 
-    Roam uploads all user assets (files, media) to Firebase, and stores only Firebase
+    Roam uploads all user assets (files, media) to Cloud Firestore, and stores only Cloud Firestore
     locators (URLs) within the Roam graph DB itself (nodes).
 
     Once created, instances cannot be modified (frozen). All fields are required
@@ -87,7 +87,7 @@ class FetchRoamAsset:
         REQUEST_HEADERS: HTTP headers used for all API requests
         REQUEST_PAYLOAD_TEMPLATE: JSON template for building request payloads.
             Contains the action 'file.get' and expects a $file_url substitution
-            parameter for the Firebase URL. The format parameter is set to 'base64' to receive binary
+            parameter for the Cloud Firestore URL. The format parameter is set to 'base64' to receive binary
             data in base64-encoded format.
     """
 
@@ -148,7 +148,7 @@ class FetchRoamAsset:
         Args:
             api_endpoint: The API endpoint URL (validated by Pydantic)
             api_bearer_token: The bearer token for authenticating with the Roam Local API
-            firebase_url: The Firebase URL that appears in Roam Markdown
+            firebase_url: The Cloud Firestore URL that appears in Roam Markdown
 
         Returns:
             RoamAsset object containing the fetched file data

@@ -35,7 +35,7 @@ PageTitle: TypeAlias = str
 """Page title string (:node/title). Only present on page entities."""
 
 Url: TypeAlias = str
-"""A URL string (e.g. a Firebase storage URL for a Roam-managed file)."""
+"""A URL string (e.g. a Cloud Firestore storage URL for a Roam-managed file)."""
 
 MediaType: TypeAlias = str
 """
@@ -255,7 +255,7 @@ class Vertex(BaseModel):
         heading: HeadingLevel level 1–3. Present only on ROAM_BLOCK_HEADING vertices.
         children: Ordered list of child UIDs. Replaces raw IdObject stubs.
         refs: List of referenced UIDs. Replaces raw IdObject stubs.
-        source: Firebase storage URL for the file. Present only on ROAM_FILE vertices.
+        source: Cloud Firestore storage URL for the file. Present only on ROAM_FILE vertices.
         file_name: Original filename. Present only on ROAM_FILE vertices.
     """
 
@@ -284,7 +284,7 @@ class Vertex(BaseModel):
         default=None, description="Referenced UIDs resolved from raw IdObject stubs"
     )
     source: Url | None = Field(
-        default=None, description="Firebase storage URL; present only on ROAM_FILE vertices"
+        default=None, description="Cloud Firestore storage URL; present only on ROAM_FILE vertices"
     )
     file_name: str | None = Field(
         default=None, description="Original filename; present only on ROAM_FILE vertices"
@@ -294,17 +294,17 @@ class Vertex(BaseModel):
 class RoamFileReference(BaseModel):
     """A reference to a Roam-managed file.
     
-    the uid of the block that contains it and the Firebase storage URL at which the file is hosted.
+    the uid of the block that contains it and the Cloud Firestore storage URL at which the file is hosted.
 
     Attributes:
-        uid: UID of the block whose ``:block/string`` contains the Firebase URL.
-        url: Firebase storage URL of the file.
+        uid: UID of the block whose ``:block/string`` contains the Cloud Firestore URL.
+        url: Cloud Firestore storage URL of the file.
     """
 
     model_config = ConfigDict(frozen=True)
 
     uid: Uid = Field(..., description="UID of the block referencing the file")
-    url: Url = Field(..., description="Firebase storage URL of the Roam-managed file")
+    url: Url = Field(..., description="Cloud Firestore storage URL of the Roam-managed file")
 
 
 class VertexType(str, Enum):
@@ -322,7 +322,7 @@ class VertexType(str, Enum):
         ROAM_BLOCK_HEADING: 1-1 with a Roam ``Block`` type node that has a
             ``heading`` property (value 1, 2, or 3).
         ROAM_FILE: A block that references a file uploaded to and managed by Roam
-            (Firebase-hosted). These blocks have a Firebase URL embedded in their
+            (Cloud Firestore-hosted). These blocks have a Cloud Firestore URL embedded in their
             ``:block/string``.
     """
 

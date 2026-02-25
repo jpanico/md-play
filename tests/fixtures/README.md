@@ -10,7 +10,7 @@ This directory contains test data used by the mdplay test suite.
 ## Files
 
 ### Markdown Files
-- `Test Article.gfm` - Simple test article with one Firebase image link
+- `Test Article.gfm` - Simple test article with one Cloud Firestore image link
 - `Test Article_converted.md` - Converted version with local image reference
 - `[[Illustration]] Mood Boards.gfm` - Complex article with multiple images
 - `Illustrator Brief.md` - Additional test markdown file

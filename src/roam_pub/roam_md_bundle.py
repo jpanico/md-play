@@ -1,6 +1,6 @@
 """Functions for processing Roam Research Markdown files.
 
-This module provides utilities for finding Firebase image links in Markdown files,
+This module provides utilities for finding Cloud Firestore image links in Markdown files,
 fetching images via the Roam Local API, and updating Markdown files with local references.
 """
 
@@ -91,7 +91,7 @@ def find_markdown_image_links(markdown_text: str) -> List[Tuple[str, HttpUrl]]:
         ValidationError: If markdown_text is None or invalid
     """
     # Regex pattern for Markdown images: ![alt text](url)
-    # Matches: ![...](...) where the URL is a Firebase storage URL
+    # Matches: ![...](...) where the URL is a Cloud Firestore storage URL
     # re.DOTALL makes . match newlines, allowing multi-line alt text
     pattern: str = r"!\[((?:[^\]]|\n)*?)\]\((https://firebasestorage\.googleapis\.com/[^\)]+)\)"
 
@@ -102,12 +102,12 @@ def find_markdown_image_links(markdown_text: str) -> List[Tuple[str, HttpUrl]]:
         image_url: HttpUrl = HttpUrl(image_url_str)  # Convert to HttpUrl
         matches.append((full_match, image_url))
 
-    logger.info(f"Found {len(matches)} Firebase image links")
+    logger.info(f"Found {len(matches)} Cloud Firestore image links")
     return matches
 
 
 def _cache_key(firebase_url: HttpUrl) -> str:
-    """Compute a SHA-256 hex digest of the Firebase URL for use as a cache key."""
+    """Compute a SHA-256 hex digest of the Cloud Firestore URL for use as a cache key."""
     return hashlib.sha256(str(firebase_url).encode()).hexdigest()
 
 
@@ -121,14 +121,14 @@ def fetch_and_save_image(
 ) -> Tuple[HttpUrl, str]:
     """Fetch an image from Roam and save it locally, using a cache if provided.
 
-    When cache_dir is set, the asset is looked up by a SHA-256 hash of its Firebase URL.
+    When cache_dir is set, the asset is looked up by a SHA-256 hash of its Cloud Firestore URL.
     On a cache hit the file is copied directly to output_dir without calling the Roam API.
     On a cache miss the file is fetched from the API and stored in both the cache and output_dir.
 
     Args:
         api_endpoint: The Roam Local API endpoint
         api_bearer_token: The bearer token for authenticating with the Roam Local API
-        firebase_url: The Firebase storage URL
+        firebase_url: The Cloud Firestore storage URL
         output_dir: Directory where the image should be saved
         cache_dir: Optional directory for caching downloaded assets across runs
 
@@ -192,7 +192,7 @@ def replace_image_links(markdown_text: str, url_replacements: List[Tuple[HttpUrl
 
 @validate_call
 def replace_image_links(markdown_text: str | None, url_replacements: List[Tuple[HttpUrl, str]]) -> str | None:
-    """Replace Firebase URLs with local file paths in Markdown text.
+    """Replace Cloud Firestore URLs with local file paths in Markdown text.
 
     Args:
         markdown_text: The original Markdown content (can be None)
@@ -211,7 +211,7 @@ def replace_image_links(markdown_text: str | None, url_replacements: List[Tuple[
     updated_text: str = markdown_text
 
     for firebase_url, local_filename in url_replacements:
-        # Replace the Firebase URL with the local filename (convert HttpUrl to string for replacement)
+        # Replace the Cloud Firestore URL with the local filename (convert HttpUrl to string for replacement)
         updated_text = updated_text.replace(str(firebase_url), local_filename)
         logger.info(f"Replaced {firebase_url} with {local_filename}")
 
@@ -323,8 +323,8 @@ def bundle_md_file(
 ) -> None:
     """Bundle a Markdown file with its referenced images.
 
-    Fetches and saves Firebase-hosted images, updating image links in the markdown file
-    to use local file references in place of Firebase URLs.
+    Fetches and saves Cloud Firestore-hosted images, updating image links in the markdown file
+    to use local file references in place of Cloud Firestore URLs.
 
     Creates a .mdbundle directory named <markdown_file>.mdbundle/ in the output_dir,
     containing the updated markdown file and all downloaded images.
@@ -356,7 +356,7 @@ def bundle_md_file(
     image_links: List[Tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
 
     if not image_links:
-        logger.info("No Firebase image links found in the file")
+        logger.info("No Cloud Firestore image links found in the file")
         return
 
     # Create API endpoint

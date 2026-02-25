@@ -103,7 +103,7 @@ class TestFindMarkdownImageLinks:
     """Tests for the find_markdown_image_links function."""
 
     def test_finds_single_firebase_link(self) -> None:
-        """Test finding a single Firebase image link."""
+        """Test finding a single Cloud Firestore image link."""
         markdown_text: str = (
             "![alt text](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=abc123)"
         )
@@ -118,7 +118,7 @@ class TestFindMarkdownImageLinks:
         assert isinstance(matches[0][1], HttpUrl)
 
     def test_finds_multiple_firebase_links(self) -> None:
-        """Test finding multiple Firebase image links."""
+        """Test finding multiple Cloud Firestore image links."""
         markdown_text: str = """
         ![image1](https://firebasestorage.googleapis.com/v0/b/test1.appspot.com/o/img1.png?token=abc)
         Some text here
@@ -134,11 +134,11 @@ class TestFindMarkdownImageLinks:
         assert isinstance(matches[1][1], HttpUrl)
 
     def test_ignores_non_firebase_links(self) -> None:
-        """Test that non-Firebase URLs are ignored."""
+        """Test that non-Cloud Firestore URLs are ignored."""
         markdown_text: str = """
         ![local](./local-image.png)
         ![remote](https://example.com/image.jpg)
-        ![firebase](https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc)
+        ![Cloud Firestore](https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc)
         """
 
         matches: List[Tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
@@ -457,7 +457,7 @@ class TestBundleMdFile:
 
     @patch("roam_pub.roam_md_bundle.find_markdown_image_links")
     def test_no_firebase_links_exits_early(self, mock_find: Mock, tmp_path: Path) -> None:
-        """Test that function exits early when no Firebase links found."""
+        """Test that function exits early when no Cloud Firestore links found."""
         # Create separate input and output directories
         input_dir: Path = tmp_path / "input"
         output_dir: Path = tmp_path / "output"
@@ -473,7 +473,7 @@ class TestBundleMdFile:
         # Should not raise exception
         bundle_md_file(markdown_file, 3333, "test-graph", "test-token", output_dir)
 
-        # Verify no output file was created since no Firebase links were found
+        # Verify no output file was created since no Cloud Firestore links were found
         output_file: Path = output_dir / "test.md"
         assert not output_file.exists()
 

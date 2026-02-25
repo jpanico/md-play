@@ -1,8 +1,6 @@
 # Roam Local API
 
-Programmatically fetching (or exporting) content from Roam can be done through only the [Roam Alpha API](https://roamresearch.com/#/app/developer-documentation/page/tIaOPdXCj) if the graph is _encrypted_. The _Roam Alpha API_ is only accessible to [roam/js](https://roamresearch.com/#/app/developer-documentation/page/QE0bxjUwk) scripts that run within the Roam client. Because the client has access to the encryption key for the graph, so too does the _Roam Alpha API_, and so it can return clear-text content through its api. The [Roam Local API](https://roamresearch.com/#/app/developer-documentation/page/8ikgtLSXz) proxies the _Roam Alpha API_ through the running Roam Desktop app over HTTP.
-
-[Official Roam Local API documentation](https://roamresearch.com/#/app/developer-documentation/page/8ikgtLSXz)
+For an _encrypted_ Roam graph, programmatically fetching (or exporting) content from Roam can be done through only the [Roam Alpha API](https://roamresearch.com/#/app/developer-documentation/page/tIaOPdXCj). The _Roam Alpha API_ is only accessible to [roam/js](https://roamresearch.com/#/app/developer-documentation/page/QE0bxjUwk) scripts that run within the Roam client. Because the client has access to the encryption key for the graph, so too does the _Roam Alpha API_, and so it can return clear-text content through its api. The [Roam Local API](https://roamresearch.com/#/app/developer-documentation/page/8ikgtLSXz) proxies, over HTTP, the _Roam Alpha API_ through the running Roam Desktop app.
 
 ## HTTP Requests
 
@@ -26,7 +24,7 @@ e.g. `http://localhost:3333/api/SCFH`
 
 `{'Content-Type': 'application/json', 'Authorization': 'Bearer $roam_local_api_token'}`
 
-where `$roam_local_api_token` is a graph specific bearer token that is generated in Roam->Settings.
+where `$roam_local_api_token` is a graph-specific bearer token that is generated in Roam->Settings.
 
 ### POST payload
 
@@ -64,4 +62,4 @@ Fetch a file hosted on Roam
 ]
 ```
 
-where `$file_url` is a Firebase URL from a Roam _block_ Markdown: `![]()` or naked Firebase URL, e.g.: https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fhippo%2FHQYN2ig-o9.pages.enc?alt=media&token=dc2ecff5-bf90-40f7-9c75-c15f9fd39e0c
+where `$file_url` is a Cloud Firestore URL from the Markdown content in a Roam _block_: `![]()` or naked Cloud Firestore URL, e.g.: https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fhippo%2FHQYN2ig-o9.pages.enc?alt=media&token=dc2ecff5-bf90-40f7-9c75-c15f9fd39e0c

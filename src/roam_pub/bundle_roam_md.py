@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Script to bundle Roam Research Markdown files with local image references.
 
-Fetches Firebase-hosted images and replaces them with local file references.
+Fetches Cloud Firestore-hosted images and replaces them with local file references.
 
 Example:
     bundle-roam-md -m my_notes.md -p 3333 -g SCFH -t your-bearer-token -o ./output
@@ -137,13 +137,13 @@ def main(
         typer.Option(
             "--cache-dir",
             "-c",
-            help="Directory for caching downloaded Firebase assets across runs. Skips re-downloading unchanged assets.",
+            help="Directory for caching downloaded Cloud Firestore assets across runs. Skips re-downloading unchanged assets.",
         ),
     ] = None,
 ) -> None:
     """Bundle a Roam Research Markdown file with local image references.
 
-    Fetches Firebase-hosted images, replacing them with local file references.
+    Fetches Cloud Firestore-hosted images, replacing them with local file references.
     Creates a <markdown_file>.mdbundle/ directory in output_dir containing
     the updated markdown file and all downloaded images.
     """

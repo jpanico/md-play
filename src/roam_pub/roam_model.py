@@ -15,15 +15,18 @@ from enum import Enum
 import textwrap
 from typing import Any, Final, TypeAlias, final
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, validate_call
 
-from roam_pub.roam_asset import ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpointURL
 
 Uid: TypeAlias = str
 """Nine-character alphanumeric stable block/page identifier (:block/uid)."""
 
 Id: TypeAlias = int
-"""Datomic internal numeric entity id (:db/id). Ephemeral — not stable across exports."""
+"""Datomic internal numeric entity id (:db/id).
+
+Ephemeral — not stable across exports.
+"""
 
 Order: TypeAlias = int
 """Zero-based position of a child block among its siblings (:block/order)."""
@@ -32,7 +35,10 @@ HeadingLevel: TypeAlias = int
 """HeadingLevel level: 0 = normal text, 1 = H1, 2 = H2, 3 = H3 (:block/heading)."""
 
 PageTitle: TypeAlias = str
-"""Page title string (:node/title). Only present on page entities."""
+"""Page title string (:node/title).
+
+Only present on page entities.
+"""
 
 Url: TypeAlias = str
 """A URL string (e.g. a Cloud Firestore storage URL for a Roam-managed file)."""
@@ -96,6 +102,7 @@ class LinkObject(BaseModel):
 RawChildren: TypeAlias = list[IdObject]
 """
 Child block stubs as returned directly by ``pull [*]``.
+
 Each element is an IdObject (only the :db/id is present); full data requires
 a subsequent pull or was included by an explicit recursive pull pattern.
 """
@@ -103,12 +110,14 @@ a subsequent pull or was included by an explicit recursive pull pattern.
 RawRefs: TypeAlias = list[IdObject]
 """
 Page/block reference stubs as returned directly by ``pull [*]``.
+
 Same shape as RawChildren — IdObject stubs, not fully pulled entities.
 """
 
 NormalChildren: TypeAlias = list[Uid]
 """
 Child block UIDs after normalization.
+
 The raw IdObject stubs are resolved to their stable :block/uid strings,
 and sorted by :block/order, during the normalization pass.
 """
@@ -116,6 +125,7 @@ and sorted by :block/order, during the normalization pass.
 NormalRefs: TypeAlias = list[Uid]
 """
 Referenced page/block UIDs after normalization.
+
 The raw IdObject stubs are resolved to their stable :block/uid strings
 during the normalization pass.
 """
@@ -179,9 +189,7 @@ class RoamNode(BaseModel):
     children: RawChildren | None = Field(
         default=None, description=":block/children — raw child stubs; present only on Blocks"
     )
-    refs: RawRefs | None = Field(
-        default=None, description=":block/refs — raw reference stubs; present only on Blocks"
-    )
+    refs: RawRefs | None = Field(default=None, description=":block/refs — raw reference stubs; present only on Blocks")
     page: IdObject | None = Field(
         default=None, description=":block/page — containing page stub; present only on Blocks"
     )
@@ -280,20 +288,16 @@ class Vertex(BaseModel):
     children: NormalChildren | None = Field(
         default=None, description="Ordered child UIDs resolved from raw IdObject stubs"
     )
-    refs: NormalRefs | None = Field(
-        default=None, description="Referenced UIDs resolved from raw IdObject stubs"
-    )
+    refs: NormalRefs | None = Field(default=None, description="Referenced UIDs resolved from raw IdObject stubs")
     source: Url | None = Field(
         default=None, description="Cloud Firestore storage URL; present only on ROAM_FILE vertices"
     )
-    file_name: str | None = Field(
-        default=None, description="Original filename; present only on ROAM_FILE vertices"
-    )
+    file_name: str | None = Field(default=None, description="Original filename; present only on ROAM_FILE vertices")
 
 
 class RoamFileReference(BaseModel):
     """A reference to a Roam-managed file.
-    
+
     the uid of the block that contains it and the Cloud Firestore storage URL at which the file is hosted.
 
     Attributes:
@@ -351,6 +355,7 @@ class FollowLinksDirective(str, Enum):
     SHALLOW = "SHALLOW"
     DEEP = "DEEP"
 
+
 @final
 class FetchRoamSchema:
     """Stateless utility class for fetching Roam schema from the Roam Research Local API.
@@ -368,4 +373,14 @@ class FetchRoamSchema:
          :where
          [_ ?attr]
          [(namespace ?attr) ?namespace]]""")
-    
+
+    @staticmethod
+    @validate_call
+    def fetch(api_endpoint: ApiEndpointURL, api_bearer_token: str) -> None:
+        """Fetch the Roam schema from the Local API and print it to stdout.
+
+        Args:
+            api_endpoint: The Local API endpoint URL for the target Roam graph.
+            api_bearer_token: Bearer token used to authenticate with the Local API.
+        """
+        ...

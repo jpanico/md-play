@@ -18,7 +18,8 @@ from roam_pub.roam_md_bundle import (
     bundle_md_file,
     _normalize_for_posix,
 )
-from roam_pub.roam_asset import ApiEndpointURL, RoamAsset, FetchRoamAsset
+from roam_pub.roam_asset import RoamAsset, FetchRoamAsset
+from roam_pub.roam_local_api import ApiEndpointURL
 from datetime import datetime
 
 logger = logging.getLogger(__name__)

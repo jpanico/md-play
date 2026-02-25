@@ -10,7 +10,7 @@ import pytest
 import json
 from typing import Any
 
-from roam_pub.roam_asset import ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpointURL
 from roam_pub.roam_page import FetchRoamPage, RoamPage
 
 logger = logging.getLogger(__name__)
@@ -270,4 +270,3 @@ class TestFetchRoamPageFetch:
         assert page.title == page_title
         assert len(page.uid) > 0
         assert isinstance(page.pull_block, dict)
-

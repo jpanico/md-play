@@ -9,47 +9,10 @@ import base64
 from datetime import datetime
 from typing import List, Tuple
 
-from roam_pub.roam_asset import ApiEndpointURL, RoamAsset, FetchRoamAsset
+from roam_pub.roam_asset import RoamAsset, FetchRoamAsset
+from roam_pub.roam_local_api import ApiEndpointURL
 
 logger = logging.getLogger(__name__)
-
-
-class TestApiEndpointURL:
-    """Tests for the ApiEndpointURL Pydantic model."""
-
-    def test_valid_initialization(self) -> None:
-        """Test creating ApiEndpointURL with valid parameters."""
-        endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
-        assert endpoint.local_api_port == 3333
-        assert endpoint.graph_name == "test-graph"
-
-    def test_port_coercion_from_string(self) -> None:
-        """Test that local_api_port coerces string to int."""
-        endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port="3333", graph_name="test-graph")  # type: ignore[arg-type]
-        assert endpoint.local_api_port == 3333
-        assert isinstance(endpoint.local_api_port, int)
-
-    def test_str_representation(self) -> None:
-        """Test the string representation of the URL."""
-        endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
-        expected: str = "http://127.0.0.1:3333/api/test-graph"
-        assert str(endpoint) == expected
-
-    def test_missing_port_raises_validation_error(self) -> None:
-        """Test that missing local_api_port raises a validation error."""
-        with pytest.raises(Exception):  # Pydantic raises ValidationError
-            ApiEndpointURL(graph_name="test-graph")  # type: ignore[call-arg]
-
-    def test_missing_graph_name_raises_validation_error(self) -> None:
-        """Test that missing graph_name raises a validation error."""
-        with pytest.raises(Exception):  # Pydantic raises ValidationError
-            ApiEndpointURL(local_api_port=3333)  # type: ignore[call-arg]
-
-    def test_immutability(self) -> None:
-        """Test that ApiEndpointURL is immutable."""
-        endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
-        with pytest.raises(Exception):  # Pydantic raises ValidationError for frozen models
-            endpoint.local_api_port = 8080  # type: ignore[misc]
 
 
 class TestRoamAsset:

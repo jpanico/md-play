@@ -64,7 +64,13 @@
       "Bash(curl:*)",
       "Bash(git -C /Users/jpanico/Documents/github/roam-pub add src/roam_pub/roam_transcribe.py)",
       "Bash(git -C /Users/jpanico/Documents/github/roam-pub add tests/test_roam_transcribe.py)",
-      "WebFetch(domain:learn-some.com)"
+      "WebFetch(domain:learn-some.com)",
+      "Bash(docformatter:*)",
+      "Bash(pip index:*)",
+      "Bash(ruff:*)",
+      "Bash(ruff format:*)",
+      "Bash(pydocstringformatter:*)",
+      "Bash(hatch:*)"
     ]
   }
 }

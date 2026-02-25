@@ -31,11 +31,19 @@ Python 3.14 toolkit for bundling Roam Research markdown exports with their Cloud
    This installs:
    - The `roam-pub` package in editable mode (changes to code are immediately reflected)
    - Runtime dependencies: `pydantic`, `requests`, `typer`
-   - Development dependencies: `pytest`, `black`, `pyright`
+   - Development dependencies: `pytest`, `black`, `pyright`, `pydocstringformatter`
 
 ### Running Tests
 
-Once the development environment is set up, run the full test suite with pytest:
+Once the development environment is set up, run the full check pipeline (format, lint, type check, and tests) with a single command:
+
+```bash
+hatch run check
+```
+
+This runs, in order: `black`, `pydocstringformatter`, `ruff format --preview`, `ruff check --fix`, `pyright`, and `pytest`.
+
+To run only the test suite:
 
 ```bash
 pytest
@@ -73,14 +81,41 @@ To check formatting without making changes:
 black --check .
 ```
 
-### Docstring Linting
+### Docstring Formatting and Linting
 
-[Ruff](https://docs.astral.sh/ruff/) enforces Google-style docstrings:
+Docstrings are enforced at two levels:
+
+**1. PEP 257 reflow — [`pydocstringformatter`](https://github.com/DanielNoord/pydocstringformatter)**
+
+Reformats docstring content: line wrapping, blank-line structure, capitalisation, closing-quote placement.
+
+```bash
+pydocstringformatter --write src/
+```
+
+To preview without writing:
+```bash
+pydocstringformatter src/
+```
+
+**2. Structural formatting — `ruff format --preview`**
+
+Fixes indentation, trailing whitespace, and blank lines around docstrings.
+
+```bash
+ruff format --preview src/
+```
+
+**3. Google-style lint — `ruff check`**
+
+Enforces Google docstring convention and auto-fixes violations.
 
 ```bash
 ruff check src/ tests/
-ruff check --fix src/ tests/   # auto-fix
+ruff check --fix src/ tests/
 ```
+
+Recommended order: `pydocstringformatter` → `ruff format --preview` → `ruff check --fix`.
 
 ### Type Checking
 
@@ -101,6 +136,7 @@ roam-pub/
 │       ├── __init__.py
 │       ├── bundle_roam_md.py      # CLI entry point (Typer app)
 │       ├── roam_md_bundle.py      # Core bundling logic
+│       ├── roam_local_api.py      # ApiEndpointURL — Roam Local API endpoint model
 │       ├── roam_asset.py          # Cloud Firestore asset fetching
 │       ├── roam_model.py          # Pydantic data model + FetchRoamSchema
 │       ├── roam_page.py           # FetchRoamPage — Datalog page queries

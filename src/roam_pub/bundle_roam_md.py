@@ -137,7 +137,10 @@ def main(
         typer.Option(
             "--cache-dir",
             "-c",
-            help="Directory for caching downloaded Cloud Firestore assets across runs. Skips re-downloading unchanged assets.",
+            help=(
+                "Directory for caching downloaded Cloud Firestore assets across runs. "
+                "Skips re-downloading unchanged assets."
+            ),
         ),
     ] = None,
 ) -> None:

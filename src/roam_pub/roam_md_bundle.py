@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import List, Tuple, overload
 from pydantic import HttpUrl, validate_call
 
-from roam_pub.roam_asset import ApiEndpointURL, FetchRoamAsset, RoamAsset
+from roam_pub.roam_local_api import ApiEndpointURL
+from roam_pub.roam_asset import FetchRoamAsset, RoamAsset
 
 logger = logging.getLogger(__name__)
 

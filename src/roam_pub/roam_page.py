@@ -7,7 +7,7 @@ import requests
 import json
 import logging
 
-from roam_pub.roam_asset import ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpointURL
 
 logger = logging.getLogger(__name__)
 

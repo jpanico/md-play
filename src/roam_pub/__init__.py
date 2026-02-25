@@ -1,6 +1,7 @@
-"""roam-pub - Markdown utilities for working with Roam Research exports."""
+"""Roam-pub - Markdown utilities for working with Roam Research exports."""
 
-from roam_pub.roam_asset import ApiEndpointURL, FetchRoamAsset, RoamAsset
+from roam_pub.roam_local_api import ApiEndpointURL
+from roam_pub.roam_asset import FetchRoamAsset, RoamAsset
 from roam_pub.roam_page import FetchRoamPage, RoamPage
 from roam_pub.roam_md_bundle import (
     find_markdown_image_links,

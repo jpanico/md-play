@@ -10,12 +10,13 @@ Roam Local API calls follow the JSON over HTTP paradigm.
 Local API calls are accessible through a single unique endpoint URL for each Roam graph, having this structure:
 
 ```python
-    SCHEME: ClassVar[Final[str]] = "http"
-    HOST: ClassVar[Final[str]] = "127.0.0.1"
-    API_PATH_STEM: ClassVar[Final[str]] = "/api/"
+# roam_local_api.ApiEndpointURL
+SCHEME: ClassVar[Final[str]] = "http"
+HOST: ClassVar[Final[str]] = "127.0.0.1"
+API_PATH_STEM: ClassVar[Final[str]] = "/api/"
 
-    """the full API endpoint URL string."""
-    f"{self.SCHEME}://{self.HOST}:{self.local_api_port}{self.API_PATH_STEM}{self.graph_name}"
+def __str__(self) -> str:
+    return f"{self.SCHEME}://{self.HOST}:{self.local_api_port}{self.API_PATH_STEM}{self.graph_name}"
 ```
 
 e.g. `http://localhost:3333/api/SCFH`

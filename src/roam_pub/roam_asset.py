@@ -2,35 +2,16 @@
 
 from datetime import datetime
 from string import Template
-from typing import ClassVar, Final, TypedDict, cast, final
+from typing import Final, TypedDict, cast, final
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, validate_call
 import requests
 import json
 import base64
 import logging
 
+from roam_pub.roam_local_api import ApiEndpointURL
+
 logger = logging.getLogger(__name__)
-
-
-class ApiEndpointURL(BaseModel):
-    """Immutable API endpoint URL for Roam Research Local API.
-
-    Pydantic ensures that `local_api_port` and `graph_name` are required and non-null by default.
-    Once created, instances cannot be modified (frozen).
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    local_api_port: int
-    graph_name: str
-
-    SCHEME: ClassVar[Final[str]] = "http"
-    HOST: ClassVar[Final[str]] = "127.0.0.1"
-    API_PATH_STEM: ClassVar[Final[str]] = "/api/"
-
-    def __str__(self) -> str:
-        """Return the full API endpoint URL string."""
-        return f"{self.SCHEME}://{self.HOST}:{self.local_api_port}{self.API_PATH_STEM}{self.graph_name}"
 
 
 class RoamAsset(BaseModel):

@@ -1,18 +1,3 @@
-[tool.black]
-line-length = 120
-target-version = ['py314']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.venv
-  | __pycache__
-  | \.pytest_cache
-  | build
-  | dist
-)/
-'''
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -34,20 +19,53 @@ dev = [
     "pytest>=7.0",
     "black>=23.0",
     "pyright>=1.1",
+    "pydocstringformatter>=0.7",
+    "hatch>=1.0",
 ]
 
 [project.scripts]
 bundle-roam-md = "roam_pub.bundle_roam_md:app"
+
+[tool.hatch.envs.default.scripts]
+check = [
+    "black .",
+    "pydocstringformatter --write src/",
+    "ruff format --preview src/",
+    "ruff check --fix src/ tests/",
+    "pyright",
+    "pytest",
+]
+
+[tool.black]
+line-length = 120
+target-version = ['py314']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | __pycache__
+  | \.pytest_cache
+  | build
+  | dist
+)/
+'''
 
 [tool.ruff]
 line-length = 120
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["D"]
+select = ["D", "E501"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.pydocstringformatter]
+style = ["pep257"]
+max-line-length = 120
+linewrap-full-docstring = true
+split-summary-body = true
 
 [tool.pyright]
 include = ["src"]

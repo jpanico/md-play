@@ -13,15 +13,24 @@ pip install -e ".[dev]"
 ## Key Commands
 ```bash
 bundle-roam-md -m <file> -p <port> -g <graph> -t <token> -o <output_dir>
-pytest          # run tests
-black .         # format code
-pyright         # type check (strict)
+
+# Run the full check pipeline (format + lint + type check + tests) in one shot:
+hatch run check
+
+# Individual steps (run in this order):
+pydocstringformatter --write src/ # reflow docstring content (PEP 257)
+ruff format --preview src/        # fix structural formatting around docstrings
+ruff check --fix src/ tests/      # lint + fix docstring style (Google convention)
+black .                           # format code
+pyright                           # type check (strict)
+pytest                            # run tests
 ```
 
 ## Project Structure
 - `src/roam_pub/` — main package
   - `bundle_roam_md.py` — CLI entry point (Typer app)
   - `roam_md_bundle.py` — core bundling logic
+  - `roam_local_api.py` — ApiEndpointURL model for the Roam Local API
   - `roam_asset.py` — Cloud Firestore asset fetching
   - `roam_model.py`, `roam_page.py`, `roam_transcribe.py` — in progress
 - `tests/fixtures/` — sample markdown, images, JSON for tests
@@ -29,7 +38,7 @@ pyright         # type check (strict)
 ## Conventions
 - Src layout: package lives under `src/roam_pub/`
 - Line length: 120 chars (Black + Ruff)
-- Docstrings: Google style (enforced by Ruff)
+- Docstrings: PEP 257 format (pydocstringformatter), Google style convention (Ruff)
 - Tests: pytest, files named `test_*.py`
 - **Strong typing**: all Python code must use type annotations throughout; no `Any` types; enforced by pyright in strict mode
 

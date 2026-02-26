@@ -5,7 +5,6 @@ import logging
 # pyright: basic
 import pytest
 from pathlib import Path
-from typing import List, Tuple
 from unittest.mock import Mock, patch, mock_open
 from pydantic import HttpUrl, ValidationError
 
@@ -109,7 +108,7 @@ class TestFindMarkdownImageLinks:
             "![alt text](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=abc123)"
         )
 
-        matches: List[Tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
+        matches: list[tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
 
         assert len(matches) == 1
         assert (
@@ -126,7 +125,7 @@ class TestFindMarkdownImageLinks:
         ![image2](https://firebasestorage.googleapis.com/v0/b/test2.appspot.com/o/img2.jpg?token=def)
         """
 
-        matches: List[Tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
+        matches: list[tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
 
         assert len(matches) == 2
         assert "img1.png" in str(matches[0][1])
@@ -142,7 +141,7 @@ class TestFindMarkdownImageLinks:
         ![Cloud Firestore](https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc)
         """
 
-        matches: List[Tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
+        matches: list[tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
 
         assert len(matches) == 1
         assert "firebasestorage.googleapis.com" in str(matches[0][1])
@@ -157,7 +156,7 @@ class TestFindMarkdownImageLinks:
         """Test that empty markdown returns empty list."""
         markdown_text: str = ""
 
-        matches: List[Tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
+        matches: list[tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
 
         assert len(matches) == 0
 
@@ -165,7 +164,7 @@ class TestFindMarkdownImageLinks:
         """Test that markdown without images returns empty list."""
         markdown_text: str = "# Heading\n\nSome text without any images."
 
-        matches: List[Tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
+        matches: list[tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
 
         assert len(matches) == 0
 
@@ -175,7 +174,7 @@ class TestFindMarkdownImageLinks:
         multiline
         alt text](https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc)"""
 
-        matches: List[Tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
+        matches: list[tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
 
         assert len(matches) == 1
         assert "firebasestorage.googleapis.com" in str(matches[0][1])
@@ -185,7 +184,7 @@ class TestFindMarkdownImageLinks:
         """Test that function returns both full match and URL."""
         markdown_text: str = "![alt](https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/img.png?token=abc)"
 
-        matches: List[Tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
+        matches: list[tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
 
         full_match, url = matches[0]
         assert full_match.startswith("![")
@@ -287,7 +286,7 @@ class TestReplaceImageLinks:
     def test_replaces_single_url(self) -> None:
         """Test replacing a single URL."""
         markdown_text: str = "![alt](https://firebasestorage.googleapis.com/o/img.png)"
-        url_replacements: List[Tuple[HttpUrl, str]] = [
+        url_replacements: list[tuple[HttpUrl, str]] = [
             (HttpUrl("https://firebasestorage.googleapis.com/o/img.png"), "local_image.png")
         ]
 
@@ -302,7 +301,7 @@ class TestReplaceImageLinks:
         ![img1](https://firebasestorage.googleapis.com/o/img1.png)
         ![img2](https://firebasestorage.googleapis.com/o/img2.jpg)
         """
-        url_replacements: List[Tuple[HttpUrl, str]] = [
+        url_replacements: list[tuple[HttpUrl, str]] = [
             (HttpUrl("https://firebasestorage.googleapis.com/o/img1.png"), "local1.png"),
             (HttpUrl("https://firebasestorage.googleapis.com/o/img2.jpg"), "local2.jpg"),
         ]
@@ -316,7 +315,7 @@ class TestReplaceImageLinks:
     def test_empty_replacements_returns_original(self) -> None:
         """Test that empty replacements list returns original text."""
         markdown_text: str = "![alt](https://firebasestorage.googleapis.com/o/img.png)"
-        url_replacements: List[Tuple[HttpUrl, str]] = []
+        url_replacements: list[tuple[HttpUrl, str]] = []
 
         result: str = replace_image_links(markdown_text, url_replacements)
 
@@ -324,7 +323,7 @@ class TestReplaceImageLinks:
 
     def test_none_markdown_text_returns_none(self) -> None:
         """Test that None markdown_text returns None."""
-        url_replacements: List[Tuple[HttpUrl, str]] = [
+        url_replacements: list[tuple[HttpUrl, str]] = [
             (HttpUrl("https://firebasestorage.googleapis.com/o/img.png"), "local_image.png")
         ]
 
@@ -335,7 +334,7 @@ class TestReplaceImageLinks:
     def test_preserves_markdown_structure(self) -> None:
         """Test that markdown structure is preserved."""
         markdown_text: str = "# Heading\n\n![image](https://firebasestorage.googleapis.com/o/img.png)\n\nSome text"
-        url_replacements: List[Tuple[HttpUrl, str]] = [
+        url_replacements: list[tuple[HttpUrl, str]] = [
             (HttpUrl("https://firebasestorage.googleapis.com/o/img.png"), "local.png")
         ]
 

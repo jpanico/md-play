@@ -10,7 +10,7 @@ import unicodedata
 import re
 import logging
 from pathlib import Path
-from typing import List, Tuple, overload
+from typing import overload
 from pydantic import HttpUrl, validate_call
 
 from roam_pub.roam_local_api import ApiEndpoint
@@ -78,7 +78,7 @@ def create_bundle_directory(markdown_file: Path, output_dir: Path) -> Path:
 
 
 @validate_call
-def find_markdown_image_links(markdown_text: str) -> List[Tuple[str, HttpUrl]]:
+def find_markdown_image_links(markdown_text: str) -> list[tuple[str, HttpUrl]]:
     """Find all Markdown image links in the text.
 
     Args:
@@ -96,7 +96,7 @@ def find_markdown_image_links(markdown_text: str) -> List[Tuple[str, HttpUrl]]:
     # re.DOTALL makes . match newlines, allowing multi-line alt text
     pattern: str = r"!\[((?:[^\]]|\n)*?)\]\((https://firebasestorage\.googleapis\.com/[^\)]+)\)"
 
-    matches: List[Tuple[str, HttpUrl]] = []
+    matches: list[tuple[str, HttpUrl]] = []
     for match in re.finditer(pattern, markdown_text):
         full_match: str = match.group(0)  # Full ![...](...)
         image_url_str: str = match.group(2)  # Just the URL as string
@@ -118,7 +118,7 @@ def fetch_and_save_image(
     firebase_url: HttpUrl,
     output_dir: Path,
     cache_dir: Path | None = None,
-) -> Tuple[HttpUrl, str]:
+) -> tuple[HttpUrl, str]:
     """Fetch an image from Roam and save it locally, using a cache if provided.
 
     When cache_dir is set, the asset is looked up by a SHA-256 hash of its Cloud Firestore URL.
@@ -141,7 +141,7 @@ def fetch_and_save_image(
     # Check the cache first
     if cache_dir is not None:
         key: str = _cache_key(firebase_url)
-        cached_files: List[Path] = list(cache_dir.glob(f"{key}.*"))
+        cached_files: list[Path] = list(cache_dir.glob(f"{key}.*"))
         if cached_files:
             cached_file: Path = cached_files[0]
             dest: Path = output_dir / cached_file.name
@@ -180,15 +180,15 @@ def fetch_and_save_image(
 
 
 @overload
-def replace_image_links(markdown_text: None, url_replacements: List[Tuple[HttpUrl, str]]) -> None: ...
+def replace_image_links(markdown_text: None, url_replacements: list[tuple[HttpUrl, str]]) -> None: ...
 
 
 @overload
-def replace_image_links(markdown_text: str, url_replacements: List[Tuple[HttpUrl, str]]) -> str: ...
+def replace_image_links(markdown_text: str, url_replacements: list[tuple[HttpUrl, str]]) -> str: ...
 
 
 @validate_call
-def replace_image_links(markdown_text: str | None, url_replacements: List[Tuple[HttpUrl, str]]) -> str | None:
+def replace_image_links(markdown_text: str | None, url_replacements: list[tuple[HttpUrl, str]]) -> str | None:
     """Replace Cloud Firestore URLs with local file paths in Markdown text.
 
     Args:
@@ -274,11 +274,11 @@ def remove_escaped_double_brackets(markdown_text: str) -> str:
 
 @validate_call
 def fetch_all_images(
-    image_links: List[Tuple[str, HttpUrl]],
+    image_links: list[tuple[str, HttpUrl]],
     api_endpoint: ApiEndpoint,
     output_dir: Path,
     cache_dir: Path | None = None,
-) -> List[Tuple[HttpUrl, str]]:
+) -> list[tuple[HttpUrl, str]]:
     """Fetch and save all images from the provided list of image links.
 
     Args:
@@ -293,7 +293,7 @@ def fetch_all_images(
     Raises:
         ValidationError: If any parameter is None or invalid
     """
-    url_replacements: List[Tuple[HttpUrl, str]] = []
+    url_replacements: list[tuple[HttpUrl, str]] = []
     for _, firebase_url in image_links:
         try:
             firebase_url_result, local_filename = fetch_and_save_image(
@@ -348,7 +348,7 @@ def bundle_md_file(
     markdown_text: str = markdown_file.read_text(encoding="utf-8")
 
     # Find all image links
-    image_links: List[Tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
+    image_links: list[tuple[str, HttpUrl]] = find_markdown_image_links(markdown_text)
 
     if not image_links:
         logger.info("No Cloud Firestore image links found in the file")
@@ -360,7 +360,7 @@ def bundle_md_file(
     )
 
     # Fetch and save all images to the bundle directory
-    url_replacements: List[Tuple[HttpUrl, str]] = fetch_all_images(image_links, api_endpoint, bundle_dir, cache_dir)
+    url_replacements: list[tuple[HttpUrl, str]] = fetch_all_images(image_links, api_endpoint, bundle_dir, cache_dir)
 
     # Replace URLs in the Markdown text
     if url_replacements:

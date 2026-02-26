@@ -56,7 +56,11 @@ line-length = 120
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["D", "E501"]
+select = [
+    "D",     # pydocstyle
+    "E501",  # line too long
+    "UP",    # pyupgrade — enforce modern Python idioms
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

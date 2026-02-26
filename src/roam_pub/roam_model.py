@@ -6,9 +6,7 @@ file-handling types (RoamFileReference, RoamFile, WebFile), and the VertexType /
 FollowLinksDirective enumerations.
 """
 
-from __future__ import annotations
-
-from enum import Enum
+from enum import StrEnum
 import textwrap
 from typing import Any, Final, final
 
@@ -213,6 +211,31 @@ class RoamNode(BaseModel):
     )
 
 
+class VertexType(StrEnum):
+    """Type identifiers for the individual elements (vertices) in the PageDump output graph.
+
+    Every vertex in the output graph has exactly one VertexType.  The values
+    are string-valued so they serialize cleanly to/from JSON without extra
+    conversion.
+
+    Values:
+        ROAM_PAGE: 1-1 with a Roam ``Page`` type node (:node/title present,
+            no :block/string).
+        ROAM_BLOCK_CONTENT: 1-1 with a Roam ``Block`` type node that has no
+            ``heading`` property — i.e. normal body text.
+        ROAM_BLOCK_HEADING: 1-1 with a Roam ``Block`` type node that has a
+            ``heading`` property (value 1, 2, or 3).
+        ROAM_FILE: A block that references a file uploaded to and managed by Roam
+            (Cloud Firestore-hosted). These blocks have a Cloud Firestore URL embedded in their
+            ``:block/string``.
+    """
+
+    ROAM_PAGE = "roam/page"
+    ROAM_BLOCK_CONTENT = "roam/block-content"
+    ROAM_BLOCK_HEADING = "roam/block-heading"
+    ROAM_FILE = "roam/file"
+
+
 class EnrichedNode(RoamNode):
     """A RoamNode with synthetic properties added during the PageDump enrichment pass.
 
@@ -229,7 +252,7 @@ class EnrichedNode(RoamNode):
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
 
-    vertex_type: "VertexType | None" = Field(
+    vertex_type: VertexType | None = Field(
         default=None,
         alias="vertex-type",
         description="VertexType assigned during enrichment (serialized as 'vertex-type')",
@@ -267,7 +290,7 @@ class Vertex(BaseModel):
     model_config = ConfigDict(frozen=True, populate_by_name=True)
 
     uid: Uid = Field(..., description="Nine-character stable block/page identifier")
-    vertex_type: "VertexType" = Field(
+    vertex_type: VertexType = Field(
         ..., alias="vertex-type", description="VertexType classification (serialized as 'vertex-type')"
     )
     media_type: MediaType | None = Field(
@@ -308,32 +331,7 @@ class RoamFileReference(BaseModel):
     url: Url = Field(..., description="Cloud Firestore storage URL of the Roam-managed file")
 
 
-class VertexType(str, Enum):
-    """Type identifiers for the individual elements (vertices) in the PageDump output graph.
-
-    Every vertex in the output graph has exactly one VertexType.  The values
-    are string-valued so they serialize cleanly to/from JSON without extra
-    conversion.
-
-    Values:
-        ROAM_PAGE: 1-1 with a Roam ``Page`` type node (:node/title present,
-            no :block/string).
-        ROAM_BLOCK_CONTENT: 1-1 with a Roam ``Block`` type node that has no
-            ``heading`` property — i.e. normal body text.
-        ROAM_BLOCK_HEADING: 1-1 with a Roam ``Block`` type node that has a
-            ``heading`` property (value 1, 2, or 3).
-        ROAM_FILE: A block that references a file uploaded to and managed by Roam
-            (Cloud Firestore-hosted). These blocks have a Cloud Firestore URL embedded in their
-            ``:block/string``.
-    """
-
-    ROAM_PAGE = "roam/page"
-    ROAM_BLOCK_CONTENT = "roam/block-content"
-    ROAM_BLOCK_HEADING = "roam/block-heading"
-    ROAM_FILE = "roam/file"
-
-
-class FollowLinksDirective(str, Enum):
+class FollowLinksDirective(StrEnum):
     """Controls how the Roam hierarchical Datomic query traverses :block/children and :block/refs links.
 
     Used in DumpConfig to independently configure traversal depth for children

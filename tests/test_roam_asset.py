@@ -7,7 +7,6 @@ import pytest
 import json
 import base64
 from datetime import datetime
-from typing import List, Tuple
 
 from roam_pub.roam_asset import RoamAsset, FetchRoamAsset
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
@@ -57,7 +56,7 @@ class TestRoamAsset:
 
     def test_valid_media_types(self) -> None:
         """Test various valid MIME type formats."""
-        valid_media_types: List[str] = [
+        valid_media_types: list[str] = [
             "image/jpeg",
             "image/png",
             "application/pdf",
@@ -101,7 +100,7 @@ class TestRoamAsset:
 
     def test_different_file_types(self) -> None:
         """Test RoamAsset with different file types and their typical MIME types."""
-        test_cases: List[Tuple[str, str, bytes]] = [
+        test_cases: list[tuple[str, str, bytes]] = [
             ("image.jpeg", "image/jpeg", b"\xff\xd8\xff\xe0"),  # JPEG magic bytes
             ("document.pdf", "application/pdf", b"%PDF-1.4"),  # PDF header
             ("photo.png", "image/png", b"\x89PNG"),  # PNG signature
@@ -183,7 +182,7 @@ class TestRoamAssetFromResponseText:
 
     def test_different_file_types(self) -> None:
         """Test parsing responses with different file types."""
-        test_cases: List[Tuple[str, bytes, str]] = [
+        test_cases: list[tuple[str, bytes, str]] = [
             ("image.jpeg", b"\xff\xd8\xff\xe0", "image/jpeg"),  # JPEG magic bytes
             ("document.pdf", b"%PDF-1.4", "application/pdf"),  # PDF header
             ("photo.png", b"\x89PNG", "image/png"),  # PNG signature

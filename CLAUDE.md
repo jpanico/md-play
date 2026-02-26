@@ -42,6 +42,17 @@ pytest                            # run tests
 - Tests: pytest, files named `test_*.py`
 - **Strong typing**: all Python code must use type annotations throughout; no `Any` types; enforced by pyright in strict mode
 
+## Modern Python Requirements (Python 3.14)
+All code written or modified by Claude MUST follow these conventions — no exceptions:
+
+- **Built-in generics**: always `list[x]`, `tuple[x, y]`, `dict[k, v]`, `set[x]` — never `List`, `Tuple`, `Dict`, `Set` from `typing`
+- **Union syntax**: always `X | Y` and `X | None` — never `Union[X, Y]` or `Optional[X]`
+- **Type aliases**: always `type Foo = ...` (PEP 695) — never `Foo: TypeAlias = ...` or bare `Foo = ...`
+- **No `from __future__ import annotations`**: not needed in Python 3.14 (PEP 649 deferred evaluation is the default)
+- **No string-quoted forward references**: never `"ClassName"` in annotations; if a forward reference is needed, reorder definitions so the referenced name is declared first
+- **No `cast()`**: never use `typing.cast()`; fix the type properly instead
+- **No `Any`**: never use `typing.Any`; use a precise type or a type variable
+
 ## Environment Variables (referenced by `bundle_roam_md.py` CLI args)
 - `ROAM_LOCAL_API_PORT` — port for Roam Local API
 - `ROAM_GRAPH_NAME` — Roam graph name

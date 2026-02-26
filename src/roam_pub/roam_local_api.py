@@ -9,7 +9,7 @@ Roam graph's Local API endpoint, and :class:`ApiEndpoint`, which pairs an
 import json
 import logging
 from string import Template
-from typing import ClassVar, Final, TypedDict, cast
+from typing import ClassVar, Final, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 
@@ -50,7 +50,7 @@ class ApiEndpoint(BaseModel):
     bearer_token: str = Field(min_length=1)
 
     @classmethod
-    def from_parts(cls, local_api_port: int, graph_name: str, bearer_token: str) -> "ApiEndpoint":
+    def from_parts(cls, local_api_port: int, graph_name: str, bearer_token: str) -> ApiEndpoint:
         """Construct an ApiEndpoint from its constituent primitive values.
 
         Convenience factory for the common case where the port, graph name, and
@@ -108,7 +108,7 @@ class Request:
     def get_request_headers(cls, api_bearer_token: str) -> Headers:
         """Return the HTTP headers required for an authenticated Local API request."""
         request_headers_str: str = cls.HEADERS_TEMPLATE.substitute(roam_local_api_token=api_bearer_token)
-        return cast(dict[str, str], json.loads(request_headers_str))
+        return json.loads(request_headers_str)
 
 
 def make_request() -> None:

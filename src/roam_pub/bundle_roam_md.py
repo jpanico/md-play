@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 
 import typer
-from typing_extensions import Annotated
+from typing import Annotated
 
 from roam_pub.roam_md_bundle import bundle_md_file
 

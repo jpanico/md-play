@@ -79,7 +79,8 @@
       "Bash(git -C /Users/jpanico/Documents/github/roam-pub log --oneline -5)",
       "Bash(git -C /Users/jpanico/Documents/github/roam-pub add .claude/settings.local.json CLAUDE.md docs/roam-local-api.md docs/roam-querying.md src/roam_pub/bundle_roam_md.py src/roam_pub/CLAUDE.md)",
       "Bash(git -C:*)",
-      "Bash(None\" and \"VertexType\" annotations in roam_model.py:*)"
+      "Bash(None\" and \"VertexType\" annotations in roam_model.py:*)",
+      "Bash(git reset:*)"
     ]
   }
 }

@@ -4,7 +4,6 @@ import logging
 import os
 from pydantic import HttpUrl, ValidationError
 import pytest
-import json
 import base64
 from datetime import datetime
 
@@ -140,25 +139,21 @@ class TestRoamAsset:
             roam_asset.file_name = "changed.txt"  # type: ignore[misc]
 
 
-class TestRoamAssetFromResponseText:
-    """Tests for parsing API responses into RoamAsset objects via FetchRoamAsset.roam_file_from_response_json."""
+class TestRoamAssetFromResultJson:
+    """Tests for parsing API result dicts into RoamAsset objects via FetchRoamAsset.roam_file_from_result_json."""
 
-    def test_null_response_text_raises_type_error(self) -> None:
-        """Test that None response_text raises ValidationError."""
-        with pytest.raises(ValidationError, match="Input should be a valid string"):
-            FetchRoamAsset.roam_file_from_response_json(response_json=None)  # type: ignore[arg-type]
+    def test_null_result_raises_validation_error(self) -> None:
+        """Test that None result_json raises ValidationError."""
+        with pytest.raises(ValidationError):
+            FetchRoamAsset.roam_file_from_result_json(result_json=None)  # type: ignore[arg-type]
 
-    def test_valid_response_text_returns_roam_asset(self) -> None:
-        """Test that valid response text returns a RoamAsset object."""
-        # Create a realistic response payload
+    def test_valid_result_returns_roam_asset(self) -> None:
+        """Test that a valid result dict returns a RoamAsset object."""
         file_content: bytes = b"test file content"
         encoded_content: str = base64.b64encode(file_content).decode("utf-8")
+        result = {"base64": encoded_content, "filename": "test_file.jpeg", "mimetype": "image/jpeg"}
 
-        response_json: str = json.dumps(
-            {"result": {"base64": encoded_content, "filename": "test_file.jpeg", "mimetype": "image/jpeg"}}
-        )
-
-        roam_asset: RoamAsset = FetchRoamAsset.roam_file_from_response_json(response_json)
+        roam_asset: RoamAsset = FetchRoamAsset.roam_file_from_result_json(result)
 
         assert roam_asset.file_name == "test_file.jpeg"
         assert roam_asset.contents == file_content
@@ -169,63 +164,42 @@ class TestRoamAssetFromResponseText:
         """Test that base64 content is properly decoded."""
         test_content: bytes = b"Hello, Roam Research!"
         encoded: str = base64.b64encode(test_content).decode("utf-8")
+        result = {"base64": encoded, "filename": "test.txt", "mimetype": "text/plain"}
 
-        response_json: str = json.dumps(
-            {"result": {"base64": encoded, "filename": "test.txt", "mimetype": "text/plain"}}
-        )
-
-        roam_asset: RoamAsset = FetchRoamAsset.roam_file_from_response_json(response_json)
+        roam_asset: RoamAsset = FetchRoamAsset.roam_file_from_result_json(result)
 
         assert roam_asset.contents == test_content
         assert roam_asset.file_name == "test.txt"
         assert roam_asset.media_type == "text/plain"
 
     def test_different_file_types(self) -> None:
-        """Test parsing responses with different file types."""
+        """Test parsing result dicts with different file types."""
         test_cases: list[tuple[str, bytes, str]] = [
             ("image.jpeg", b"\xff\xd8\xff\xe0", "image/jpeg"),  # JPEG magic bytes
             ("document.pdf", b"%PDF-1.4", "application/pdf"),  # PDF header
             ("photo.png", b"\x89PNG", "image/png"),  # PNG signature
         ]
 
-        for filename, content, mediat_type in test_cases:
+        for filename, content, media_type in test_cases:
             encoded: str = base64.b64encode(content).decode("utf-8")
-            response_json: str = json.dumps(
-                {"result": {"base64": encoded, "filename": filename, "mimetype": mediat_type}}
-            )
+            result = {"base64": encoded, "filename": filename, "mimetype": media_type}
 
-            roam_asset: RoamAsset = FetchRoamAsset.roam_file_from_response_json(response_json)
+            roam_asset: RoamAsset = FetchRoamAsset.roam_file_from_result_json(result)
 
             assert roam_asset.file_name == filename
             assert roam_asset.contents == content
-            assert roam_asset.media_type == mediat_type
-
-    def test_invalid_json_raises_error(self) -> None:
-        """Test that invalid JSON raises an error."""
-        with pytest.raises(json.JSONDecodeError):
-            FetchRoamAsset.roam_file_from_response_json("not valid json")
-
-    def test_missing_result_key_raises_error(self) -> None:
-        """Test that missing 'result' key raises KeyError."""
-        response_json: str = json.dumps({"wrong_key": {}})
-
-        with pytest.raises(KeyError):
-            FetchRoamAsset.roam_file_from_response_json(response_json)
+            assert roam_asset.media_type == media_type
 
     def test_missing_base64_key_raises_error(self) -> None:
-        """Test that missing 'base64' key raises KeyError."""
-        response_json: str = json.dumps({"result": {"filename": "test.txt"}})
-
-        with pytest.raises(KeyError):
-            FetchRoamAsset.roam_file_from_response_json(response_json)
+        """Test that a missing 'base64' key raises ValidationError."""
+        with pytest.raises(ValidationError):
+            FetchRoamAsset.roam_file_from_result_json({"filename": "test.txt", "mimetype": "text/plain"})  # type: ignore[arg-type]
 
     def test_missing_filename_key_raises_error(self) -> None:
-        """Test that missing 'filename' key raises KeyError."""
+        """Test that a missing 'filename' key raises ValidationError."""
         encoded: str = base64.b64encode(b"data").decode("utf-8")
-        response_json: str = json.dumps({"result": {"base64": encoded}})
-
-        with pytest.raises(KeyError):
-            FetchRoamAsset.roam_file_from_response_json(response_json)
+        with pytest.raises(ValidationError):
+            FetchRoamAsset.roam_file_from_result_json({"base64": encoded, "mimetype": "text/plain"})  # type: ignore[arg-type]
 
 
 class TestFetchRoamAssetFetch:

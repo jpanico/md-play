@@ -4,12 +4,11 @@ from datetime import datetime
 from string import Template
 from typing import Final, TypedDict, cast, final
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, validate_call
-import requests
 import json
 import base64
 import logging
 
-from roam_pub.roam_local_api import ApiEndpoint, FileGetPayload, Request
+from roam_pub.roam_local_api import ApiEndpoint, Request, Response, make_request
 
 logger = logging.getLogger(__name__)
 
@@ -40,22 +39,18 @@ class _RoamFileResult(TypedDict):
     mimetype: str
 
 
-class _RoamFileResponse(TypedDict):
-    """Typed structure for a Roam Local API file.get response payload."""
-
-    result: _RoamFileResult
-
-
 @final
 class FetchRoamAsset:
     """Stateless utility class for fetching Roam assets from the Roam Research Local API.
 
+    Delegates HTTP transport to :func:`roam_local_api.make_request`, which handles
+    header construction and error handling.
+
     Class Attributes:
-        REQUEST_HEADERS: HTTP headers used for all API requests
-        REQUEST_PAYLOAD_TEMPLATE: JSON template for building request payloads.
-            Contains the action 'file.get' and expects a $file_url substitution
-            parameter for the Cloud Firestore URL. The format parameter is set to 'base64' to receive binary
-            data in base64-encoded format.
+        REQUEST_PAYLOAD_TEMPLATE: JSON template for building ``file.get`` request payloads.
+            Expects a ``$file_url`` substitution for the Cloud Firestore URL. The ``format``
+            parameter is set to ``'base64'`` so the API returns binary data as a base64-encoded
+            string.
     """
 
     def __init__(self) -> None:
@@ -76,15 +71,26 @@ class FetchRoamAsset:
 
     @staticmethod
     @validate_call
-    def roam_file_from_response_json(response_json: str) -> RoamAsset:
-        """Parse a Roam Local API JSON response into a RoamAsset."""
-        logger.debug(f"response_json: {response_json}")
+    def roam_file_from_result_json(result_json: _RoamFileResult) -> RoamAsset:
+        """Construct a RoamAsset from a pre-parsed ``file.get`` result dict.
 
-        response_payload: _RoamFileResponse = cast(_RoamFileResponse, json.loads(response_json))
-        payload_result: _RoamFileResult = response_payload["result"]
-        file_bytes: bytes = base64.b64decode(payload_result["base64"])
-        file_name: str = payload_result["filename"]
-        media_type: str = payload_result["mimetype"]
+        Args:
+            result_json: The ``'result'`` field extracted from a Roam Local API
+                ``file.get`` response, containing ``base64``-encoded file contents,
+                the original ``filename``, and the ``mimetype``.
+
+        Returns:
+            An immutable :class:`RoamAsset` with the decoded binary contents,
+            file name, media type, and a ``last_modified`` timestamp of now.
+
+        Raises:
+            ValidationError: If ``result_json`` is ``None`` or missing required keys.
+        """
+        logger.debug(f"result_json: {result_json}")
+
+        file_bytes: bytes = base64.b64decode(result_json["base64"])
+        file_name: str = result_json["filename"]
+        media_type: str = result_json["mimetype"]
 
         logger.info(f"Successfully fetched file: {file_name}")
 
@@ -99,39 +105,32 @@ class FetchRoamAsset:
     @staticmethod
     @validate_call
     def fetch(api_endpoint: ApiEndpoint, firebase_url: HttpUrl) -> RoamAsset:
-        """Fetch an asset (file) from the Roam Research Local API.
+        """Fetch an asset from Cloud Firestore via the Roam Research Local API.
 
-        Because this goes through the Local API, the Roam Research native App must be
-        running at the time this method is called, and the user must be logged into the
-        graph having ``graph_name``.
+        Builds a ``file.get`` request payload and delegates the HTTP call to
+        :func:`roam_local_api.make_request`. The Roam Desktop app must be running and
+        the user must be logged into the graph at the time this method is called.
 
         Args:
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
-            firebase_url: The Cloud Firestore URL that appears in Roam Markdown
+            firebase_url: The Cloud Firestore URL of the asset, as it appears in the
+                Roam graph's Markdown.
 
         Returns:
-            RoamAsset object containing the fetched file data
+            An immutable :class:`RoamAsset` with the decoded binary contents,
+            file name, media type, and a ``last_modified`` timestamp of now.
 
         Raises:
-            ValidationError: If any parameter is None or invalid
-            requests.exceptions.ConnectionError: If unable to connect to API
-            requests.exceptions.HTTPError: If API returns error status
+            ValidationError: If any parameter is ``None`` or invalid.
+            requests.exceptions.ConnectionError: If the Local API is unreachable.
+            requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
         logger.debug(f"api_endpoint: {api_endpoint.url}, firebase_url: {firebase_url}")
 
-        request_headers: dict[str, str] = Request.get_request_headers(api_endpoint.bearer_token)
         request_payload_str: str = FetchRoamAsset.REQUEST_PAYLOAD_TEMPLATE.substitute(file_url=firebase_url)
-        request_payload: FileGetPayload = cast(FileGetPayload, json.loads(request_payload_str))
-        logger.info(f"request_payload: {request_payload}, headers: {request_headers}, api: {api_endpoint.url}")
+        request_payload: Request.Payload = cast(Request.Payload, json.loads(request_payload_str))
+        response_payload: Response.Payload = make_request(request_payload, api_endpoint)
+        logger.debug(f"response_payload: {response_payload}")
+        result: _RoamFileResult = cast(_RoamFileResult, response_payload["result"])
 
-        # The Local API expects a POST request with the file URL
-        response: requests.Response = requests.post(
-            str(api_endpoint.url), json=request_payload, headers=request_headers, stream=False
-        )
-
-        if response.status_code == 200:
-            return FetchRoamAsset.roam_file_from_response_json(response.text)
-        else:
-            error_msg: str = f"Failed to fetch file. Status Code: {response.status_code}, Response: {response.text}"
-            logger.error(error_msg)
-            raise requests.exceptions.HTTPError(error_msg)
+        return FetchRoamAsset.roam_file_from_result_json(result)

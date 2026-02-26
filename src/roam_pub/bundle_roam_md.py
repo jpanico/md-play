@@ -18,7 +18,7 @@ from roam_pub.roam_md_bundle import bundle_md_file
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)8s] %(message)s",
+    format="%(asctime)s [%(levelname)8s] (%(module)s.%(funcName)s:%(lineno)d) %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)

@@ -2,12 +2,15 @@
 
 # pyright: basic
 
+import json
 import logging
+from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 from pydantic import ValidationError
 
-from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL, Request
+from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL, Request, Response, make_request
 
 logger = logging.getLogger(__name__)
 
@@ -257,3 +260,163 @@ class TestRequest:
         """Test that passing a non-string api_bearer_token raises ValidationError."""
         with pytest.raises(ValidationError):
             Request.get_request_headers(12345)  # type: ignore[arg-type]
+
+
+class TestRequestPayload:
+    """Tests for the Request.Payload TypedDict."""
+
+    def test_valid_construction(self) -> None:
+        """Test that a valid Request.Payload dict can be constructed."""
+        payload: Request.Payload = {
+            "action": "file.get",
+            "args": [{"url": "https://example.com/file.jpg", "format": "base64"}],
+        }
+        assert payload["action"] == "file.get"
+        assert len(payload["args"]) == 1
+
+    def test_is_dict_at_runtime(self) -> None:
+        """Test that Request.Payload is a plain dict at runtime (TypedDict semantics)."""
+        payload: Request.Payload = {"action": "q", "args": []}
+        assert isinstance(payload, dict)
+
+    def test_empty_args_list(self) -> None:
+        """Test that args can be an empty list."""
+        payload: Request.Payload = {"action": "q", "args": []}
+        assert payload["args"] == []
+
+
+class TestResponsePayload:
+    """Tests for the Response.Payload TypedDict."""
+
+    def test_valid_construction(self) -> None:
+        """Test that a valid Response.Payload dict can be constructed."""
+        payload: Response.Payload = {"success": "true", "result": {"filename": "test.jpg"}}
+        assert payload["success"] == "true"
+        assert payload["result"]["filename"] == "test.jpg"
+
+    def test_is_dict_at_runtime(self) -> None:
+        """Test that Response.Payload is a plain dict at runtime (TypedDict semantics)."""
+        payload: Response.Payload = {"success": "true", "result": {}}
+        assert isinstance(payload, dict)
+
+    def test_empty_result(self) -> None:
+        """Test that result can be an empty dict."""
+        payload: Response.Payload = {"success": "true", "result": {}}
+        assert payload["result"] == {}
+
+
+class TestMakeRequest:
+    """Tests for the make_request module-level function."""
+
+    # ------------------------------------------------------------------
+    # Fixtures
+    # ------------------------------------------------------------------
+
+    @pytest.fixture
+    def api_endpoint(self) -> ApiEndpoint:
+        """Return a standard ApiEndpoint for use in tests."""
+        return ApiEndpoint.from_parts(local_api_port=3333, graph_name="SCFH", bearer_token="test-token")
+
+    @pytest.fixture
+    def file_get_payload(self) -> Request.Payload:
+        """Return a minimal file.get Request.Payload for use in tests."""
+        return {
+            "action": "file.get",
+            "args": [{"url": "https://firebasestorage.googleapis.com/test.jpg", "format": "base64"}],
+        }
+
+    @pytest.fixture
+    def mock_200_response(self) -> MagicMock:
+        """Return a mock requests.Response with status 200 and a minimal success body."""
+        mock: MagicMock = MagicMock()
+        mock.status_code = 200
+        mock.text = json.dumps({"success": "true", "result": {"filename": "test.jpg"}})
+        return mock
+
+    # ------------------------------------------------------------------
+    # Success path
+    # ------------------------------------------------------------------
+
+    def test_200_returns_parsed_response_payload(
+        self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload, mock_200_response: MagicMock
+    ) -> None:
+        """Test that a 200 response is parsed and returned as Response.Payload."""
+        with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response):
+            result: Response.Payload = make_request(file_get_payload, api_endpoint)
+
+        assert result["success"] == "true"
+        assert result["result"]["filename"] == "test.jpg"
+
+    def test_posts_to_endpoint_url(
+        self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload, mock_200_response: MagicMock
+    ) -> None:
+        """Test that the POST is made to the correct endpoint URL."""
+        with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
+            make_request(file_get_payload, api_endpoint)
+
+        assert mock_post.call_args.args[0] == str(api_endpoint.url)
+
+    def test_sends_authorization_header(
+        self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload, mock_200_response: MagicMock
+    ) -> None:
+        """Test that the Authorization header contains the bearer token."""
+        with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
+            make_request(file_get_payload, api_endpoint)
+
+        headers: dict[str, str] = mock_post.call_args.kwargs["headers"]
+        assert headers["Authorization"] == f"Bearer {api_endpoint.bearer_token}"
+
+    def test_sends_content_type_header(
+        self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload, mock_200_response: MagicMock
+    ) -> None:
+        """Test that the Content-Type header is application/json."""
+        with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
+            make_request(file_get_payload, api_endpoint)
+
+        headers: dict[str, str] = mock_post.call_args.kwargs["headers"]
+        assert headers["Content-Type"] == "application/json"
+
+    def test_sends_payload_as_json_body(
+        self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload, mock_200_response: MagicMock
+    ) -> None:
+        """Test that the payload dict is passed as the json kwarg."""
+        with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
+            make_request(file_get_payload, api_endpoint)
+
+        assert mock_post.call_args.kwargs["json"] == file_get_payload
+
+    # ------------------------------------------------------------------
+    # Error path
+    # ------------------------------------------------------------------
+
+    def test_403_raises_http_error(self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload) -> None:
+        """Test that a 403 response raises requests.exceptions.HTTPError."""
+        mock_response: MagicMock = MagicMock()
+        mock_response.status_code = 403
+        mock_response.text = "Forbidden"
+
+        with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
+            with pytest.raises(requests.exceptions.HTTPError):
+                make_request(file_get_payload, api_endpoint)
+
+    def test_500_raises_http_error(self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload) -> None:
+        """Test that a 500 response raises requests.exceptions.HTTPError."""
+        mock_response: MagicMock = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+
+        with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
+            with pytest.raises(requests.exceptions.HTTPError):
+                make_request(file_get_payload, api_endpoint)
+
+    def test_error_message_contains_status_code(
+        self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload
+    ) -> None:
+        """Test that the HTTPError message includes the status code."""
+        mock_response: MagicMock = MagicMock()
+        mock_response.status_code = 401
+        mock_response.text = "Unauthorized"
+
+        with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
+            with pytest.raises(requests.exceptions.HTTPError, match="401"):
+                make_request(file_get_payload, api_endpoint)

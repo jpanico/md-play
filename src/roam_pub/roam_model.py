@@ -1,49 +1,46 @@
-"""Python translation of PageDump.js lines 1-108.
+"""Roughly a Python translation of core PageDump.js model.
 
 Defines the core Roam Research data model: primitive type aliases, composite map types,
 raw graph node shapes (RoamNode, EnrichedNode), the normalized output shape (Vertex),
 file-handling types (RoamFileReference, RoamFile, WebFile), and the VertexType /
 FollowLinksDirective enumerations.
-
-SPDX-FileCopyrightText: © 2023 Joe Panico <joe@panmachine.biz>
-SPDX-License-Identifier: MIT
 """
 
 from __future__ import annotations
 
 from enum import Enum
 import textwrap
-from typing import Any, Final, TypeAlias, final
+from typing import Any, Final, final
 
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 
 from roam_pub.roam_local_api import ApiEndpointURL
 
-Uid: TypeAlias = str
+type Uid = str
 """Nine-character alphanumeric stable block/page identifier (:block/uid)."""
 
-Id: TypeAlias = int
+type Id = int
 """Datomic internal numeric entity id (:db/id).
 
 Ephemeral — not stable across exports.
 """
 
-Order: TypeAlias = int
+type Order = int
 """Zero-based position of a child block among its siblings (:block/order)."""
 
-HeadingLevel: TypeAlias = int
+type HeadingLevel = int
 """HeadingLevel level: 0 = normal text, 1 = H1, 2 = H2, 3 = H3 (:block/heading)."""
 
-PageTitle: TypeAlias = str
+type PageTitle = str
 """Page title string (:node/title).
 
 Only present on page entities.
 """
 
-Url: TypeAlias = str
+type Url = str
 """A URL string (e.g. a Cloud Firestore storage URL for a Roam-managed file)."""
 
-MediaType: TypeAlias = str
+type MediaType = str
 """
 IANA media type (MIME type) string, e.g. ``"image/jpeg"``.
 
@@ -52,16 +49,16 @@ References:
   - https://www.iana.org/assignments/media-types/media-types.xhtml
 """
 
-UidPair: TypeAlias = tuple[str, Uid]
+type UidPair = tuple[str, Uid]
 """A two-element tuple ``('uid', <uid-value>)`` used as a Datomic :entity/attrs source or value."""
 
-OrderedUid: TypeAlias = tuple[Uid, Order]
+type OrderedUid = tuple[Uid, Order]
 """A ``(uid, order)`` pair for sorting child blocks."""
 
-OrderedValue: TypeAlias = tuple[Any, Order]
+type OrderedValue = tuple[Any, Order]
 """A ``(value, order)`` pair for generic ordered collections."""
 
-KeyValuePair: TypeAlias = tuple[str, Any]
+type KeyValuePair = tuple[str, Any]
 """A ``(key, value)`` pair."""
 
 
@@ -99,7 +96,7 @@ class LinkObject(BaseModel):
     value: UidPair = Field(..., description="Asserted value as a ('uid', uid) pair")
 
 
-RawChildren: TypeAlias = list[IdObject]
+type RawChildren = list[IdObject]
 """
 Child block stubs as returned directly by ``pull [*]``.
 
@@ -107,14 +104,14 @@ Each element is an IdObject (only the :db/id is present); full data requires
 a subsequent pull or was included by an explicit recursive pull pattern.
 """
 
-RawRefs: TypeAlias = list[IdObject]
+type RawRefs = list[IdObject]
 """
 Page/block reference stubs as returned directly by ``pull [*]``.
 
 Same shape as RawChildren — IdObject stubs, not fully pulled entities.
 """
 
-NormalChildren: TypeAlias = list[Uid]
+type NormalChildren = list[Uid]
 """
 Child block UIDs after normalization.
 
@@ -122,7 +119,7 @@ The raw IdObject stubs are resolved to their stable :block/uid strings,
 and sorted by :block/order, during the normalization pass.
 """
 
-NormalRefs: TypeAlias = list[Uid]
+type NormalRefs = list[Uid]
 """
 Referenced page/block UIDs after normalization.
 
@@ -130,7 +127,7 @@ The raw IdObject stubs are resolved to their stable :block/uid strings
 during the normalization pass.
 """
 
-Id2UidMap: TypeAlias = dict[str, OrderedUid]
+type Id2UidMap = dict[str, OrderedUid]
 """
 Maps a Datomic entity id (as a string key) to an ``(uid, order)`` pair.
 
@@ -138,7 +135,7 @@ Built during normalization so that raw IdObject references in children/refs
 can be resolved to stable UIDs and sorted by order in a single pass.
 """
 
-PageTitle2UidMap: TypeAlias = dict[PageTitle, Uid]
+type PageTitle2UidMap = dict[PageTitle, Uid]
 """Maps a page title to its :block/uid."""
 
 

@@ -9,7 +9,7 @@ import json
 import base64
 import logging
 
-from roam_pub.roam_local_api import ApiEndpoint
+from roam_pub.roam_local_api import ApiEndpoint, FileGetPayload, Request
 
 logger = logging.getLogger(__name__)
 
@@ -30,20 +30,6 @@ class RoamAsset(BaseModel):
     last_modified: datetime = Field(..., description="Last modification timestamp")
     media_type: str = Field(..., pattern=r"^[\w-]+/[\w-]+$", description="MIME type (e.g., 'image/jpeg')")
     contents: bytes = Field(..., description="Binary file contents")
-
-
-class _FileGetArg(TypedDict):
-    """Typed structure for a single argument in a Roam Local API file.get request."""
-
-    url: str
-    format: str
-
-
-class _FileGetPayload(TypedDict):
-    """Typed structure for a Roam Local API file.get request payload."""
-
-    action: str
-    args: list[_FileGetArg]
 
 
 class _RoamFileResult(TypedDict):
@@ -75,13 +61,6 @@ class FetchRoamAsset:
     def __init__(self) -> None:
         """Prevent instantiation of this stateless utility class."""
         raise TypeError("FetchRoamAsset is a stateless utility class and cannot be instantiated")
-
-    REQUEST_HEADERS_TEMPLATE: Final[Template] = Template("""
-    {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $roam_local_api_token"
-    }
-    """)
 
     REQUEST_PAYLOAD_TEMPLATE: Final[Template] = Template("""
     {
@@ -140,12 +119,9 @@ class FetchRoamAsset:
         """
         logger.debug(f"api_endpoint: {api_endpoint.url}, firebase_url: {firebase_url}")
 
-        request_headers_str: str = FetchRoamAsset.REQUEST_HEADERS_TEMPLATE.substitute(
-            roam_local_api_token=api_endpoint.bearer_token
-        )
-        request_headers: dict[str, str] = cast(dict[str, str], json.loads(request_headers_str))
+        request_headers: dict[str, str] = Request.get_request_headers(api_endpoint.bearer_token)
         request_payload_str: str = FetchRoamAsset.REQUEST_PAYLOAD_TEMPLATE.substitute(file_url=firebase_url)
-        request_payload: _FileGetPayload = cast(_FileGetPayload, json.loads(request_payload_str))
+        request_payload: FileGetPayload = cast(FileGetPayload, json.loads(request_payload_str))
         logger.info(f"request_payload: {request_payload}, headers: {request_headers}, api: {api_endpoint.url}")
 
         # The Local API expects a POST request with the file URL

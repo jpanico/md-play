@@ -6,10 +6,12 @@ Roam graph's Local API endpoint, and :class:`ApiEndpoint`, which pairs an
 ``ApiEndpointURL`` with its bearer token for authenticated API calls.
 """
 
+import json
 import logging
-from typing import ClassVar, Final
+from string import Template
+from typing import ClassVar, Final, TypedDict, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, validate_call
 
 logger = logging.getLogger(__name__)
 
@@ -67,3 +69,48 @@ class ApiEndpoint(BaseModel):
             url=ApiEndpointURL(local_api_port=local_api_port, graph_name=graph_name),
             bearer_token=bearer_token,
         )
+
+
+class FileGetArg(TypedDict):
+    """Typed structure for a single argument in a Roam Local API file.get request."""
+
+    url: str
+    format: str
+
+
+class FileGetPayload(TypedDict):
+    """Typed structure for a Roam Local API file.get request payload."""
+
+    action: str
+    args: list[FileGetArg]
+
+
+class Request:
+    """Utilities for constructing Roam Local API HTTP requests."""
+
+    type Headers = dict[str, str]
+
+    class Payload(TypedDict):
+        """Typed structure for a Roam Local API request payload."""
+
+        action: str
+        args: list[FileGetArg]
+
+    HEADERS_TEMPLATE: Final[Template] = Template("""
+    {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $roam_local_api_token"
+    }
+    """)
+
+    @classmethod
+    @validate_call
+    def get_request_headers(cls, api_bearer_token: str) -> Headers:
+        """Return the HTTP headers required for an authenticated Local API request."""
+        request_headers_str: str = cls.HEADERS_TEMPLATE.substitute(roam_local_api_token=api_bearer_token)
+        return cast(dict[str, str], json.loads(request_headers_str))
+
+
+def make_request() -> None:
+    """Make a Roam Local API request."""
+    ...

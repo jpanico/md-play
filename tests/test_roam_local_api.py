@@ -7,7 +7,7 @@ import logging
 import pytest
 from pydantic import ValidationError
 
-from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL, Request
 
 logger = logging.getLogger(__name__)
 
@@ -213,3 +213,47 @@ class TestApiEndpoint:
         endpoint: ApiEndpoint = ApiEndpoint(url=url, bearer_token="my-secret-token")
         with pytest.raises(Exception):
             endpoint.bearer_token = "new-token"  # type: ignore[misc]
+
+
+class TestRequest:
+    """Tests for the Request class."""
+
+    # ------------------------------------------------------------------
+    # request_headers
+    # ------------------------------------------------------------------
+
+    def test_returns_dict(self) -> None:
+        """Test that request_headers returns a dict."""
+        headers: dict[str, str] = Request.get_request_headers("my-token")
+        assert isinstance(headers, dict)
+
+    def test_content_type_header(self) -> None:
+        """Test that the Content-Type header is application/json."""
+        headers: dict[str, str] = Request.get_request_headers("my-token")
+        assert headers["Content-Type"] == "application/json"
+
+    def test_authorization_header_contains_token(self) -> None:
+        """Test that the Authorization header embeds the bearer token."""
+        headers: dict[str, str] = Request.get_request_headers("my-secret-token")
+        assert headers["Authorization"] == "Bearer my-secret-token"
+
+    def test_authorization_header_changes_with_token(self) -> None:
+        """Test that different tokens produce different Authorization headers."""
+        headers_a: dict[str, str] = Request.get_request_headers("token-a")
+        headers_b: dict[str, str] = Request.get_request_headers("token-b")
+        assert headers_a["Authorization"] != headers_b["Authorization"]
+
+    def test_only_expected_keys_present(self) -> None:
+        """Test that the returned dict contains exactly the expected header keys."""
+        headers: dict[str, str] = Request.get_request_headers("my-token")
+        assert set(headers.keys()) == {"Content-Type", "Authorization"}
+
+    def test_null_bearer_token_raises_validation_error(self) -> None:
+        """Test that passing None for api_bearer_token raises ValidationError."""
+        with pytest.raises(ValidationError):
+            Request.get_request_headers(None)  # type: ignore[arg-type]
+
+    def test_non_string_bearer_token_raises_validation_error(self) -> None:
+        """Test that passing a non-string api_bearer_token raises ValidationError."""
+        with pytest.raises(ValidationError):
+            Request.get_request_headers(12345)  # type: ignore[arg-type]

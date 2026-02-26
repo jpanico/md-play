@@ -10,7 +10,7 @@ from typing import Final, cast
 import pytest
 import requests
 
-from roam_pub.roam_local_api import ApiEndpointURL
+from roam_pub.roam_local_api import ApiEndpointURL, Request
 from roam_pub.roam_page import _DataQPayload
 
 # pyright: basic
@@ -20,13 +20,6 @@ logger = logging.getLogger(__name__)
 
 class TestFetchRoamSchema:
     """Tests for fetching the Roam datalog schema via the Local API."""
-
-    REQUEST_HEADERS_TEMPLATE: Final[Template] = Template("""
-    {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $roam_local_api_token"
-    }
-    """)
 
     DATALOG_SCHEMA_QUERY: Final[str] = textwrap.dedent("""\
         [:find ?namespace ?attr
@@ -58,10 +51,8 @@ class TestFetchRoamSchema:
         """Fetch Roam Page: title="Test Article."""
         api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
         api_bearer_token = "roam-graph-local-token-OR3s0AcJn5rwxPJ6MYaqnIyjNi7ai"
-        request_headers_str: str = TestFetchRoamSchema.REQUEST_HEADERS_TEMPLATE.substitute(
-            roam_local_api_token=api_bearer_token
-        )
-        request_headers: dict[str, str] = cast(dict[str, str], json.loads(request_headers_str))
+
+        request_headers: dict[str, str] = Request.get_request_headers(api_bearer_token)
         request_payload: dict = {
             "action": "data.q",
             "args": [
@@ -90,10 +81,7 @@ class TestFetchRoamSchema:
         """Fetch the Roam datalog schema and verify a 200 response."""
         api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
         api_bearer_token = "roam-graph-local-token-OR3s0AcJn5rwxPJ6MYaqnIyjNi7ai"
-        request_headers_str: str = TestFetchRoamSchema.REQUEST_HEADERS_TEMPLATE.substitute(
-            roam_local_api_token=api_bearer_token
-        )
-        request_headers: dict[str, str] = cast(dict[str, str], json.loads(request_headers_str))
+        request_headers: dict[str, str] = Request.get_request_headers(api_bearer_token)
         request_payload: dict = {
             "action": "data.q",
             "args": [TestFetchRoamSchema.DATALOG_SCHEMA_QUERY],

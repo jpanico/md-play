@@ -1,6 +1,6 @@
 # Roam Local API
 
-For an _encrypted_ Roam graph, programmatically fetching (or exporting) content from Roam can be done through only the [Roam Alpha API](https://roamresearch.com/#/app/developer-documentation/page/tIaOPdXCj). The _Roam Alpha API_ is only accessible to [roam/js](https://roamresearch.com/#/app/developer-documentation/page/QE0bxjUwk) scripts that run within the Roam client. Because the client has access to the encryption key for the graph, so too does the _Roam Alpha API_, and so it can return clear-text content through its api. The [Roam Local API](https://roamresearch.com/#/app/developer-documentation/page/8ikgtLSXz) proxies, over HTTP, the _Roam Alpha API_ through the running Roam Desktop app.
+For an _encrypted_ Roam graph, programmatically fetching (or exporting) content from Roam can be done only through the [Roam Alpha API](https://roamresearch.com/#/app/developer-documentation/page/tIaOPdXCj); and that api is only accessible to [roam/js](https://roamresearch.com/#/app/developer-documentation/page/QE0bxjUwk) scripts that run within the Roam client (Roam Desktop app). Because the client has access to the encryption key for the graph, so too does the _Roam Alpha API_, and so it can return clear-text content. The [Roam Local API](https://roamresearch.com/#/app/developer-documentation/page/8ikgtLSXz) proxies, over HTTP, the _Roam Alpha API_ through the running Roam Desktop app.
 
 ## HTTP Requests
 

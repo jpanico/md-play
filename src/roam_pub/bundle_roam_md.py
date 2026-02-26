@@ -125,13 +125,16 @@ def main(
         ),
     ],
     output_dir: Annotated[
-        Path,
+        Path | None,
         typer.Option(
             "--output",
             "-o",
-            help="Parent directory where .mdbundle folder will be created",
+            help=(
+                "Parent directory where .mdbundle folder will be created. "
+                "Defaults to the directory containing --markdown-file."
+            ),
         ),
-    ],
+    ] = None,
     cache_dir: Annotated[
         Path | None,
         typer.Option(
@@ -152,13 +155,14 @@ def main(
     the updated markdown file and all downloaded images.
     """
     validate_markdown_file(markdown_file)
-    validate_output_dir(output_dir)
+    resolved_output_dir: Path = output_dir if output_dir is not None else markdown_file.parent
+    validate_output_dir(resolved_output_dir)
 
     if cache_dir is not None:
         validate_output_dir(cache_dir)
 
     try:
-        bundle_md_file(markdown_file, local_api_port, graph_name, api_bearer_token, output_dir, cache_dir)
+        bundle_md_file(markdown_file, local_api_port, graph_name, api_bearer_token, resolved_output_dir, cache_dir)
     except Exception as e:
         logger.error(f"Error processing file: {e}")
         raise typer.Exit(code=1)

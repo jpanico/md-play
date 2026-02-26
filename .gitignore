@@ -85,3 +85,7 @@ Thumbs.db
 
 # Override global ignore for Claude Code settings
 !.claude/settings.local.json
+
+# Output directory — ignore generated content, keep the directory itself
+out/*
+!out/.gitkeep

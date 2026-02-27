@@ -1,13 +1,13 @@
 """Roam Research page fetching via the Local API."""
 
 import textwrap
-from typing import Any, Final, TypedDict, cast, final
+from typing import Final, TypedDict, final
 from pydantic import BaseModel, ConfigDict, Field, validate_call
 import requests
-import json
 import logging
 
 from roam_pub.roam_local_api import ApiEndpointURL
+from roam_pub.roam_model import RoamNode
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +16,8 @@ class RoamPage(BaseModel):
     """Immutable representation of a Roam Research page fetched via the Local API.
 
     Contains the page title, its stable UID, and the full raw PullBlock tree returned
-    by the Roam graph query. The pull_block is the nested dict exactly as returned by
-    ``(pull ?page [*])`` — callers are responsible for rendering it to Markdown.
+    by the Roam graph query, validated as a :class:`RoamNode`. Callers are responsible
+    for rendering it to Markdown.
 
     Once created, instances cannot be modified (frozen). All fields are required
     and validated at construction time.
@@ -27,7 +27,9 @@ class RoamPage(BaseModel):
 
     title: str = Field(..., min_length=1, description="The page title as queried")
     uid: str = Field(..., min_length=1, description="The page's :block/uid (9-character stable identifier)")
-    pull_block: dict[str, Any] = Field(..., description="Full raw PullBlock tree from (pull ?page [*])")
+    pull_block: RoamNode = Field(
+        ..., description="Full raw PullBlock tree from (pull ?page [*]), validated as a RoamNode"
+    )
 
 
 class _DataQPayload(TypedDict):
@@ -37,10 +39,12 @@ class _DataQPayload(TypedDict):
     args: list[str]
 
 
-class _DataQResponse(TypedDict):
-    """Typed structure for a Roam Local API data.q response."""
+class _DataQResponse(BaseModel):
+    """Immutable typed structure for a Roam Local API ``data.q`` response."""
 
-    result: list[list[dict[str, Any]]]
+    model_config = ConfigDict(frozen=True)
+
+    result: list[list[RoamNode]]
 
 
 # Datalog query semantics used by FetchRoamPage: see docs/roam-datalog.md and docs/roam-schema.md
@@ -87,25 +91,28 @@ class FetchRoamPage:
             (i.e. no page with that title exists in the graph).
 
         Raises:
-            json.JSONDecodeError: If response_json is not valid JSON.
-            KeyError: If the response is missing expected keys.
+            pydantic.ValidationError: If response_json is not valid JSON or the pull_block is
+                missing the required ``uid`` field.
+            ValueError: If the pull_block has no ``title`` attribute.
         """
         logger.debug(f"response_json: {response_json}")
 
-        response_payload: _DataQResponse = cast(_DataQResponse, json.loads(response_json))
-        result: list[list[dict[str, Any]]] = response_payload["result"]
+        response_payload: _DataQResponse = _DataQResponse.model_validate_json(response_json)
+        result: list[list[RoamNode]] = response_payload.result
 
         if not result:
             return None
 
         # Datalog :find returns an array-of-arrays; (pull ...) value is at result[0][0]
-        pull_block: dict[str, Any] = result[0][0]
-        title: str = cast(str, pull_block["title"])
-        uid: str = cast(str, pull_block["uid"])
+        roam_node: RoamNode = result[0][0]
+        if roam_node.title is None:
+            raise ValueError(f"pull_block has no 'title'; uid={roam_node.uid!r}")
+        title: str = roam_node.title
+        uid: str = roam_node.uid
 
         logger.info(f"Successfully fetched page: {title!r} (uid={uid})")
 
-        return RoamPage(title=title, uid=uid, pull_block=pull_block)
+        return RoamPage(title=title, uid=uid, pull_block=roam_node)
 
     @staticmethod
     @validate_call

@@ -109,12 +109,12 @@ class TestPullBlockToRoamNode:
         with pytest.raises(ValidationError):
             pull_block_to_roam_node(pull_block)
 
-    def test_missing_id_raises_validation_error(self) -> None:
-        """Test that a pull block missing 'id' raises ValidationError."""
+    def test_id_defaults_to_none_when_absent(self) -> None:
+        """Test that a pull block missing 'id' defaults id to None (id is ephemeral)."""
         pull_block = load_pull_block()
         del pull_block["id"]
-        with pytest.raises(ValidationError):
-            pull_block_to_roam_node(pull_block)
+        node = pull_block_to_roam_node(pull_block)
+        assert node.id is None
 
     def test_node_is_immutable(self) -> None:
         """Test that the returned RoamNode is immutable (frozen)."""

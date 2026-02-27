@@ -9,7 +9,7 @@ FollowLinksDirective enumerations.
 from enum import StrEnum
 import logging
 import textwrap
-from typing import Any, Final, final
+from typing import Final, final
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -54,10 +54,10 @@ type UidPair = tuple[str, Uid]
 type OrderedUid = tuple[Uid, Order]
 """A ``(uid, order)`` pair for sorting child blocks."""
 
-type OrderedValue = tuple[Any, Order]
+type OrderedValue[T] = tuple[T, Order]
 """A ``(value, order)`` pair for generic ordered collections."""
 
-type KeyValuePair = tuple[str, Any]
+type KeyValuePair[V] = tuple[str, V]
 """A ``(key, value)`` pair."""
 
 
@@ -145,13 +145,14 @@ class RoamNode(BaseModel):
     attribute names (after PageDump's key-stripping), and nested refs are still
     IdObject stubs rather than resolved UIDs.
 
-    All fields are optional except ``uid`` and ``id``, because the set of
-    attributes present depends on the entity type (Page vs. Block) and which
-    optional features (heading, text-align, etc.) were ever set.
+    All fields are optional except ``uid``, because the set of attributes present
+    depends on the entity type (Page vs. Block) and which optional features
+    (heading, text-align, etc.) were ever set.
 
     Attributes:
         uid: Nine-character stable block/page identifier (:block/uid). Required.
-        id: Datomic internal numeric entity id (:db/id). Required.
+        id: Datomic internal numeric entity id (:db/id). Ephemeral and not stable
+            across exports; defaults to ``None`` when absent.
         time: Last-edit Unix timestamp in milliseconds (:edit/time).
         user: IdObject stub referencing the last-editing user entity.
         string: Block text content (:block/string). Present only on Block entities.
@@ -172,7 +173,7 @@ class RoamNode(BaseModel):
     model_config = ConfigDict(frozen=True, populate_by_name=True)
 
     uid: Uid = Field(..., description=":block/uid — nine-character stable identifier")
-    id: Id = Field(..., description=":db/id — Datomic internal entity id")
+    id: Id | None = Field(default=None, description=":db/id — Datomic internal entity id (ephemeral)")
     time: int | None = Field(default=None, description=":edit/time — last-edit Unix timestamp (ms)")
     user: IdObject | None = Field(default=None, description=":edit/user — last-editing user stub")
 

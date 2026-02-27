@@ -1,11 +1,9 @@
 """Transcription of Roam Research graph data to Markdown."""
 
-from typing import Any
-
 from roam_pub.roam_model import RoamNode
 
 
-def pull_block_to_roam_node(pull_block: dict[str, Any]) -> RoamNode:
+def pull_block_to_roam_node(pull_block: dict[str, object]) -> RoamNode:
     """Convert a raw pull block dict from ``roamAlphaAPI.data.q`` into a ``RoamNode``.
 
     The Local API returns pull block dicts with short unnamespaced keys

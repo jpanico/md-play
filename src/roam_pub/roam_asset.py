@@ -2,9 +2,8 @@
 
 from datetime import datetime
 from string import Template
-from typing import Final, TypedDict, cast, final
+from typing import Final, final
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, validate_call
-import json
 import base64
 import logging
 
@@ -31,8 +30,10 @@ class RoamAsset(BaseModel):
     contents: bytes = Field(..., description="Binary file contents")
 
 
-class _RoamFileResult(TypedDict):
-    """Typed structure for the 'result' field in a Roam Local API file.get response."""
+class _RoamFileResult(BaseModel):
+    """Immutable typed structure for the ``result`` field in a Roam Local API ``file.get`` response."""
+
+    model_config = ConfigDict(frozen=True)
 
     base64: str
     filename: str
@@ -71,8 +72,8 @@ class FetchRoamAsset:
 
     @staticmethod
     @validate_call
-    def roam_file_from_result_json(result_json: _RoamFileResult) -> RoamAsset:
-        """Construct a RoamAsset from a pre-parsed ``file.get`` result dict.
+    def roam_file_from_result_json(result_json: dict[str, str]) -> RoamAsset:
+        """Construct a RoamAsset from a raw ``file.get`` result dict.
 
         Args:
             result_json: The ``'result'`` field extracted from a Roam Local API
@@ -88,9 +89,10 @@ class FetchRoamAsset:
         """
         logger.debug(f"result_json: {result_json}")
 
-        file_bytes: bytes = base64.b64decode(result_json["base64"])
-        file_name: str = result_json["filename"]
-        media_type: str = result_json["mimetype"]
+        result: _RoamFileResult = _RoamFileResult.model_validate(result_json)
+        file_bytes: bytes = base64.b64decode(result.base64)
+        file_name: str = result.filename
+        media_type: str = result.mimetype
 
         logger.info(f"Successfully fetched file: {file_name}")
 
@@ -128,9 +130,8 @@ class FetchRoamAsset:
         logger.debug(f"api_endpoint: {api_endpoint}, firebase_url: {firebase_url}")
 
         request_payload_str: str = FetchRoamAsset.REQUEST_PAYLOAD_TEMPLATE.substitute(file_url=firebase_url)
-        request_payload: Request.Payload = cast(Request.Payload, json.loads(request_payload_str))
+        request_payload: Request.Payload = Request.Payload.model_validate_json(request_payload_str)
         response_payload: Response.Payload = invoke_action(request_payload, api_endpoint)
         logger.debug(f"response_payload: {response_payload}")
-        result: _RoamFileResult = cast(_RoamFileResult, response_payload["result"])
 
-        return FetchRoamAsset.roam_file_from_result_json(result)
+        return FetchRoamAsset.roam_file_from_result_json(response_payload.result)

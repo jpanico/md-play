@@ -14,9 +14,8 @@ Public symbols:
   the parsed :class:`Response.Payload`.
 """
 
-import json
 import logging
-from typing import ClassVar, Final, Literal, TypedDict, cast
+from typing import ClassVar, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 import requests
@@ -100,12 +99,15 @@ class Request:
 
         Pydantic model whose field aliases match the wire-format header keys,
         so ``model_dump(by_alias=True)`` yields a ``dict[str, str]`` ready
-        to pass directly to :func:`requests.post`.
+        to pass directly to :func:`requests.post`. Once created, instances
+        cannot be modified (frozen).
 
         Attributes:
             content_type: MIME type of the request body; always ``"application/json"``.
             authorization: Bearer token in the format ``"Bearer <token>"``.
         """
+
+        model_config = ConfigDict(frozen=True)
 
         content_type: Literal["application/json"] = Field(default="application/json", alias="Content-Type")
         authorization: str = Field(alias="Authorization")
@@ -127,10 +129,14 @@ class Request:
     class Payload(BaseModel):
         """JSON body for a Roam Local API POST request.
 
+        Once created, instances cannot be modified (frozen).
+
         Attributes:
             action: The Local API action to invoke (e.g. ``"pull-block"``).
             args: Positional arguments passed to the action.
         """
+
+        model_config = ConfigDict(frozen=True)
 
         action: str
         args: list[object]
@@ -140,16 +146,20 @@ class Response:
     """Namespace for Roam Local API response types.
 
     Class Attributes:
-        Payload: :class:`TypedDict` describing the parsed JSON body returned by the Local API.
+        Payload: Pydantic model describing the parsed JSON body returned by the Local API.
     """
 
-    class Payload(TypedDict):
+    class Payload(BaseModel):
         """Parsed JSON body of a successful Roam Local API response.
+
+        Once created, instances cannot be modified (frozen).
 
         Attributes:
             success: Status string from the API (e.g. ``'success'``).
             result: Action-specific result data keyed by string.
         """
+
+        model_config = ConfigDict(frozen=True)
 
         success: str
         result: dict[str, str]
@@ -177,12 +187,15 @@ def invoke_action(request_payload: Request.Payload, api_endpoint: ApiEndpoint) -
     request_headers: Request.Headers = Request.Headers.with_bearer_token(api_endpoint.bearer_token)
 
     response: requests.Response = requests.post(
-        str(api_endpoint.url), json=request_payload, headers=request_headers.model_dump(by_alias=True), stream=False
+        str(api_endpoint.url),
+        json=request_payload.model_dump(),
+        headers=request_headers.model_dump(by_alias=True),
+        stream=False,
     )
     logger.debug(f"response: {response}")
 
     if response.status_code == 200:
-        return cast(Response.Payload, json.loads(response.text))
+        return Response.Payload.model_validate_json(response.text)
     else:
         error_msg: str = f"Failed to make request. Status Code: {response.status_code}, Response: {response.text}"
         logger.error(error_msg)

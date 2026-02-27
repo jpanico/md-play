@@ -268,23 +268,23 @@ class TestRequestPayload:
 
 
 class TestResponsePayload:
-    """Tests for the Response.Payload TypedDict."""
+    """Tests for the Response.Payload Pydantic model."""
 
     def test_valid_construction(self) -> None:
-        """Test that a valid Response.Payload dict can be constructed."""
-        payload: Response.Payload = {"success": "true", "result": {"filename": "test.jpg"}}
-        assert payload["success"] == "true"
-        assert payload["result"]["filename"] == "test.jpg"
+        """Test that a valid Response.Payload instance can be constructed."""
+        payload: Response.Payload = Response.Payload(success="true", result={"filename": "test.jpg"})
+        assert payload.success == "true"
+        assert payload.result["filename"] == "test.jpg"
 
-    def test_is_dict_at_runtime(self) -> None:
-        """Test that Response.Payload is a plain dict at runtime (TypedDict semantics)."""
-        payload: Response.Payload = {"success": "true", "result": {}}
-        assert isinstance(payload, dict)
+    def test_is_base_model_at_runtime(self) -> None:
+        """Test that Response.Payload is a BaseModel instance at runtime."""
+        payload: Response.Payload = Response.Payload(success="true", result={})
+        assert isinstance(payload, Response.Payload)
 
     def test_empty_result(self) -> None:
         """Test that result can be an empty dict."""
-        payload: Response.Payload = {"success": "true", "result": {}}
-        assert payload["result"] == {}
+        payload: Response.Payload = Response.Payload(success="true", result={})
+        assert payload.result == {}
 
 
 class TestMakeRequest:
@@ -326,8 +326,8 @@ class TestMakeRequest:
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response):
             result: Response.Payload = invoke_action(file_get_payload, api_endpoint)
 
-        assert result["success"] == "true"
-        assert result["result"]["filename"] == "test.jpg"
+        assert result.success == "true"
+        assert result.result["filename"] == "test.jpg"
 
     def test_posts_to_endpoint_url(
         self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload, mock_200_response: MagicMock
@@ -361,11 +361,11 @@ class TestMakeRequest:
     def test_sends_payload_as_json_body(
         self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload, mock_200_response: MagicMock
     ) -> None:
-        """Test that the payload dict is passed as the json kwarg."""
+        """Test that the serialized payload dict is passed as the json kwarg."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
             invoke_action(file_get_payload, api_endpoint)
 
-        assert mock_post.call_args.kwargs["json"] == file_get_payload
+        assert mock_post.call_args.kwargs["json"] == file_get_payload.model_dump()
 
     # ------------------------------------------------------------------
     # Error path

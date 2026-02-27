@@ -193,13 +193,13 @@ class TestRoamAssetFromResultJson:
     def test_missing_base64_key_raises_error(self) -> None:
         """Test that a missing 'base64' key raises ValidationError."""
         with pytest.raises(ValidationError):
-            FetchRoamAsset.roam_file_from_result_json({"filename": "test.txt", "mimetype": "text/plain"})  # type: ignore[arg-type]
+            FetchRoamAsset.roam_file_from_result_json({"filename": "test.txt", "mimetype": "text/plain"})
 
     def test_missing_filename_key_raises_error(self) -> None:
         """Test that a missing 'filename' key raises ValidationError."""
         encoded: str = base64.b64encode(b"data").decode("utf-8")
         with pytest.raises(ValidationError):
-            FetchRoamAsset.roam_file_from_result_json({"base64": encoded, "mimetype": "text/plain"})  # type: ignore[arg-type]
+            FetchRoamAsset.roam_file_from_result_json({"base64": encoded, "mimetype": "text/plain"})
 
 
 class TestFetchRoamAssetFetch:

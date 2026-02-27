@@ -8,9 +8,9 @@ from pydantic import ValidationError
 # pyright: basic
 import pytest
 import json
-from typing import Any
 
 from roam_pub.roam_local_api import ApiEndpointURL
+from roam_pub.roam_model import IdObject, RoamNode
 from roam_pub.roam_page import FetchRoamPage, RoamPage
 
 logger = logging.getLogger(__name__)
@@ -21,70 +21,65 @@ class TestRoamPage:
 
     def test_valid_initialization(self) -> None:
         """Test creating RoamPage with valid parameters."""
-        pull_block: dict[str, Any] = {
-            ":node/title": "My Page",
-            ":block/uid": "abc123xyz",
-            ":block/children": [],
-        }
-        page: RoamPage = RoamPage(title="My Page", uid="abc123xyz", pull_block=pull_block)
+        roam_node: RoamNode = RoamNode(uid="abc123xyz", title="My Page")
+        page: RoamPage = RoamPage(title="My Page", uid="abc123xyz", pull_block=roam_node)
 
         assert page.title == "My Page"
         assert page.uid == "abc123xyz"
-        assert page.pull_block == pull_block
+        assert page.pull_block.uid == "abc123xyz"
+        assert page.pull_block.title == "My Page"
 
     def test_empty_title_raises_validation_error(self) -> None:
         """Test that empty title raises a validation error."""
         with pytest.raises(Exception):  # Pydantic raises ValidationError
-            RoamPage(title="", uid="abc123xyz", pull_block={":node/title": ""})
+            RoamPage(title="", uid="abc123xyz", pull_block={"uid": "abc123xyz"})
 
     def test_empty_uid_raises_validation_error(self) -> None:
         """Test that empty uid raises a validation error."""
         with pytest.raises(Exception):  # Pydantic raises ValidationError
-            RoamPage(title="My Page", uid="", pull_block={":node/title": "My Page"})
+            RoamPage(title="My Page", uid="", pull_block={"uid": "valid1234x"})
 
     def test_missing_required_fields_raises_validation_error(self) -> None:
         """Test that missing required fields raise validation errors."""
         with pytest.raises(Exception):
-            RoamPage(uid="abc123xyz", pull_block={})  # type: ignore[call-arg]
+            RoamPage(uid="abc123xyz", pull_block={"uid": "abc123xyz"})  # type: ignore[call-arg]
 
         with pytest.raises(Exception):
-            RoamPage(title="My Page", pull_block={})  # type: ignore[call-arg]
+            RoamPage(title="My Page", pull_block={"uid": "abc123xyz"})  # type: ignore[call-arg]
 
         with pytest.raises(Exception):
             RoamPage(title="My Page", uid="abc123xyz")  # type: ignore[call-arg]
 
     def test_immutability(self) -> None:
         """Test that RoamPage is immutable."""
-        page: RoamPage = RoamPage(title="My Page", uid="abc123xyz", pull_block={})
+        page: RoamPage = RoamPage(title="My Page", uid="abc123xyz", pull_block={"uid": "abc123xyz"})
         with pytest.raises(Exception):  # Pydantic raises ValidationError for frozen models
             page.title = "Changed"  # type: ignore[misc]
 
-    def test_pull_block_preserves_nested_structure(self) -> None:
-        """Test that deeply nested pull_block dicts are stored correctly."""
-        pull_block: dict[str, Any] = {
-            ":node/title": "Deep Page",
-            ":block/uid": "deep1234x",
-            ":block/children": [
-                {":block/uid": "child001", ":block/string": "Top level block"},
-                {
-                    ":block/uid": "child002",
-                    ":block/string": "Parent block",
-                    ":block/children": [
-                        {":block/uid": "child003", ":block/string": "Nested block"},
-                    ],
-                },
-            ],
-        }
-        page: RoamPage = RoamPage(title="Deep Page", uid="deep1234x", pull_block=pull_block)
-        assert page.pull_block[":block/children"][1][":block/children"][0][":block/string"] == "Nested block"
+    def test_pull_block_stores_structured_roam_node(self) -> None:
+        """Test that pull_block stores a RoamNode with all its attributes accessible."""
+        roam_node: RoamNode = RoamNode(
+            uid="deep1234x",
+            title="Deep Page",
+            time=1700000000000,
+            children=[IdObject(id=2371), IdObject(id=2396)],
+        )
+        page: RoamPage = RoamPage(title="Deep Page", uid="deep1234x", pull_block=roam_node)
+        assert page.pull_block.uid == "deep1234x"
+        assert page.pull_block.title == "Deep Page"
+        assert page.pull_block.time == 1700000000000
+        assert page.pull_block.children is not None
+        assert len(page.pull_block.children) == 2
+        assert page.pull_block.children[0].id == 2371
+        assert page.pull_block.children[1].id == 2396
 
 
 class TestRoamPageFromResponseJson:
     """Tests for FetchRoamPage.roam_page_from_response_json."""
 
-    def _make_response_json(self, title: str, uid: str, extra_attrs: dict[str, Any] | None = None) -> str:
+    def _make_response_json(self, title: str, uid: str, extra_attrs: dict[str, object] | None = None) -> str:
         """Helper to build a realistic Local API data.q response JSON string."""
-        pull_block: dict[str, Any] = {
+        pull_block: dict[str, object] = {
             "title": title,
             "uid": uid,
         }
@@ -100,7 +95,7 @@ class TestRoamPageFromResponseJson:
         assert page is not None
         assert page.title == "My Page"
         assert page.uid == "abc123xyz"
-        assert page.pull_block["title"] == "My Page"
+        assert page.pull_block.title == "My Page"
 
     def test_empty_result_returns_none(self) -> None:
         """Test that an empty result set (page not found) returns None."""
@@ -110,8 +105,8 @@ class TestRoamPageFromResponseJson:
         assert page is None
 
     def test_pull_block_fully_preserved(self) -> None:
-        """Test that the full pull_block dict including extra attributes is preserved."""
-        extra_attrs: dict[str, Any] = {
+        """Test that the full pull_block including extra RoamNode attributes is preserved."""
+        extra_attrs: dict[str, object] = {
             "time": 1700000000000,
             "children": [{"id": 42}],
         }
@@ -119,30 +114,30 @@ class TestRoamPageFromResponseJson:
         page: RoamPage | None = FetchRoamPage.roam_page_from_response_json(response_json)
 
         assert page is not None
-        assert page.pull_block["time"] == 1700000000000
-        assert page.pull_block["children"] == [{"id": 42}]
+        assert page.pull_block.time == 1700000000000
+        assert page.pull_block.children == [IdObject(id=42)]
 
     def test_null_response_json_raises_validation_error(self) -> None:
         """Test that None response_json raises ValidationError."""
         with pytest.raises(ValidationError, match="Input should be a valid string"):
             FetchRoamPage.roam_page_from_response_json(response_json=None)  # type: ignore[arg-type]
 
-    def test_invalid_json_raises_error(self) -> None:
-        """Test that invalid JSON raises JSONDecodeError."""
-        with pytest.raises(json.JSONDecodeError):
+    def test_invalid_json_raises_validation_error(self) -> None:
+        """Test that invalid JSON raises ValidationError."""
+        with pytest.raises(ValidationError):
             FetchRoamPage.roam_page_from_response_json("not valid json")
 
-    def test_missing_result_key_raises_key_error(self) -> None:
-        """Test that a response missing the 'result' key raises KeyError."""
+    def test_missing_result_key_raises_validation_error(self) -> None:
+        """Test that a response missing the 'result' key raises ValidationError."""
         response_json = json.dumps({"wrong_key": []})
-        with pytest.raises(KeyError):
+        with pytest.raises(ValidationError):
             FetchRoamPage.roam_page_from_response_json(response_json)
 
-    def test_missing_uid_in_pull_raises_key_error(self) -> None:
-        """Test that a pull_block missing 'uid' raises KeyError."""
+    def test_missing_uid_in_pull_raises_validation_error(self) -> None:
+        """Test that a pull_block missing 'uid' raises ValidationError."""
         pull_block = {"title": "My Page"}  # No uid
         response_json = json.dumps({"result": [[pull_block]]})
-        with pytest.raises(KeyError):
+        with pytest.raises(ValidationError):
             FetchRoamPage.roam_page_from_response_json(response_json)
 
     def test_title_from_pull_block_populates_roam_page_title(self) -> None:
@@ -190,7 +185,7 @@ class TestFetchRoamPageFetch:
     def test_successful_fetch_returns_roam_page(self) -> None:
         """Test that a successful HTTP 200 response returns a RoamPage."""
         endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="test-graph")
-        pull_block: dict[str, Any] = {
+        pull_block: dict[str, object] = {
             "title": "My Page",
             "uid": "abc123xyz",
             "time": 1700000000000,
@@ -207,7 +202,7 @@ class TestFetchRoamPageFetch:
         assert page is not None
         assert page.title == "My Page"
         assert page.uid == "abc123xyz"
-        assert page.pull_block["time"] == 1700000000000
+        assert page.pull_block.time == 1700000000000
 
     def test_page_not_found_returns_none(self) -> None:
         """Test that an empty result (page not found) returns None."""
@@ -269,4 +264,4 @@ class TestFetchRoamPageFetch:
         assert page is not None
         assert page.title == page_title
         assert len(page.uid) > 0
-        assert isinstance(page.pull_block, dict)
+        assert isinstance(page.pull_block, RoamNode)

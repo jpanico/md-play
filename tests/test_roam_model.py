@@ -5,7 +5,7 @@ import logging
 import os
 from string import Template
 import textwrap
-from typing import Final, cast
+from typing import Final
 
 import pytest
 import requests

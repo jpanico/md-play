@@ -21,12 +21,6 @@ logger = logging.getLogger(__name__)
 class TestFetchRoamSchema:
     """Tests for fetching the Roam datalog schema via the Local API."""
 
-    DATALOG_SCHEMA_QUERY: Final[str] = textwrap.dedent("""\
-        [:find ?namespace ?attr
-         :where
-         [_ ?attr]
-         [(namespace ?attr) ?namespace]]""")
-
     DATALOG_PAGE_QUERY: Final[str] = textwrap.dedent("""\
         [:find (pull ?block [
                         :db/id :block/uid :block/string :block/page :block/order 

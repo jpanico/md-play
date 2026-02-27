@@ -10,7 +10,7 @@ import requests
 from pydantic import ValidationError
 
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
-from roam_pub.roam_schema import FetchRoamSchema, RoamSchema
+from roam_pub.roam_schema import FetchRoamSchema, RoamAttribute, RoamNamespace, RoamSchema
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +33,9 @@ def mock_200_response() -> MagicMock:
         {
             "success": True,
             "result": [
-                ["block", ":block/uid"],
-                ["block", ":block/string"],
-                ["node", ":node/title"],
+                ["block", "uid"],
+                ["block", "string"],
+                ["node", "title"],
             ],
         }
     )
@@ -88,7 +88,7 @@ class TestFetchRoamSchemaResponsePayload:
         """Test that a valid Payload can be constructed."""
         payload: FetchRoamSchema.Response.Payload = FetchRoamSchema.Response.Payload(
             success=True,
-            result=[("block", ":block/uid"), ("node", ":node/title")],
+            result=[("block", "uid"), ("node", "title")],
         )
 
         assert payload.success is True
@@ -100,23 +100,23 @@ class TestFetchRoamSchemaResponsePayload:
             FetchRoamSchema.Response.Payload.model_validate(None)
 
     def test_valid_schema_result_parses_correctly(self) -> None:
-        """Test that a list of [namespace, attr] pairs parses into RoamSchema tuples."""
+        """Test that a list of [namespace, attr_name] pairs parses into raw string tuples."""
         raw: dict[str, object] = {
             "success": True,
-            "result": [["block", ":block/uid"], ["block", ":block/string"], ["node", ":node/title"]],
+            "result": [["block", "uid"], ["block", "string"], ["node", "title"]],
         }
 
         payload: FetchRoamSchema.Response.Payload = FetchRoamSchema.Response.Payload.model_validate(raw)
 
         assert payload.success is True
         assert len(payload.result) == 3
-        assert payload.result[0] == ("block", ":block/uid")
-        assert payload.result[2] == ("node", ":node/title")
+        assert payload.result[0] == ("block", "uid")
+        assert payload.result[2] == ("node", "title")
 
     def test_missing_success_key_raises_error(self) -> None:
         """Test that a missing 'success' key raises ValidationError."""
         with pytest.raises(ValidationError):
-            FetchRoamSchema.Response.Payload.model_validate({"result": [["block", ":block/uid"]]})
+            FetchRoamSchema.Response.Payload.model_validate({"result": [["block", "uid"]]})
 
     def test_missing_result_key_raises_error(self) -> None:
         """Test that a missing 'result' key raises ValidationError."""
@@ -127,7 +127,7 @@ class TestFetchRoamSchemaResponsePayload:
         """Test that Payload instances are immutable (frozen)."""
         payload: FetchRoamSchema.Response.Payload = FetchRoamSchema.Response.Payload(
             success=True,
-            result=[("block", ":block/uid")],
+            result=[("block", "uid")],
         )
         with pytest.raises(Exception):
             payload.success = False  # type: ignore[misc]
@@ -152,14 +152,18 @@ class TestFetchRoamSchemaFetch:
                 FetchRoamSchema.fetch(api_endpoint)
 
     def test_successful_fetch_returns_schema(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
-        """Test that a 200 response is parsed and returned as a RoamSchema."""
+        """Test that a 200 response is parsed and returned as a list of RoamAttribute members."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response):
             result: RoamSchema = FetchRoamSchema.fetch(api_endpoint)
 
         assert isinstance(result, list)
         assert len(result) == 3
-        assert result[0] == ("block", ":block/uid")
-        assert result[2] == ("node", ":node/title")
+        assert result[0] is RoamAttribute.BLOCK_UID
+        assert result[0].namespace is RoamNamespace.BLOCK
+        assert result[0].attr_name == "uid"
+        assert result[2] is RoamAttribute.NODE_TITLE
+        assert result[2].namespace is RoamNamespace.NODE
+        assert result[2].attr_name == "title"
 
     def test_posts_to_correct_endpoint_url(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
         """Test that the POST is made to the correct endpoint URL."""
@@ -178,7 +182,46 @@ class TestFetchRoamSchemaFetch:
 
     @pytest.mark.live
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
-    def test_live(self) -> None:
+    def test_live_schema_matches_enum(self) -> None:
+        """Live test: fetched schema must exactly match the RoamAttribute enum.
+
+        Fails with a diff when either direction of drift is detected:
+
+        - live graph has attributes not yet represented in :class:`RoamAttribute`
+          (fetch raises ``ValueError`` — enum needs new members added), or
+        - :class:`RoamAttribute` has stale members absent from the live graph
+          (enum needs old members removed).
+        """
+        live_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
+            local_api_port=int(os.environ["ROAM_LOCAL_API_PORT"]),
+            graph_name=os.environ["ROAM_GRAPH_NAME"],
+            bearer_token=os.environ["ROAM_API_TOKEN"],
+        )
+
+        try:
+            fetched: RoamSchema = FetchRoamSchema.fetch(live_endpoint)
+        except ValueError as exc:
+            pytest.fail(f"Live schema contains attribute(s) not in RoamAttribute enum: {exc}")
+
+        fetched_set: set[RoamAttribute] = set(fetched)
+        expected_set: set[RoamAttribute] = set(RoamAttribute)
+
+        in_enum_not_fetched: set[RoamAttribute] = expected_set - fetched_set
+        in_fetched_not_enum: set[RoamAttribute] = fetched_set - expected_set
+
+        diffs: list[str] = []
+        if in_enum_not_fetched:
+            lines = sorted(f"  {a.namespace}/{a.attr_name}" for a in in_enum_not_fetched)
+            diffs.append("In RoamAttribute enum but NOT in live schema:\n" + "\n".join(lines))
+        if in_fetched_not_enum:
+            lines = sorted(f"  {a.namespace}/{a.attr_name}" for a in in_fetched_not_enum)
+            diffs.append("In live schema but NOT in RoamAttribute enum:\n" + "\n".join(lines))
+
+        assert not diffs, "\n".join(diffs)
+
+    @pytest.mark.live
+    @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
+    def test_live_fetch(self) -> None:
         """Live test: fetch the real Datomic schema from a running Roam graph."""
         live_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
             local_api_port=int(os.environ["ROAM_LOCAL_API_PORT"]),
@@ -190,6 +233,7 @@ class TestFetchRoamSchemaFetch:
 
         assert isinstance(schema, list)
         assert len(schema) > 0
+        assert all(isinstance(a, RoamAttribute) for a in schema)
         logger.info(f"Fetched {len(schema)} schema entries")
-        for namespace, attr in schema[:5]:
-            logger.info(f"  {namespace}: {attr}")
+        for attr in schema[:5]:
+            logger.info(f"  {attr.namespace}: {attr.attr_name}")

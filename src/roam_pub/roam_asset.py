@@ -8,7 +8,7 @@ import json
 import base64
 import logging
 
-from roam_pub.roam_local_api import ApiEndpoint, Request, Response, make_request
+from roam_pub.roam_local_api import ApiEndpoint, Request, Response, invoke_action
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class _RoamFileResult(TypedDict):
 class FetchRoamAsset:
     """Stateless utility class for fetching Roam assets from the Roam Research Local API.
 
-    Delegates HTTP transport to :func:`roam_local_api.make_request`, which handles
+    Delegates HTTP transport to :func:`roam_local_api.invoke_action`, which handles
     header construction and error handling.
 
     Class Attributes:
@@ -108,7 +108,7 @@ class FetchRoamAsset:
         """Fetch an asset from Cloud Firestore via the Roam Research Local API.
 
         Builds a ``file.get`` request payload and delegates the HTTP call to
-        :func:`roam_local_api.make_request`. The Roam Desktop app must be running and
+        :func:`roam_local_api.invoke_action`. The Roam Desktop app must be running and
         the user must be logged into the graph at the time this method is called.
 
         Args:
@@ -125,11 +125,11 @@ class FetchRoamAsset:
             requests.exceptions.ConnectionError: If the Local API is unreachable.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug(f"api_endpoint: {api_endpoint.url}, firebase_url: {firebase_url}")
+        logger.debug(f"api_endpoint: {api_endpoint}, firebase_url: {firebase_url}")
 
         request_payload_str: str = FetchRoamAsset.REQUEST_PAYLOAD_TEMPLATE.substitute(file_url=firebase_url)
         request_payload: Request.Payload = cast(Request.Payload, json.loads(request_payload_str))
-        response_payload: Response.Payload = make_request(request_payload, api_endpoint)
+        response_payload: Response.Payload = invoke_action(request_payload, api_endpoint)
         logger.debug(f"response_payload: {response_payload}")
         result: _RoamFileResult = cast(_RoamFileResult, response_payload["result"])
 

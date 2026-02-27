@@ -10,7 +10,7 @@ import pytest
 import requests
 from pydantic import ValidationError
 
-from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL, Request, Response, make_request
+from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL, Request, Response, invoke_action
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +24,15 @@ class TestApiEndpointURL:
 
     def test_valid_initialization(self) -> None:
         """Test creating ApiEndpointURL with valid port and graph name."""
-        endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
-        assert endpoint.local_api_port == 3333
-        assert endpoint.graph_name == "SCFH"
+        url: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
+        assert url.local_api_port == 3333
+        assert url.graph_name == "SCFH"
 
     def test_port_coercion_from_string(self) -> None:
         """Test that local_api_port coerces a numeric string to int."""
-        endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port="8080", graph_name="my-graph")  # type: ignore[arg-type]
-        assert endpoint.local_api_port == 8080
-        assert isinstance(endpoint.local_api_port, int)
+        url: ApiEndpointURL = ApiEndpointURL(local_api_port="8080", graph_name="my-graph")  # type: ignore[arg-type]
+        assert url.local_api_port == 8080
+        assert isinstance(url.local_api_port, int)
 
     def test_missing_port_raises_validation_error(self) -> None:
         """Test that omitting local_api_port raises ValidationError."""
@@ -218,71 +218,53 @@ class TestApiEndpoint:
             endpoint.bearer_token = "new-token"  # type: ignore[misc]
 
 
-class TestRequest:
-    """Tests for the Request class."""
+class TestRequestHeaders:
+    """Tests for the Request.Headers Pydantic model."""
 
     # ------------------------------------------------------------------
-    # request_headers
+    # with_bearer_token factory
     # ------------------------------------------------------------------
 
-    def test_returns_dict(self) -> None:
-        """Test that request_headers returns a dict."""
-        headers: dict[str, str] = Request.get_request_headers("my-token")
-        assert isinstance(headers, dict)
+    def test_with_bearer_token_sets_authorization(self) -> None:
+        """Test that with_bearer_token formats the Authorization field as 'Bearer <token>'."""
+        headers: Request.Headers = Request.Headers.with_bearer_token("my-secret-token")
+        assert headers.authorization == "Bearer my-secret-token"
 
-    def test_content_type_header(self) -> None:
-        """Test that the Content-Type header is application/json."""
-        headers: dict[str, str] = Request.get_request_headers("my-token")
-        assert headers["Content-Type"] == "application/json"
+    def test_with_bearer_token_sets_content_type(self) -> None:
+        """Test that with_bearer_token sets content_type to 'application/json' by default."""
+        headers: Request.Headers = Request.Headers.with_bearer_token("my-secret-token")
+        assert headers.content_type == "application/json"
 
-    def test_authorization_header_contains_token(self) -> None:
-        """Test that the Authorization header embeds the bearer token."""
-        headers: dict[str, str] = Request.get_request_headers("my-secret-token")
-        assert headers["Authorization"] == "Bearer my-secret-token"
-
-    def test_authorization_header_changes_with_token(self) -> None:
-        """Test that different tokens produce different Authorization headers."""
-        headers_a: dict[str, str] = Request.get_request_headers("token-a")
-        headers_b: dict[str, str] = Request.get_request_headers("token-b")
-        assert headers_a["Authorization"] != headers_b["Authorization"]
-
-    def test_only_expected_keys_present(self) -> None:
-        """Test that the returned dict contains exactly the expected header keys."""
-        headers: dict[str, str] = Request.get_request_headers("my-token")
-        assert set(headers.keys()) == {"Content-Type", "Authorization"}
-
-    def test_null_bearer_token_raises_validation_error(self) -> None:
-        """Test that passing None for api_bearer_token raises ValidationError."""
-        with pytest.raises(ValidationError):
-            Request.get_request_headers(None)  # type: ignore[arg-type]
-
-    def test_non_string_bearer_token_raises_validation_error(self) -> None:
-        """Test that passing a non-string api_bearer_token raises ValidationError."""
-        with pytest.raises(ValidationError):
-            Request.get_request_headers(12345)  # type: ignore[arg-type]
+    def test_model_dump_by_alias_produces_wire_format_keys(self) -> None:
+        """Test that model_dump(by_alias=True) yields HTTP wire-format header names."""
+        headers: Request.Headers = Request.Headers.with_bearer_token("my-secret-token")
+        dumped: dict[str, str] = headers.model_dump(by_alias=True)
+        assert set(dumped.keys()) == {"Content-Type", "Authorization"}
+        assert dumped["Content-Type"] == "application/json"
+        assert dumped["Authorization"] == "Bearer my-secret-token"
 
 
 class TestRequestPayload:
-    """Tests for the Request.Payload TypedDict."""
+    """Tests for the Request.Payload Pydantic model."""
 
     def test_valid_construction(self) -> None:
-        """Test that a valid Request.Payload dict can be constructed."""
-        payload: Request.Payload = {
-            "action": "file.get",
-            "args": [{"url": "https://example.com/file.jpg", "format": "base64"}],
-        }
-        assert payload["action"] == "file.get"
-        assert len(payload["args"]) == 1
+        """Test that a valid Request.Payload instance can be constructed."""
+        payload: Request.Payload = Request.Payload(
+            action="file.get",
+            args=[{"url": "https://example.com/file.jpg", "format": "base64"}],
+        )
+        assert payload.action == "file.get"
+        assert len(payload.args) == 1
 
-    def test_is_dict_at_runtime(self) -> None:
-        """Test that Request.Payload is a plain dict at runtime (TypedDict semantics)."""
-        payload: Request.Payload = {"action": "q", "args": []}
-        assert isinstance(payload, dict)
+    def test_is_base_model_at_runtime(self) -> None:
+        """Test that Request.Payload is a BaseModel instance at runtime."""
+        payload: Request.Payload = Request.Payload(action="q", args=[])
+        assert isinstance(payload, Request.Payload)
 
     def test_empty_args_list(self) -> None:
         """Test that args can be an empty list."""
-        payload: Request.Payload = {"action": "q", "args": []}
-        assert payload["args"] == []
+        payload: Request.Payload = Request.Payload(action="q", args=[])
+        assert payload.args == []
 
 
 class TestResponsePayload:
@@ -306,7 +288,7 @@ class TestResponsePayload:
 
 
 class TestMakeRequest:
-    """Tests for the make_request module-level function."""
+    """Tests for the invoke_action module-level function."""
 
     # ------------------------------------------------------------------
     # Fixtures
@@ -320,10 +302,10 @@ class TestMakeRequest:
     @pytest.fixture
     def file_get_payload(self) -> Request.Payload:
         """Return a minimal file.get Request.Payload for use in tests."""
-        return {
-            "action": "file.get",
-            "args": [{"url": "https://firebasestorage.googleapis.com/test.jpg", "format": "base64"}],
-        }
+        return Request.Payload(
+            action="file.get",
+            args=[{"url": "https://firebasestorage.googleapis.com/test.jpg", "format": "base64"}],
+        )
 
     @pytest.fixture
     def mock_200_response(self) -> MagicMock:
@@ -342,7 +324,7 @@ class TestMakeRequest:
     ) -> None:
         """Test that a 200 response is parsed and returned as Response.Payload."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response):
-            result: Response.Payload = make_request(file_get_payload, api_endpoint)
+            result: Response.Payload = invoke_action(file_get_payload, api_endpoint)
 
         assert result["success"] == "true"
         assert result["result"]["filename"] == "test.jpg"
@@ -352,7 +334,7 @@ class TestMakeRequest:
     ) -> None:
         """Test that the POST is made to the correct endpoint URL."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            make_request(file_get_payload, api_endpoint)
+            invoke_action(file_get_payload, api_endpoint)
 
         assert mock_post.call_args.args[0] == str(api_endpoint.url)
 
@@ -361,7 +343,7 @@ class TestMakeRequest:
     ) -> None:
         """Test that the Authorization header contains the bearer token."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            make_request(file_get_payload, api_endpoint)
+            invoke_action(file_get_payload, api_endpoint)
 
         headers: dict[str, str] = mock_post.call_args.kwargs["headers"]
         assert headers["Authorization"] == f"Bearer {api_endpoint.bearer_token}"
@@ -371,7 +353,7 @@ class TestMakeRequest:
     ) -> None:
         """Test that the Content-Type header is application/json."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            make_request(file_get_payload, api_endpoint)
+            invoke_action(file_get_payload, api_endpoint)
 
         headers: dict[str, str] = mock_post.call_args.kwargs["headers"]
         assert headers["Content-Type"] == "application/json"
@@ -381,7 +363,7 @@ class TestMakeRequest:
     ) -> None:
         """Test that the payload dict is passed as the json kwarg."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            make_request(file_get_payload, api_endpoint)
+            invoke_action(file_get_payload, api_endpoint)
 
         assert mock_post.call_args.kwargs["json"] == file_get_payload
 
@@ -397,7 +379,7 @@ class TestMakeRequest:
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
             with pytest.raises(requests.exceptions.HTTPError):
-                make_request(file_get_payload, api_endpoint)
+                invoke_action(file_get_payload, api_endpoint)
 
     def test_500_raises_http_error(self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload) -> None:
         """Test that a 500 response raises requests.exceptions.HTTPError."""
@@ -407,7 +389,7 @@ class TestMakeRequest:
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
             with pytest.raises(requests.exceptions.HTTPError):
-                make_request(file_get_payload, api_endpoint)
+                invoke_action(file_get_payload, api_endpoint)
 
     def test_error_message_contains_status_code(
         self, api_endpoint: ApiEndpoint, file_get_payload: Request.Payload
@@ -419,4 +401,4 @@ class TestMakeRequest:
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
             with pytest.raises(requests.exceptions.HTTPError, match="401"):
-                make_request(file_get_payload, api_endpoint)
+                invoke_action(file_get_payload, api_endpoint)

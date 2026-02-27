@@ -8,18 +8,17 @@ Public symbols:
 - :class:`ApiEndpoint` — pairs an :class:`ApiEndpointURL` with its bearer token
   for authenticated API calls.
 - :class:`Request` — namespace for request-related types (:class:`Request.Payload`,
-  :data:`Request.Headers`) and the :meth:`Request.get_request_headers` factory.
+  :class:`Request.Headers`) and the :meth:`Request.Headers.with_bearer_token` factory.
 - :class:`Response` — namespace for response-related types (:class:`Response.Payload`).
-- :func:`make_request` — sends an authenticated POST to the Local API and returns
+- :func:`invoke_action` — sends an authenticated POST to the Local API and returns
   the parsed :class:`Response.Payload`.
 """
 
 import json
 import logging
-from string import Template
-from typing import ClassVar, Final, TypedDict, cast
+from typing import ClassVar, Final, Literal, TypedDict, cast
 
-from pydantic import BaseModel, ConfigDict, Field, validate_call
+from pydantic import BaseModel, ConfigDict, Field
 import requests
 
 logger = logging.getLogger(__name__)
@@ -55,6 +54,10 @@ class ApiEndpoint(BaseModel):
 
     Bundles the two values required for every authenticated Local API call.
     Once created, instances cannot be modified (frozen).
+
+    Attributes:
+        url: The endpoint URL identifying the host, port, and graph.
+        bearer_token: Bearer token for authenticating with the Local API (non-empty).
     """
 
     model_config = ConfigDict(frozen=True)
@@ -88,48 +91,49 @@ class Request:
     """Namespace for Roam Local API request types and header construction.
 
     Class Attributes:
-        Headers: Type alias for the ``dict[str, str]`` HTTP headers map.
-        Payload: :class:`TypedDict` describing the JSON body sent to the Local API.
-        HEADERS_TEMPLATE: :class:`~string.Template` that renders the ``Content-Type``
-            and ``Authorization`` headers given a ``$roam_local_api_token`` substitution.
+        Headers: Pydantic model representing the HTTP headers sent with each request.
+        Payload: Pydantic model describing the JSON body sent to the Local API.
     """
 
-    type Headers = dict[str, str]
+    class Headers(BaseModel):
+        """HTTP headers for an authenticated Roam Local API request.
 
-    class Payload(TypedDict):
+        Pydantic model whose field aliases match the wire-format header keys,
+        so ``model_dump(by_alias=True)`` yields a ``dict[str, str]`` ready
+        to pass directly to :func:`requests.post`.
+
+        Attributes:
+            content_type: MIME type of the request body; always ``"application/json"``.
+            authorization: Bearer token in the format ``"Bearer <token>"``.
+        """
+
+        content_type: Literal["application/json"] = Field(default="application/json", alias="Content-Type")
+        authorization: str = Field(alias="Authorization")
+
+        @classmethod
+        def with_bearer_token(cls, api_bearer_token: str) -> Request.Headers:
+            """Construct a Headers instance from a bearer token.
+
+            Args:
+                api_bearer_token: Bearer token for authenticating with the Local API.
+
+            Returns:
+                A :class:`Request.Headers` instance with ``Content-Type`` set to
+                ``"application/json"`` and ``Authorization`` set to
+                ``"Bearer <api_bearer_token>"``.
+            """
+            return cls(Authorization=f"Bearer {api_bearer_token}")
+
+    class Payload(BaseModel):
         """JSON body for a Roam Local API POST request.
 
         Attributes:
-            action: The API action name (e.g. ``'file.get'``, ``'q'``).
-            args: Positional arguments for the action.
+            action: The Local API action to invoke (e.g. ``"pull-block"``).
+            args: Positional arguments passed to the action.
         """
 
         action: str
         args: list[object]
-
-    HEADERS_TEMPLATE: Final[Template] = Template("""
-    {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $roam_local_api_token"
-    }
-    """)
-
-    @classmethod
-    @validate_call
-    def get_request_headers(cls, api_bearer_token: str) -> Headers:
-        """Return the HTTP headers required for an authenticated Local API request.
-
-        Args:
-            api_bearer_token: Bearer token used in the ``Authorization`` header (non-empty).
-
-        Returns:
-            A ``dict[str, str]`` containing ``Content-Type`` and ``Authorization`` headers.
-
-        Raises:
-            ValidationError: If ``api_bearer_token`` is ``None`` or not a string.
-        """
-        request_headers_str: str = cls.HEADERS_TEMPLATE.substitute(roam_local_api_token=api_bearer_token)
-        return json.loads(request_headers_str)
 
 
 class Response:
@@ -151,15 +155,15 @@ class Response:
         result: dict[str, str]
 
 
-def make_request(payload: Request.Payload, api_endpoint: ApiEndpoint) -> Response.Payload:
-    """Send an authenticated POST request to the Roam Local API and return the parsed response.
+def invoke_action(request_payload: Request.Payload, api_endpoint: ApiEndpoint) -> Response.Payload:
+    """Invoke a Roam Local API action and return the parsed response.
 
     Builds the ``Authorization`` and ``Content-Type`` headers via
-    :meth:`Request.get_request_headers`, POSTs ``payload`` as JSON to
+    :meth:`Request.Headers.with_bearer_token`, POSTs the payload as JSON to
     ``api_endpoint.url``, and returns the parsed :class:`Response.Payload` on success.
 
     Args:
-        payload: The :class:`Request.Payload` dict describing the action and its arguments.
+        request_payload: The :class:`Request.Payload` describing the action and its arguments.
         api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
     Returns:
@@ -169,17 +173,17 @@ def make_request(payload: Request.Payload, api_endpoint: ApiEndpoint) -> Respons
         requests.exceptions.ConnectionError: If the Local API is unreachable.
         requests.exceptions.HTTPError: If the Local API returns a non-200 status.
     """
-    logger.debug(f"payload: {payload}, api_endpoint: {api_endpoint}")
-    request_headers: dict[str, str] = Request.get_request_headers(api_endpoint.bearer_token)
+    logger.debug(f"payload: {request_payload}, api_endpoint: {api_endpoint}")
+    request_headers: Request.Headers = Request.Headers.with_bearer_token(api_endpoint.bearer_token)
 
     response: requests.Response = requests.post(
-        str(api_endpoint.url), json=payload, headers=request_headers, stream=False
+        str(api_endpoint.url), json=request_payload, headers=request_headers.model_dump(by_alias=True), stream=False
     )
     logger.debug(f"response: {response}")
 
     if response.status_code == 200:
         return cast(Response.Payload, json.loads(response.text))
     else:
-        error_msg: str = f"Failed to fetch file. Status Code: {response.status_code}, Response: {response.text}"
+        error_msg: str = f"Failed to make request. Status Code: {response.status_code}, Response: {response.text}"
         logger.error(error_msg)
         raise requests.exceptions.HTTPError(error_msg)

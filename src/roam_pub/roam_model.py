@@ -7,12 +7,13 @@ FollowLinksDirective enumerations.
 """
 
 from enum import StrEnum
+import logging
 import textwrap
 from typing import Any, Final, final
 
-from pydantic import BaseModel, ConfigDict, Field, validate_call
+from pydantic import BaseModel, ConfigDict, Field
 
-from roam_pub.roam_local_api import ApiEndpointURL
+logger = logging.getLogger(__name__)
 
 type Uid = str
 """Nine-character alphanumeric stable block/page identifier (:block/uid)."""
@@ -369,13 +370,24 @@ class FetchRoamSchema:
          [_ ?attr]
          [(namespace ?attr) ?namespace]]""")
 
-    @staticmethod
-    @validate_call
-    def fetch(api_endpoint: ApiEndpointURL, api_bearer_token: str) -> None:
-        """Fetch the Roam schema from the Local API and print it to stdout.
+    # REQUEST_PAYLOAD: Request.Payload = {
+    #     "action": "data.q",
+    #     "args": [
+    #         DATALOG_SCHEMA_QUERY,
+    #     ],
+    # }
 
-        Args:
-            api_endpoint: The Local API endpoint URL for the target Roam graph.
-            api_bearer_token: Bearer token used to authenticate with the Local API.
-        """
-        ...
+    # @staticmethod
+    # @validate_call
+    # def fetch(api_endpoint: ApiEndpoint) -> None:
+    #     """Fetch the Roam schema from the Local API.
+
+    #     Args:
+    #         api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
+    #     """
+    #     logger.debug(f"api_endpoint: {api_endpoint.url}")
+
+    #     response_payload: Response.Payload = invoke_action(FetchRoamSchema.REQUEST_PAYLOAD, api_endpoint)
+    #     logger.debug(f"response_payload: {response_payload}")
+
+    #     raise NotImplementedError()

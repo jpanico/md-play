@@ -9,7 +9,7 @@ FollowLinksDirective enumerations.
 from enum import StrEnum
 import logging
 import textwrap
-from typing import Final, final
+from typing import Annotated, Final, final
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -39,9 +39,12 @@ Only present on page entities.
 type Url = str
 """A URL string (e.g. a Cloud Firestore storage URL for a Roam-managed file)."""
 
-type MediaType = str
+type MediaType = Annotated[str, Field(pattern=r"^[\w-]+/[\w-]+$")]
 """
 IANA media type (MIME type) string, e.g. ``"image/jpeg"``.
+
+Must match the pattern ``<type>/<subtype>`` where both components consist of
+word characters and hyphens (e.g. ``"image/jpeg"``, ``"application/pdf"``).
 
 References:
   - https://en.wikipedia.org/wiki/Media_type

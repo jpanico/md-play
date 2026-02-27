@@ -1,13 +1,12 @@
 """Roam Research asset fetching via the Local API."""
 
 from datetime import datetime
-from string import Template
-from typing import Final, final
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, validate_call
-import base64
+from typing import Literal, Self, final
+from pydantic import Base64Bytes, BaseModel, ConfigDict, Field, HttpUrl, validate_call
 import logging
 
-from roam_pub.roam_local_api import ApiEndpoint, Request, Response, invoke_action
+from roam_pub.roam_local_api import ApiEndpoint, Request as LocalApiRequest, Response as LocalApiResponse, invoke_action
+from roam_pub.roam_model import MediaType
 
 logger = logging.getLogger(__name__)
 
@@ -26,18 +25,8 @@ class RoamAsset(BaseModel):
 
     file_name: str = Field(..., min_length=1, description="Name of the file")
     last_modified: datetime = Field(..., description="Last modification timestamp")
-    media_type: str = Field(..., pattern=r"^[\w-]+/[\w-]+$", description="MIME type (e.g., 'image/jpeg')")
+    media_type: MediaType = Field(..., description="MIME type (e.g., 'image/jpeg')")
     contents: bytes = Field(..., description="Binary file contents")
-
-
-class _RoamFileResult(BaseModel):
-    """Immutable typed structure for the ``result`` field in a Roam Local API ``file.get`` response."""
-
-    model_config = ConfigDict(frozen=True)
-
-    base64: str
-    filename: str
-    mimetype: str
 
 
 @final
@@ -46,63 +35,73 @@ class FetchRoamAsset:
 
     Delegates HTTP transport to :func:`roam_local_api.invoke_action`, which handles
     header construction and error handling.
-
-    Class Attributes:
-        REQUEST_PAYLOAD_TEMPLATE: JSON template for building ``file.get`` request payloads.
-            Expects a ``$file_url`` substitution for the Cloud Firestore URL. The ``format``
-            parameter is set to ``'base64'`` so the API returns binary data as a base64-encoded
-            string.
     """
 
     def __init__(self) -> None:
         """Prevent instantiation of this stateless utility class."""
         raise TypeError("FetchRoamAsset is a stateless utility class and cannot be instantiated")
 
-    REQUEST_PAYLOAD_TEMPLATE: Final[Template] = Template("""
-    {
-       "action": "file.get",
-        "args": [
-            {
-                "url" : "$file_url",
-                "format": "base64"
-            }
-        ]
-    }
-    """)
+    class Request:
+        """Namespace for ``file.get`` request types."""
 
-    @staticmethod
-    @validate_call
-    def roam_file_from_result_json(result_json: dict[str, str]) -> RoamAsset:
-        """Construct a RoamAsset from a raw ``file.get`` result dict.
+        class Payload(LocalApiRequest.Payload):
+            """``file.get`` specialisation of :class:`roam_local_api.Request.Payload`.
 
-        Args:
-            result_json: The ``'result'`` field extracted from a Roam Local API
-                ``file.get`` response, containing ``base64``-encoded file contents,
-                the original ``filename``, and the ``mimetype``.
+            Inherits ``action: str`` and ``args: list[object]`` from the parent.
+            Instances must be constructed via :meth:`with_url`, which sets
+            ``action`` to ``"file.get"`` and wraps the Cloud Firestore URL in a
+            single :class:`Arg`.
 
-        Returns:
-            An immutable :class:`RoamAsset` with the decoded binary contents,
-            file name, media type, and a ``last_modified`` timestamp of now.
+            Once created, instances cannot be modified (frozen).
+            """
 
-        Raises:
-            ValidationError: If ``result_json`` is ``None`` or missing required keys.
-        """
-        logger.debug(f"result_json: {result_json}")
+            model_config = ConfigDict(frozen=True)
 
-        result: _RoamFileResult = _RoamFileResult.model_validate(result_json)
-        file_bytes: bytes = base64.b64decode(result.base64)
-        file_name: str = result.filename
-        media_type: str = result.mimetype
+            class Arg(BaseModel):
+                """A single positional argument in a ``file.get`` request.
 
-        logger.info(f"Successfully fetched file: {file_name}")
+                Attributes:
+                    url: Cloud Firestore URL of the asset to fetch.
+                    format: Encoding format for the response; always ``'base64'``.
+                """
 
-        # Return RoamAsset object
-        return RoamAsset(
-            file_name=file_name,
-            last_modified=datetime.now(),
-            media_type=media_type,
-            contents=file_bytes,
-        )
+                model_config = ConfigDict(frozen=True)
+
+                url: HttpUrl
+                format: Literal["base64"] = Field(default="base64")
+
+            @classmethod
+            def with_url(cls, url: HttpUrl) -> Self:
+                """Construct a ``file.get`` payload for the given Cloud Firestore URL.
+
+                Args:
+                    url: Cloud Firestore URL of the asset to fetch.
+
+                Returns:
+                    A frozen :class:`Payload` with ``action`` set to ``"file.get"``
+                    and ``args`` containing a single :class:`Arg` for ``url``.
+                """
+                return cls(action="file.get", args=[cls.Arg(url=url)])
+
+    class Response:
+        """Namespace for ``file.get`` response types."""
+
+        class Payload(BaseModel):
+            """Parsed ``file.get`` response payload."""
+
+            model_config = ConfigDict(frozen=True)
+
+            success: bool
+            result: Result
+
+            class Result(BaseModel):
+                """Decoded asset data returned by the ``file.get`` action."""
+
+                model_config = ConfigDict(frozen=True)
+
+                file_name: str = Field(alias="filename")
+                media_type: MediaType = Field(alias="mimetype")
+                content: Base64Bytes = Field(alias="base64")
 
     @staticmethod
     @validate_call
@@ -129,9 +128,18 @@ class FetchRoamAsset:
         """
         logger.debug(f"api_endpoint: {api_endpoint}, firebase_url: {firebase_url}")
 
-        request_payload_str: str = FetchRoamAsset.REQUEST_PAYLOAD_TEMPLATE.substitute(file_url=firebase_url)
-        request_payload: Request.Payload = Request.Payload.model_validate_json(request_payload_str)
-        response_payload: Response.Payload = invoke_action(request_payload, api_endpoint)
-        logger.debug(f"response_payload: {response_payload}")
+        request_payload: FetchRoamAsset.Request.Payload = FetchRoamAsset.Request.Payload.with_url(firebase_url)
+        local_api_response_payload: LocalApiResponse.Payload = invoke_action(request_payload, api_endpoint)
+        logger.debug(f"local_api_response_payload: {local_api_response_payload}")
+        fetch_asset_response_payload: FetchRoamAsset.Response.Payload = FetchRoamAsset.Response.Payload.model_validate(
+            local_api_response_payload.model_dump(mode="json")
+        )
+        logger.debug(f"fetch_asset_response_payload: {fetch_asset_response_payload}")
 
-        return FetchRoamAsset.roam_file_from_result_json(response_payload.result)
+        result: FetchRoamAsset.Response.Payload.Result = fetch_asset_response_payload.result
+        return RoamAsset(
+            file_name=result.file_name,
+            last_modified=datetime.now(),
+            media_type=result.media_type,
+            contents=result.content,
+        )

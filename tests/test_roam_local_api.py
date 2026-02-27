@@ -272,18 +272,18 @@ class TestResponsePayload:
 
     def test_valid_construction(self) -> None:
         """Test that a valid Response.Payload instance can be constructed."""
-        payload: Response.Payload = Response.Payload(success="true", result={"filename": "test.jpg"})
-        assert payload.success == "true"
+        payload: Response.Payload = Response.Payload(success=True, result={"filename": "test.jpg"})
+        assert payload.success is True
         assert payload.result["filename"] == "test.jpg"
 
     def test_is_base_model_at_runtime(self) -> None:
         """Test that Response.Payload is a BaseModel instance at runtime."""
-        payload: Response.Payload = Response.Payload(success="true", result={})
+        payload: Response.Payload = Response.Payload(success=True, result={})
         assert isinstance(payload, Response.Payload)
 
     def test_empty_result(self) -> None:
         """Test that result can be an empty dict."""
-        payload: Response.Payload = Response.Payload(success="true", result={})
+        payload: Response.Payload = Response.Payload(success=True, result={})
         assert payload.result == {}
 
 
@@ -312,7 +312,7 @@ class TestMakeRequest:
         """Return a mock requests.Response with status 200 and a minimal success body."""
         mock: MagicMock = MagicMock()
         mock.status_code = 200
-        mock.text = json.dumps({"success": "true", "result": {"filename": "test.jpg"}})
+        mock.text = json.dumps({"success": True, "result": {"filename": "test.jpg"}})
         return mock
 
     # ------------------------------------------------------------------
@@ -326,7 +326,7 @@ class TestMakeRequest:
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response):
             result: Response.Payload = invoke_action(file_get_payload, api_endpoint)
 
-        assert result.success == "true"
+        assert result.success is True
         assert result.result["filename"] == "test.jpg"
 
     def test_posts_to_endpoint_url(

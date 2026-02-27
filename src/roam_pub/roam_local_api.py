@@ -161,8 +161,8 @@ class Response:
 
         model_config = ConfigDict(frozen=True)
 
-        success: str
-        result: dict[str, str]
+        success: bool
+        result: Final[dict[str, str]]
 
 
 def invoke_action(request_payload: Request.Payload, api_endpoint: ApiEndpoint) -> Response.Payload:
@@ -188,7 +188,7 @@ def invoke_action(request_payload: Request.Payload, api_endpoint: ApiEndpoint) -
 
     response: requests.Response = requests.post(
         str(api_endpoint.url),
-        json=request_payload.model_dump(),
+        json=request_payload.model_dump(mode="json"),
         headers=request_headers.model_dump(by_alias=True),
         stream=False,
     )

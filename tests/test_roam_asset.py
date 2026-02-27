@@ -1,5 +1,6 @@
 """Tests for the roam_asset module."""
 
+import json
 import logging
 import os
 from pydantic import HttpUrl, ValidationError
@@ -139,38 +140,37 @@ class TestRoamAsset:
             roam_asset.file_name = "changed.txt"  # type: ignore[misc]
 
 
-class TestRoamAssetFromResultJson:
-    """Tests for parsing API result dicts into RoamAsset objects via FetchRoamAsset.roam_file_from_result_json."""
+class TestFetchRoamAssetResponsePayloadResult:
+    """Tests for FetchRoamAsset.Response.Payload.Result — the model that parses raw ``file.get`` result dicts."""
 
-    def test_null_result_raises_validation_error(self) -> None:
-        """Test that None result_json raises ValidationError."""
+    def test_null_raises_validation_error(self) -> None:
+        """Test that None raises ValidationError."""
         with pytest.raises(ValidationError):
-            FetchRoamAsset.roam_file_from_result_json(result_json=None)  # type: ignore[arg-type]
+            FetchRoamAsset.Response.Payload.Result.model_validate(None)
 
-    def test_valid_result_returns_roam_asset(self) -> None:
-        """Test that a valid result dict returns a RoamAsset object."""
+    def test_valid_result_parses_correctly(self) -> None:
+        """Test that a valid result dict parses into a Result with decoded contents."""
         file_content: bytes = b"test file content"
         encoded_content: str = base64.b64encode(file_content).decode("utf-8")
-        result = {"base64": encoded_content, "filename": "test_file.jpeg", "mimetype": "image/jpeg"}
+        raw: dict[str, str] = {"base64": encoded_content, "filename": "test_file.jpeg", "mimetype": "image/jpeg"}
 
-        roam_asset: RoamAsset = FetchRoamAsset.roam_file_from_result_json(result)
+        parsed: FetchRoamAsset.Response.Payload.Result = FetchRoamAsset.Response.Payload.Result.model_validate(raw)
 
-        assert roam_asset.file_name == "test_file.jpeg"
-        assert roam_asset.contents == file_content
-        assert roam_asset.media_type == "image/jpeg"
-        assert isinstance(roam_asset.last_modified, datetime)
+        assert parsed.file_name == "test_file.jpeg"
+        assert parsed.content == file_content
+        assert parsed.media_type == "image/jpeg"
 
     def test_base64_decoding(self) -> None:
-        """Test that base64 content is properly decoded."""
+        """Test that the ``base64`` field is decoded to bytes by Base64Bytes."""
         test_content: bytes = b"Hello, Roam Research!"
         encoded: str = base64.b64encode(test_content).decode("utf-8")
-        result = {"base64": encoded, "filename": "test.txt", "mimetype": "text/plain"}
+        raw: dict[str, str] = {"base64": encoded, "filename": "test.txt", "mimetype": "text/plain"}
 
-        roam_asset: RoamAsset = FetchRoamAsset.roam_file_from_result_json(result)
+        parsed: FetchRoamAsset.Response.Payload.Result = FetchRoamAsset.Response.Payload.Result.model_validate(raw)
 
-        assert roam_asset.contents == test_content
-        assert roam_asset.file_name == "test.txt"
-        assert roam_asset.media_type == "text/plain"
+        assert parsed.content == test_content
+        assert parsed.file_name == "test.txt"
+        assert parsed.media_type == "text/plain"
 
     def test_different_file_types(self) -> None:
         """Test parsing result dicts with different file types."""
@@ -182,24 +182,45 @@ class TestRoamAssetFromResultJson:
 
         for filename, content, media_type in test_cases:
             encoded: str = base64.b64encode(content).decode("utf-8")
-            result = {"base64": encoded, "filename": filename, "mimetype": media_type}
+            raw: dict[str, str] = {"base64": encoded, "filename": filename, "mimetype": media_type}
 
-            roam_asset: RoamAsset = FetchRoamAsset.roam_file_from_result_json(result)
+            parsed: FetchRoamAsset.Response.Payload.Result = FetchRoamAsset.Response.Payload.Result.model_validate(raw)
 
-            assert roam_asset.file_name == filename
-            assert roam_asset.contents == content
-            assert roam_asset.media_type == media_type
+            assert parsed.file_name == filename
+            assert parsed.content == content
+            assert parsed.media_type == media_type
 
     def test_missing_base64_key_raises_error(self) -> None:
-        """Test that a missing 'base64' key raises ValidationError."""
+        """Test that a missing ``base64`` key raises ValidationError."""
         with pytest.raises(ValidationError):
-            FetchRoamAsset.roam_file_from_result_json({"filename": "test.txt", "mimetype": "text/plain"})
+            FetchRoamAsset.Response.Payload.Result.model_validate({"filename": "test.txt", "mimetype": "text/plain"})
 
     def test_missing_filename_key_raises_error(self) -> None:
-        """Test that a missing 'filename' key raises ValidationError."""
+        """Test that a missing ``filename`` key raises ValidationError."""
         encoded: str = base64.b64encode(b"data").decode("utf-8")
         with pytest.raises(ValidationError):
-            FetchRoamAsset.roam_file_from_result_json({"base64": encoded, "mimetype": "text/plain"})
+            FetchRoamAsset.Response.Payload.Result.model_validate({"base64": encoded, "mimetype": "text/plain"})
+
+
+class TestFetchRoamAssetRequestPayload:
+    """Tests for FetchRoamAsset.Request.Payload."""
+
+    def test_with_url_is_json_serializable(self) -> None:
+        """Test that a payload built with with_url round-trips through JSON correctly."""
+        url: HttpUrl = HttpUrl("https://firebasestorage.googleapis.com/v0/b/test.appspot.com/o/file.jpeg")
+        payload: FetchRoamAsset.Request.Payload = FetchRoamAsset.Request.Payload.with_url(url)
+
+        json_str: str = payload.model_dump_json()
+        parsed: dict[str, object] = json.loads(json_str)
+
+        assert parsed["action"] == "file.get"
+        assert isinstance(parsed["args"], list)
+        args = parsed["args"]
+        assert len(args) == 1
+        arg = args[0]
+        assert isinstance(arg, dict)
+        assert "url" in arg
+        assert arg["format"] == "base64"
 
 
 class TestFetchRoamAssetFetch:

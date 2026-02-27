@@ -252,8 +252,11 @@ class TestFetchRoamPageFetch:
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
     def test_fetch_testarticle(self) -> None:
         """Fetch a page by title and verify the returned RoamPage is well-formed."""
-        endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
-        api_bearer_token = "roam-graph-local-token-OR3s0AcJn5rwxPJ6MYaqnIyjNi7ai"
+        endpoint: ApiEndpointURL = ApiEndpointURL(
+            local_api_port=int(os.environ["ROAM_LOCAL_API_PORT"]),
+            graph_name=os.environ["ROAM_GRAPH_NAME"],
+        )
+        api_bearer_token: str = os.environ["ROAM_API_TOKEN"]
         page_title = "Test Article"
 
         page: RoamPage | None = FetchRoamPage.fetch(

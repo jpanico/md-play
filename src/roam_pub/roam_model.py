@@ -8,8 +8,7 @@ FollowLinksDirective enumerations.
 
 from enum import StrEnum
 import logging
-import textwrap
-from typing import Annotated, Final, final
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -354,44 +353,3 @@ class FollowLinksDirective(StrEnum):
     DONT_FOLLOW = "DONT_FOLLOW"
     SHALLOW = "SHALLOW"
     DEEP = "DEEP"
-
-
-@final
-class FetchRoamSchema:
-    """Stateless utility class for fetching Roam schema from the Roam Research Local API.
-
-    Executes a Datalog pull query via the Local API's ``data.q`` action, which proxies
-    ``roamAlphaAPI.data.q`` through the Roam Desktop app's local HTTP server.
-    """
-
-    def __init__(self) -> None:
-        """Prevent instantiation of this stateless utility class."""
-        raise TypeError("FetchRoamPage is a stateless utility class and cannot be instantiated")
-
-    DATALOG_SCHEMA_QUERY: Final[str] = textwrap.dedent("""\
-        [:find ?namespace ?attr
-         :where
-         [_ ?attr]
-         [(namespace ?attr) ?namespace]]""")
-
-    # REQUEST_PAYLOAD: Request.Payload = {
-    #     "action": "data.q",
-    #     "args": [
-    #         DATALOG_SCHEMA_QUERY,
-    #     ],
-    # }
-
-    # @staticmethod
-    # @validate_call
-    # def fetch(api_endpoint: ApiEndpoint) -> None:
-    #     """Fetch the Roam schema from the Local API.
-
-    #     Args:
-    #         api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
-    #     """
-    #     logger.debug(f"api_endpoint: {api_endpoint.url}")
-
-    #     response_payload: Response.Payload = invoke_action(FetchRoamSchema.REQUEST_PAYLOAD, api_endpoint)
-    #     logger.debug(f"response_payload: {response_payload}")
-
-    #     raise NotImplementedError()

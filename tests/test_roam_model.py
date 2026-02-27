@@ -49,42 +49,21 @@ class TestFetchRoamSchema:
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
     def test_fetch_article(self) -> None:
         """Fetch Roam Page: title="Test Article."""
-        api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
-        api_bearer_token = "roam-graph-local-token-OR3s0AcJn5rwxPJ6MYaqnIyjNi7ai"
+        api_endpoint: ApiEndpointURL = ApiEndpointURL(
+            local_api_port=int(os.environ["ROAM_LOCAL_API_PORT"]),
+            graph_name=os.environ["ROAM_GRAPH_NAME"],
+        )
+        api_bearer_token: str = os.environ["ROAM_API_TOKEN"]
 
-        request_headers: dict[str, str] = Request.get_request_headers(api_bearer_token)
+        request_headers: dict[str, object] = Request.Headers.with_bearer_token(api_bearer_token).model_dump(
+            by_alias=True
+        )
         request_payload: dict = {
             "action": "data.q",
             "args": [
                 TestFetchRoamSchema.DATALOG_PAGE_QUERY,
                 ["Test Article", "6olpFWiw1"],
             ],
-        }
-
-        logger.info(f"request_payload: {request_payload}, headers: {request_headers}, api: {api_endpoint}")
-
-        # The Local API expects a POST request with the file URL
-        response: requests.Response = requests.post(
-            str(api_endpoint), json=request_payload, headers=request_headers, stream=False
-        )
-
-        if response.status_code == 200:
-            logger.info(f"response: {response.text}")
-        else:
-            error_msg: str = f"Failed to fetch file. Status Code: {response.status_code}, Response: {response.text}"
-            logger.error(error_msg)
-            raise requests.exceptions.HTTPError(error_msg)
-
-    @pytest.mark.live
-    @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
-    def test_fetch_schema(self) -> None:
-        """Fetch the Roam datalog schema and verify a 200 response."""
-        api_endpoint: ApiEndpointURL = ApiEndpointURL(local_api_port=3333, graph_name="SCFH")
-        api_bearer_token = "roam-graph-local-token-OR3s0AcJn5rwxPJ6MYaqnIyjNi7ai"
-        request_headers: dict[str, str] = Request.get_request_headers(api_bearer_token)
-        request_payload: dict = {
-            "action": "data.q",
-            "args": [TestFetchRoamSchema.DATALOG_SCHEMA_QUERY],
         }
 
         logger.info(f"request_payload: {request_payload}, headers: {request_headers}, api: {api_endpoint}")

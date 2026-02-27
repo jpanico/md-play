@@ -244,9 +244,10 @@ class TestFetchRoamAssetFetch:
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
     def test_live(self) -> None:
         """Fetch a Cloud Firestore asset and verify the returned RoamAsset is well-formed."""
-        endpoint: ApiEndpoint = ApiEndpoint(
-            url=ApiEndpointURL(local_api_port=3333, graph_name="SCFH"),
-            bearer_token="roam-graph-local-token-OR3s0AcJn5rwxPJ6MYaqnIyjNi7ai",
+        endpoint: ApiEndpoint = ApiEndpoint.from_parts(
+            local_api_port=int(os.environ["ROAM_LOCAL_API_PORT"]),
+            graph_name=os.environ["ROAM_GRAPH_NAME"],
+            bearer_token=os.environ["ROAM_API_TOKEN"],
         )
         url: HttpUrl = HttpUrl(
             "https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94"

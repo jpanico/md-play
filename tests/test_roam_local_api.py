@@ -327,6 +327,7 @@ class TestMakeRequest:
             result: Response.Payload = invoke_action(file_get_payload, api_endpoint)
 
         assert result.success is True
+        assert isinstance(result.result, dict)
         assert result.result["filename"] == "test.jpg"
 
     def test_posts_to_endpoint_url(

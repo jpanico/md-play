@@ -162,7 +162,7 @@ class Response:
         model_config = ConfigDict(frozen=True)
 
         success: bool
-        result: Final[dict[str, str]]
+        result: Final[object]
 
 
 def invoke_action(request_payload: Request.Payload, api_endpoint: ApiEndpoint) -> Response.Payload:

@@ -1,4 +1,4 @@
-"""Tests for the roam_page module."""
+"""Tests for the roam_node module."""
 
 import json
 import logging
@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 from roam_pub.roam_model import IdObject, RoamNode
-from roam_pub.roam_node import FetchRoamNodes, RoamPage
+from roam_pub.roam_node import FetchRoamNodes
 
 logger = logging.getLogger(__name__)
 
@@ -37,66 +37,6 @@ def mock_200_response() -> MagicMock:
         }
     )
     return mock
-
-
-class TestRoamPage:
-    """Tests for the RoamPage Pydantic model."""
-
-    def test_valid_initialization(self) -> None:
-        """Test creating RoamPage with valid parameters."""
-        roam_node: RoamNode = RoamNode(uid="abc123xyz", title="My Page")
-        page: RoamPage = RoamPage(title="My Page", uid="abc123xyz", pull_block=roam_node)
-
-        assert page.title == "My Page"
-        assert page.uid == "abc123xyz"
-        assert page.pull_block.uid == "abc123xyz"
-        assert page.pull_block.title == "My Page"
-
-    def test_empty_title_raises_validation_error(self) -> None:
-        """Test that empty title raises a validation error."""
-        with pytest.raises(Exception):
-            RoamPage(title="", uid="abc123xyz", pull_block={"uid": "abc123xyz"})  # type: ignore[arg-type]
-
-    def test_empty_uid_raises_validation_error(self) -> None:
-        """Test that empty uid raises a validation error."""
-        with pytest.raises(Exception):
-            RoamPage(title="My Page", uid="", pull_block={"uid": "valid123x"})  # type: ignore[arg-type]
-
-    def test_missing_required_fields_raises_validation_error(self) -> None:
-        """Test that missing required fields raise validation errors."""
-        with pytest.raises(Exception):
-            RoamPage(uid="abc123xyz", pull_block={"uid": "abc123xyz"})  # type: ignore[call-arg]
-
-        with pytest.raises(Exception):
-            RoamPage(title="My Page", pull_block={"uid": "abc123xyz"})  # type: ignore[call-arg]
-
-        with pytest.raises(Exception):
-            RoamPage(title="My Page", uid="abc123xyz")  # type: ignore[call-arg]
-
-    def test_immutability(self) -> None:
-        """Test that RoamPage is immutable."""
-        page: RoamPage = RoamPage(
-            title="My Page", uid="abc123xyz", pull_block={"uid": "abc123xyz"}  # type: ignore[arg-type]
-        )
-        with pytest.raises(Exception):
-            page.title = "Changed"  # type: ignore[misc]
-
-    def test_pull_block_stores_structured_roam_node(self) -> None:
-        """Test that pull_block stores a RoamNode with all its attributes accessible."""
-        roam_node: RoamNode = RoamNode(
-            uid="deep1234x",
-            title="Deep Page",
-            time=1700000000000,
-            children=[IdObject(id=2371), IdObject(id=2396)],
-        )
-        page: RoamPage = RoamPage(title="Deep Page", uid="deep1234x", pull_block=roam_node)
-        assert page.pull_block.uid == "deep1234x"
-        assert page.pull_block.title == "Deep Page"
-        assert page.pull_block.time == 1700000000000
-        assert page.pull_block.children is not None
-        assert len(page.pull_block.children) == 2
-        assert page.pull_block.children[0].id == 2371
-        assert page.pull_block.children[1].id == 2396
 
 
 class TestFetchRoamNodesInstantiation:
@@ -126,15 +66,17 @@ class TestFetchRoamNodesRequest:
 
     def test_payload_action_is_data_q(self) -> None:
         """Test that payload() produces action 'data.q'."""
-        assert FetchRoamNodes.Request.payload("Any Page").action == "data.q"
+        assert FetchRoamNodes.Request.payload_by_page_title("Any Page").action == "data.q"
 
     def test_payload_args_contains_query(self) -> None:
         """Test that payload() includes the Datalog query string in args."""
-        assert FetchRoamNodes.Request.DATALOG_PAGE_QUERY in FetchRoamNodes.Request.payload("Any Page").args
+        assert (
+            FetchRoamNodes.Request.DATALOG_PAGE_QUERY in FetchRoamNodes.Request.payload_by_page_title("Any Page").args
+        )
 
     def test_payload_args_contains_page_title(self) -> None:
         """Test that payload() includes the page title in args."""
-        assert "My Page" in FetchRoamNodes.Request.payload("My Page").args
+        assert "My Page" in FetchRoamNodes.Request.payload_by_page_title("My Page").args
 
 
 class TestFetchRoamNodesResponsePayload:
@@ -190,8 +132,8 @@ class TestFetchRoamNodesResponsePayload:
         with pytest.raises(ValidationError):
             FetchRoamNodes.Response.Payload.model_validate({"success": True})
 
-    def test_missing_uid_in_pull_block_raises_error(self) -> None:
-        """Test that a pull_block dict missing 'uid' raises ValidationError."""
+    def test_missing_uid_in_result_node_raises_error(self) -> None:
+        """Test that a result node dict missing 'uid' raises ValidationError."""
         with pytest.raises(ValidationError):
             FetchRoamNodes.Response.Payload.model_validate({"success": True, "result": [[{"title": "My Page"}]]})
 
@@ -206,17 +148,17 @@ class TestFetchRoamNodesResponsePayload:
 
 
 class TestFetchRoamNodesFetch:
-    """Tests for FetchRoamNodes.fetch_nodes."""
+    """Tests for FetchRoamNodes.fetch_by_page_title."""
 
     def test_null_api_endpoint_raises_validation_error(self) -> None:
         """Test that None api_endpoint raises ValidationError."""
         with pytest.raises(ValidationError):
-            FetchRoamNodes.fetch_nodes(api_endpoint=None, page_title="My Page")  # type: ignore[arg-type]
+            FetchRoamNodes.fetch_by_page_title(page_title="My Page", api_endpoint=None)  # type: ignore[arg-type]
 
     def test_null_page_title_raises_validation_error(self, api_endpoint: ApiEndpoint) -> None:
         """Test that None page_title raises ValidationError."""
         with pytest.raises(ValidationError):
-            FetchRoamNodes.fetch_nodes(api_endpoint=api_endpoint, page_title=None)  # type: ignore[arg-type]
+            FetchRoamNodes.fetch_by_page_title(page_title=None, api_endpoint=api_endpoint)  # type: ignore[arg-type]
 
     def test_http_error_response_raises_http_error(self, api_endpoint: ApiEndpoint) -> None:
         """Test that a non-200 HTTP response raises requests.exceptions.HTTPError."""
@@ -226,12 +168,12 @@ class TestFetchRoamNodesFetch:
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
             with pytest.raises(requests.exceptions.HTTPError):
-                FetchRoamNodes.fetch_nodes(api_endpoint=api_endpoint, page_title="My Page")
+                FetchRoamNodes.fetch_by_page_title(page_title="My Page", api_endpoint=api_endpoint)
 
     def test_successful_fetch_returns_roam_nodes(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
         """Test that a successful HTTP 200 response returns a list of RoamNodes."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response):
-            nodes: list[RoamNode] = FetchRoamNodes.fetch_nodes(api_endpoint=api_endpoint, page_title="My Page")
+            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(page_title="My Page", api_endpoint=api_endpoint)
 
         assert len(nodes) == 1
         assert nodes[0].title == "My Page"
@@ -244,21 +186,23 @@ class TestFetchRoamNodesFetch:
         mock_response.text = json.dumps({"success": True, "result": []})
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
-            nodes: list[RoamNode] = FetchRoamNodes.fetch_nodes(api_endpoint=api_endpoint, page_title="Nonexistent")
+            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
+                page_title="Nonexistent", api_endpoint=api_endpoint
+            )
 
         assert nodes == []
 
     def test_posts_to_correct_endpoint_url(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
         """Test that the POST is made to the correct endpoint URL."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            FetchRoamNodes.fetch_nodes(api_endpoint=api_endpoint, page_title="My Page")
+            FetchRoamNodes.fetch_by_page_title(page_title="My Page", api_endpoint=api_endpoint)
 
         assert mock_post.call_args.args[0] == str(api_endpoint.url)
 
     def test_posts_data_q_action(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
         """Test that the POST body contains the data.q action."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            FetchRoamNodes.fetch_nodes(api_endpoint=api_endpoint, page_title="My Page")
+            FetchRoamNodes.fetch_by_page_title(page_title="My Page", api_endpoint=api_endpoint)
 
         posted_json: dict[str, object] = mock_post.call_args.kwargs["json"]
         assert posted_json["action"] == "data.q"
@@ -266,7 +210,7 @@ class TestFetchRoamNodesFetch:
     def test_posts_page_title_in_args(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
         """Test that the POST body includes the page title in args."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            FetchRoamNodes.fetch_nodes(api_endpoint=api_endpoint, page_title="My Page")
+            FetchRoamNodes.fetch_by_page_title(page_title="My Page", api_endpoint=api_endpoint)
 
         posted_json: dict[str, object] = mock_post.call_args.kwargs["json"]
         assert "My Page" in posted_json["args"]  # type: ignore[operator]
@@ -280,13 +224,13 @@ class TestFetchRoamNodesFetch:
         )
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            FetchRoamNodes.fetch_nodes(api_endpoint=token_endpoint, page_title="My Page")
+            FetchRoamNodes.fetch_by_page_title(page_title="My Page", api_endpoint=token_endpoint)
 
         headers: dict[str, object] = mock_post.call_args.kwargs["headers"]
         assert headers["Authorization"] == "Bearer my-secret-token"
 
-    def test_pull_block_attributes_preserved(self, api_endpoint: ApiEndpoint) -> None:
-        """Test that extra pull_block fields (time, children) survive the round-trip."""
+    def test_node_attributes_preserved(self, api_endpoint: ApiEndpoint) -> None:
+        """Test that extra RoamNode fields (time, children) survive the HTTP round-trip."""
         mock_response: MagicMock = MagicMock()
         mock_response.status_code = 200
         mock_response.text = json.dumps(
@@ -299,7 +243,9 @@ class TestFetchRoamNodesFetch:
         )
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
-            nodes: list[RoamNode] = FetchRoamNodes.fetch_nodes(api_endpoint=api_endpoint, page_title="Rich Page")
+            nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
+                page_title="Rich Page", api_endpoint=api_endpoint
+            )
 
         assert len(nodes) == 1
         assert nodes[0].time == 1700000000000
@@ -316,7 +262,7 @@ class TestFetchRoamNodesFetch:
         )
         page_title = "Test Article"
 
-        nodes: list[RoamNode] = FetchRoamNodes.fetch_nodes(api_endpoint=live_endpoint, page_title=page_title)
+        nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(page_title=page_title, api_endpoint=live_endpoint)
         logger.info(f"nodes: {nodes}")
 
         assert len(nodes) > 0

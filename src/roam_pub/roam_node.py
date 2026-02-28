@@ -1,17 +1,16 @@
-"""Roam Research page fetching via the Local API.
+"""Roam Research node fetching via the Local API.
 
 Public symbols:
 
-- :class:`RoamPage` — immutable Pydantic model for a fetched Roam Research page.
-- :class:`FetchRoamNodes` — stateless utility class that fetches a Roam page by
-  title via the Local API's ``data.q`` action.
+- :class:`FetchRoamNodes` — stateless utility class that fetches all Roam nodes
+  matching a given page title via the Local API's ``data.q`` action.
 """
 
 import logging
 import textwrap
 from typing import Final, final
 
-from pydantic import BaseModel, ConfigDict, Field, validate_call
+from pydantic import BaseModel, ConfigDict, validate_call
 
 from roam_pub.roam_local_api import (
     ApiEndpoint,
@@ -24,29 +23,9 @@ from roam_pub.roam_model import RoamNode
 logger = logging.getLogger(__name__)
 
 
-class RoamPage(BaseModel):
-    """Immutable representation of a Roam Research page fetched via the Local API.
-
-    Contains the page title, its stable UID, and the full raw PullBlock tree returned
-    by the Roam graph query, validated as a :class:`RoamNode`. Callers are responsible
-    for rendering it to Markdown.
-
-    Once created, instances cannot be modified (frozen). All fields are required
-    and validated at construction time.
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    title: str = Field(..., min_length=1, description="The page title as queried")
-    uid: str = Field(..., min_length=1, description="The page's :block/uid (9-character stable identifier)")
-    pull_block: RoamNode = Field(
-        ..., description="Full raw PullBlock tree from (pull ?page [*]), validated as a RoamNode"
-    )
-
-
 @final
 class FetchRoamNodes:
-    """Stateless utility class for fetching Roam page content from the Roam Research Local API.
+    """Stateless utility class for fetching Roam nodes by page title from the Roam Research Local API.
 
     Executes a Datalog query via the Local API's ``data.q`` action, which proxies
     ``roamAlphaAPI.data.q`` through the Roam Desktop app's local HTTP server.
@@ -58,8 +37,8 @@ class FetchRoamNodes:
          :where
          [?page :node/title ?title]]
 
-    This returns all attributes of the page entity whose ``:node/title`` matches the
-    given title.
+    This returns all attributes of every page entity whose ``:node/title`` matches
+    the given title, flattened into a ``list[RoamNode]``.
     """
 
     def __init__(self) -> None:
@@ -76,7 +55,7 @@ class FetchRoamNodes:
              [?page :node/title ?title]]""")
 
         @staticmethod
-        def payload(page_title: str) -> LocalApiRequest.Payload:
+        def payload_by_page_title(page_title: str) -> LocalApiRequest.Payload:
             """Build the ``data.q`` request payload for the given page title.
 
             Args:
@@ -98,7 +77,7 @@ class FetchRoamNodes:
             """Parsed ``data.q`` page response payload (raw wire format).
 
             ``result`` holds the raw nested :class:`RoamNode` data exactly as
-            returned by the Local API.  :meth:`FetchRoamNodes.fetch_nodes`
+            returned by the Local API.  :meth:`FetchRoamNodes.fetch_by_page_title`
             flattens it into a ``list[RoamNode]``.
             """
 
@@ -109,7 +88,7 @@ class FetchRoamNodes:
 
     @staticmethod
     @validate_call
-    def fetch_nodes(page_title: str, api_endpoint: ApiEndpoint) -> list[RoamNode]:
+    def fetch_by_page_title(page_title: str, api_endpoint: ApiEndpoint) -> list[RoamNode]:
         """Fetch all Roam nodes matching the given page title from the Roam Research Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -131,7 +110,7 @@ class FetchRoamNodes:
         """
         logger.debug(f"api_endpoint: {api_endpoint}, page_title: {page_title!r}")
 
-        request_payload: LocalApiRequest.Payload = FetchRoamNodes.Request.payload(page_title)
+        request_payload: LocalApiRequest.Payload = FetchRoamNodes.Request.payload_by_page_title(page_title)
         local_api_response_payload: LocalApiResponse.Payload = invoke_action(request_payload, api_endpoint)
         logger.debug(f"local_api_response_payload: {local_api_response_payload}")
 
@@ -144,5 +123,5 @@ class FetchRoamNodes:
         result: list[list[RoamNode]] = page_response_payload.result
         nodes: list[RoamNode] = [row[0] for row in result]
         if not nodes:
-            logger.info(f"no page found with title: {page_title!r}")
+            logger.info(f"no nodes found with for page_title: {page_title!r}")
         return nodes

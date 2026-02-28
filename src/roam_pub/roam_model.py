@@ -1,8 +1,17 @@
-""".
+"""Core Roam Research data model: type aliases, Datomic schema types, and Pydantic models.
 
-Defines the core Roam Research data model: primitive type aliases, composite map types,
-raw graph node shapes (RoamNode, EnrichedNode), the normalized output shape (Vertex),
-file-handling types (RoamFileReference, RoamFile, WebFile, RoamAsset), and the VertexType enumeration.
+Public symbols are organized into five groups:
+
+- **Primitive type aliases**: :data:`Uid`, :data:`Id`, :data:`Order`, :data:`HeadingLevel`,
+  :data:`PageTitle`, :data:`Url`, :data:`MediaType`.
+- **Composite type aliases**: :data:`UidPair`, :data:`OrderedUid`, :data:`OrderedValue`,
+  :data:`KeyValuePair`, :data:`RawChildren`, :data:`RawRefs`, :data:`NormalChildren`,
+  :data:`NormalRefs`, :data:`Id2UidMap`, :data:`PageTitle2UidMap`.
+- **Datomic schema types**: :class:`RoamNamespace`, :class:`RoamAttribute`,
+  :data:`RoamSchema`.
+- **Graph node models**: :class:`IdObject`, :class:`LinkObject`, :class:`RoamNode`,
+  :class:`EnrichedNode`, :class:`Vertex`, :class:`VertexType`.
+- **File-handling models**: :class:`RoamFileReference`, :class:`RoamAsset`.
 """
 
 from datetime import datetime
@@ -42,8 +51,7 @@ type Url = HttpUrl
 """A validated HTTP/HTTPS URL (e.g. a Cloud Firestore storage URL for a Roam-managed file)."""
 
 type MediaType = Annotated[str, Field(pattern=r"^[\w-]+/[\w-]+$")]
-"""
-IANA media type (MIME type) string, e.g. ``"image/jpeg"``.
+"""IANA media type (MIME type) string, e.g. ``"image/jpeg"``.
 
 Must match the pattern ``<type>/<subtype>`` where both components consist of
 word characters and hyphens (e.g. ``"image/jpeg"``, ``"application/pdf"``).
@@ -101,39 +109,34 @@ class LinkObject(BaseModel):
 
 
 type RawChildren = list[IdObject]
-"""
-Child block stubs as returned directly by ``pull [*]``.
+"""Child block stubs as returned directly by ``pull [*]``.
 
 Each element is an IdObject (only the :db/id is present); full data requires
 a subsequent pull or was included by an explicit recursive pull pattern.
 """
 
 type RawRefs = list[IdObject]
-"""
-Page/block reference stubs as returned directly by ``pull [*]``.
+"""Page/block reference stubs as returned directly by ``pull [*]``.
 
 Same shape as RawChildren — IdObject stubs, not fully pulled entities.
 """
 
 type NormalChildren = list[Uid]
-"""
-Child block UIDs after normalization.
+"""Child block UIDs after normalization.
 
 The raw IdObject stubs are resolved to their stable :block/uid strings,
 and sorted by :block/order, during the normalization pass.
 """
 
 type NormalRefs = list[Uid]
-"""
-Referenced page/block UIDs after normalization.
+"""Referenced page/block UIDs after normalization.
 
 The raw IdObject stubs are resolved to their stable :block/uid strings
 during the normalization pass.
 """
 
 type Id2UidMap = dict[str, OrderedUid]
-"""
-Maps a Datomic entity id (as a string key) to an ``(uid, order)`` pair.
+"""Maps a Datomic entity id (as a string key) to an ``(uid, order)`` pair.
 
 Built during normalization so that raw IdObject references in children/refs
 can be resolved to stable UIDs and sorted by order in a single pass.
@@ -263,8 +266,7 @@ class RoamAttribute(Enum):
 
 
 type RoamSchema = list[RoamAttribute]
-"""
-Roam Datomic schema as a list of :class:`RoamAttribute` members.
+"""Roam Datomic schema as a list of :class:`RoamAttribute` members.
 
 Each member corresponds to one row from the ``[:find ?namespace ?attr ...]``
 schema query, e.g. :attr:`RoamAttribute.BLOCK_UID`.
@@ -272,11 +274,10 @@ schema query, e.g. :attr:`RoamAttribute.BLOCK_UID`.
 
 
 class RoamNode(BaseModel):
-    """Raw shape of a Block or Page entity as returned by ``roamAlphaAPI.data.q`` / ``pull [*]``.
+    """Raw shape of a "pull-block" as returned by ``roamAlphaAPI.data.q`` / ``pull [*]``.
 
     This is the *un-normalized* form — property names mirror the raw Datomic
-    attribute names (after PageDump's key-stripping), and nested refs are still
-    IdObject stubs rather than resolved UIDs.
+    attribute names, and nested refs are still IdObject stubs rather than resolved UIDs.
 
     All fields are optional except ``uid``, because the set of attributes present
     depends on the entity type (Page vs. Block) and which optional features
@@ -371,8 +372,8 @@ class VertexType(StrEnum):
         ROAM_BLOCK_HEADING: 1-1 with a Roam ``Block`` type node that has a
             ``heading`` property (value 1, 2, or 3).
         ROAM_FILE: A block that references a file uploaded to and managed by Roam
-            (Cloud Firestore-hosted). These blocks have a Cloud Firestore URL embedded in their
-            ``:block/string``.
+            (Cloud Firestore-hosted); these blocks have a Cloud Firestore URL
+            embedded in their ``:block/string``.
     """
 
     ROAM_PAGE = "roam/page"
@@ -463,7 +464,8 @@ class Vertex(BaseModel):
 class RoamFileReference(BaseModel):
     """A reference to a Roam-managed file.
 
-    the uid of the block that contains it and the Cloud Firestore storage URL at which the file is hosted.
+    Pairs the UID of the block that contains the reference with the Cloud
+    Firestore storage URL at which the file is hosted.
 
     Attributes:
         uid: UID of the block whose ``:block/string`` contains the Cloud Firestore URL.

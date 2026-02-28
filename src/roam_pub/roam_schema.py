@@ -152,6 +152,10 @@ class RoamAttribute(Enum):
         self.namespace: RoamNamespace = namespace
         self.attr_name: str = attr_name
 
+    def __str__(self) -> str:
+        """Return the Datomic attribute key, e.g. ``:block/uid``."""
+        return f":{self.namespace}/{self.attr_name}"
+
 
 @final
 class FetchRoamSchema:

@@ -2,11 +2,11 @@
 
 from datetime import datetime
 from typing import Literal, Self, final
-from pydantic import Base64Bytes, BaseModel, ConfigDict, Field, HttpUrl, validate_call
+from pydantic import Base64Bytes, BaseModel, ConfigDict, Field, validate_call
 import logging
 
 from roam_pub.roam_local_api import ApiEndpoint, Request as LocalApiRequest, Response as LocalApiResponse, invoke_action
-from roam_pub.roam_model import MediaType
+from roam_pub.roam_model import MediaType, Url
 
 logger = logging.getLogger(__name__)
 
@@ -67,11 +67,11 @@ class FetchRoamAsset:
 
                 model_config = ConfigDict(frozen=True)
 
-                url: HttpUrl
+                url: Url
                 format: Literal["base64"] = Field(default="base64")
 
             @classmethod
-            def with_url(cls, url: HttpUrl) -> Self:
+            def with_url(cls, url: Url) -> Self:
                 """Construct a ``file.get`` payload for the given Cloud Firestore URL.
 
                 Args:
@@ -105,7 +105,7 @@ class FetchRoamAsset:
 
     @staticmethod
     @validate_call
-    def fetch(api_endpoint: ApiEndpoint, firebase_url: HttpUrl) -> RoamAsset:
+    def fetch(api_endpoint: ApiEndpoint, firebase_url: Url) -> RoamAsset:
         """Fetch an asset from Cloud Firestore via the Roam Research Local API.
 
         Builds a ``file.get`` request payload and delegates the HTTP call to

@@ -10,11 +10,13 @@ from enum import StrEnum
 import logging
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+
+from roam_pub.roam_schema import RoamAttribute
 
 logger = logging.getLogger(__name__)
 
-type Uid = str
+type Uid = Annotated[str, Field(pattern=r"^[A-Za-z0-9]{9}$")]
 """Nine-character alphanumeric stable block/page identifier (:block/uid)."""
 
 type Id = int
@@ -23,20 +25,20 @@ type Id = int
 Ephemeral — not stable across exports.
 """
 
-type Order = int
+type Order = Annotated[int, Field(ge=0)]
 """Zero-based position of a child block among its siblings (:block/order)."""
 
-type HeadingLevel = int
-"""HeadingLevel level: 0 = normal text, 1 = H1, 2 = H2, 3 = H3 (:block/heading)."""
+type HeadingLevel = Annotated[int, Field(ge=1, le=6)]
+"""Markdown heading level 1–6 (:block/heading). Absent (None) on non-heading blocks."""
 
-type PageTitle = str
+type PageTitle = Annotated[str, Field(min_length=1)]
 """Page title string (:node/title).
 
 Only present on page entities.
 """
 
-type Url = str
-"""A URL string (e.g. a Cloud Firestore storage URL for a Roam-managed file)."""
+type Url = HttpUrl
+"""A validated HTTP/HTTPS URL (e.g. a Cloud Firestore storage URL for a Roam-managed file)."""
 
 type MediaType = Annotated[str, Field(pattern=r"^[\w-]+/[\w-]+$")]
 """
@@ -152,66 +154,76 @@ class RoamNode(BaseModel):
     (heading, text-align, etc.) were ever set.
 
     Attributes:
-        uid: Nine-character stable block/page identifier (:block/uid). Required.
+        uid: Nine-character stable block/page identifier (BLOCK_UID). Required.
         id: Datomic internal numeric entity id (:db/id). Ephemeral and not stable
             across exports; defaults to ``None`` when absent.
-        time: Last-edit Unix timestamp in milliseconds (:edit/time).
+        time: Last-edit Unix timestamp in milliseconds (EDIT_TIME).
         user: IdObject stub referencing the last-editing user entity.
-        string: Block text content (:block/string). Present only on Block entities.
-        title: Page title (:node/title). Present only on Page entities.
-        order: Zero-based sibling order (:block/order). Present only on child Blocks.
-        heading: HeadingLevel level 1–3 (:block/heading). Present only on heading Blocks.
-        children: Raw child block stubs (:block/children).
-        refs: Raw page/block reference stubs (:block/refs).
-        page: IdObject stub for the containing page (:block/page). Present only on Blocks.
-        open: Whether the block is expanded (:block/open). Present only on Blocks.
+        string: Block text content (BLOCK_STRING). Present only on Block entities.
+        title: Page title (NODE_TITLE). Present only on Page entities.
+        order: Zero-based sibling order (BLOCK_ORDER). Present only on child Blocks.
+        heading: HeadingLevel level 1–3 (BLOCK_HEADING). Present only on heading Blocks.
+        children: Raw child block stubs (BLOCK_CHILDREN).
+        refs: Raw page/block reference stubs (BLOCK_REFS).
+        page: IdObject stub for the containing page (BLOCK_PAGE). Present only on Blocks.
+        open: Whether the block is expanded (BLOCK_OPEN). Present only on Blocks.
         sidebar: Sidebar state. Present only on Pages.
-        parents: IdObject stubs for all ancestor blocks (:block/parents). Present only on Blocks.
-        attrs: Structured attribute assertions (:entity/attrs).
-        lookup: IdObject stubs for :attrs/lookup. Purpose unclear.
-        seen_by: IdObject stubs for :edit/seen-by. Purpose unclear.
+        parents: IdObject stubs for all ancestor blocks (BLOCK_PARENTS). Present only on Blocks.
+        attrs: Structured attribute assertions (ENTITY_ATTRS).
+        lookup: IdObject stubs for ATTRS_LOOKUP. Purpose unclear.
+        seen_by: IdObject stubs for EDIT_SEEN_BY. Purpose unclear.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
 
-    uid: Uid = Field(..., description=":block/uid — nine-character stable identifier")
+    uid: Uid = Field(..., description=f"{RoamAttribute.BLOCK_UID} — nine-character stable identifier")
     id: Id | None = Field(default=None, description=":db/id — Datomic internal entity id (ephemeral)")
-    time: int | None = Field(default=None, description=":edit/time — last-edit Unix timestamp (ms)")
-    user: IdObject | None = Field(default=None, description=":edit/user — last-editing user stub")
+    time: int | None = Field(default=None, description=f"{RoamAttribute.EDIT_TIME} — last-edit Unix timestamp (ms)")
+    user: IdObject | None = Field(default=None, description=f"{RoamAttribute.EDIT_USER} — last-editing user stub")
 
     # Block-only fields
-    string: str | None = Field(default=None, description=":block/string — block text; present only on Blocks")
-    order: Order | None = Field(default=None, description=":block/order — sibling order; present only on child Blocks")
+    string: str | None = Field(
+        default=None, description=f"{RoamAttribute.BLOCK_STRING} — block text; present only on Blocks"
+    )
+    order: Order | None = Field(
+        default=None, description=f"{RoamAttribute.BLOCK_ORDER} — sibling order; present only on child Blocks"
+    )
     heading: HeadingLevel | None = Field(
-        default=None, description=":block/heading — heading level 1-3; present only on heading Blocks"
+        default=None, description=f"{RoamAttribute.BLOCK_HEADING} — heading level 1-3; present only on heading Blocks"
     )
     children: RawChildren | None = Field(
-        default=None, description=":block/children — raw child stubs; present only on Blocks"
+        default=None, description=f"{RoamAttribute.BLOCK_CHILDREN} — raw child stubs; present only on Blocks"
     )
-    refs: RawRefs | None = Field(default=None, description=":block/refs — raw reference stubs; present only on Blocks")
+    refs: RawRefs | None = Field(
+        default=None, description=f"{RoamAttribute.BLOCK_REFS} — raw reference stubs; present only on Blocks"
+    )
     page: IdObject | None = Field(
-        default=None, description=":block/page — containing page stub; present only on Blocks"
+        default=None, description=f"{RoamAttribute.BLOCK_PAGE} — containing page stub; present only on Blocks"
     )
     open: bool | None = Field(
-        default=None, description=":block/open — expanded/collapsed state; present only on Blocks"
+        default=None, description=f"{RoamAttribute.BLOCK_OPEN} — expanded/collapsed state; present only on Blocks"
     )
     parents: list[IdObject] | None = Field(
-        default=None, description=":block/parents — all ancestor stubs; present only on Blocks"
+        default=None, description=f"{RoamAttribute.BLOCK_PARENTS} — all ancestor stubs; present only on Blocks"
     )
 
     # Page-only fields
-    title: PageTitle | None = Field(default=None, description=":node/title — page title; present only on Pages")
-    sidebar: int | None = Field(default=None, description=":page/sidebar — sidebar state; present only on Pages")
+    title: PageTitle | None = Field(
+        default=None, description=f"{RoamAttribute.NODE_TITLE} — page title; present only on Pages"
+    )
+    sidebar: int | None = Field(
+        default=None, description=f"{RoamAttribute.PAGE_SIDEBAR} — sidebar state; present only on Pages"
+    )
 
     # Sparse / metadata fields
     attrs: list[list[LinkObject]] | None = Field(
-        default=None, description=":entity/attrs — structured attribute assertions"
+        default=None, description=f"{RoamAttribute.ENTITY_ATTRS} — structured attribute assertions"
     )
     lookup: list[IdObject] | None = Field(
-        default=None, description=":attrs/lookup — attribute lookup stubs (purpose unclear)"
+        default=None, description=f"{RoamAttribute.ATTRS_LOOKUP} — attribute lookup stubs (purpose unclear)"
     )
     seen_by: list[IdObject] | None = Field(
-        default=None, description=":edit/seen-by — users who have seen this block (purpose unclear)"
+        default=None, description=f"{RoamAttribute.EDIT_SEEN_BY} — users who have seen this block (purpose unclear)"
     )
 
 

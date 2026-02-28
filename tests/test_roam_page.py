@@ -60,7 +60,7 @@ class TestRoamPage:
     def test_empty_uid_raises_validation_error(self) -> None:
         """Test that empty uid raises a validation error."""
         with pytest.raises(Exception):
-            RoamPage(title="My Page", uid="", pull_block={"uid": "valid1234x"})  # type: ignore[arg-type]
+            RoamPage(title="My Page", uid="", pull_block={"uid": "valid123x"})  # type: ignore[arg-type]
 
     def test_missing_required_fields_raises_validation_error(self) -> None:
         """Test that missing required fields raise validation errors."""

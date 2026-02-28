@@ -105,7 +105,7 @@ class FetchRoamAsset:
 
     @staticmethod
     @validate_call
-    def fetch(api_endpoint: ApiEndpoint, firebase_url: Url) -> RoamAsset:
+    def fetch(firebase_url: Url, api_endpoint: ApiEndpoint) -> RoamAsset:
         """Fetch an asset from Cloud Firestore via the Roam Research Local API.
 
         Builds a ``file.get`` request payload and delegates the HTTP call to
@@ -113,9 +113,9 @@ class FetchRoamAsset:
         the user must be logged into the graph at the time this method is called.
 
         Args:
-            api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
             firebase_url: The Cloud Firestore URL of the asset, as it appears in the
                 Roam graph's Markdown.
+            api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
         Returns:
             An immutable :class:`RoamAsset` with the decoded binary contents,

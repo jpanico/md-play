@@ -109,7 +109,7 @@ class FetchRoamNodes:
 
     @staticmethod
     @validate_call
-    def fetch_nodes(api_endpoint: ApiEndpoint, page_title: str) -> list[RoamNode]:
+    def fetch_nodes(page_title: str, api_endpoint: ApiEndpoint) -> list[RoamNode]:
         """Fetch all Roam nodes matching the given page title from the Roam Research Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -117,8 +117,8 @@ class FetchRoamNodes:
         graph.
 
         Args:
-            api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
             page_title: The exact title of the Roam page to fetch.
+            api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
         Returns:
             A list of :class:`RoamNode` instances whose ``:node/title`` matches

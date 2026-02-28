@@ -1,6 +1,6 @@
 # Roam Schema
 
-Retrieved by `TestFetchRoamSchema::test_fetch_schema`, Feb. 2026.
+Retrieved by [roam_schema_fetch.py](../src/roam_pub/roam_schema_fetch.py) (Feb. 2026).
 
 | namespace      | attr_name         |
 | -------------- | ----------------- |

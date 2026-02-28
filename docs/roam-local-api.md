@@ -4,7 +4,8 @@ For an _encrypted_ Roam graph, programmatically fetching (or exporting) content 
 
 ## HTTP Requests
 
-Roam Local API calls follow the JSON over HTTP paradigm.
+Roam Local API calls follow the JSON over HTTP paradigm. HTTP Request/Response handling is implemented in [roam_local_api.py](../src/roam_pub/roam_local_api.py).
+
 
 ### Endpoint
 Local API calls are accessible through a single unique endpoint URL for each Roam graph, having this structure:
@@ -44,7 +45,7 @@ and the value for the "args" key is a list of JSON elements, the shapes of which
 
 ### `data.q`
 
-Query the graph using datomic flavored datalog
+Query the graph using datomic flavored Datalog. A primer on Roam Datalog is given in: [Querying Roam Research](./roam-querying.md). Querying a Roam graph for `Nodes` is implemented in [roam_node_fetch.py](../src/roam_pub/roam_node_fetch.py).
 
 - `"action": "data.q"` -> `window.roamAlphaAPI.data.q`
 
@@ -59,7 +60,7 @@ Query the graph using datomic flavored datalog
 
 ### `file.get`
 
-Fetch a file hosted on Roam
+Fetch a file hosted on Roam. Implemented in [roam_asset_fetch.py](../src/roam_pub/roam_asset_fetch.py).
 
 - `"action": "file.get"` -> `window.roamAlphaAPI.file.get`
 
@@ -72,4 +73,4 @@ Fetch a file hosted on Roam
 ]
 ```
 
-where `$file_url` is a Cloud Firestore URL from the Markdown content in a Roam _block_: `![]()` or naked Cloud Firestore URL, e.g.: https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fhippo%2FHQYN2ig-o9.pages.enc?alt=media&token=dc2ecff5-bf90-40f7-9c75-c15f9fd39e0c
+where `$file_url` is a Cloud Firestore URL from the Markdown content in a Roam _block_: `![]()` or naked Cloud Firestore URL, e.g.: `https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Fhippo%2FHQYN2ig-o9.pages.enc?alt=media&token=dc2ecff5-bf90-40f7-9c75-c15f9fd39e0c`

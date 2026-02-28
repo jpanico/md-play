@@ -1,4 +1,4 @@
-"""Roam Research node fetching via the Local API.
+"""Roam Research 'Node' fetching via the Local API.
 
 Public symbols:
 

@@ -94,7 +94,7 @@ Common pull patterns used in this project:
 
 ## Queries Used in This Project
 
-### 1. Page fetch — `FetchRoamPage.DATALOG_PAGE_QUERY`
+### 1. Page fetch — `FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY`
 
 ```datalog
 [:find (pull ?page [*])
@@ -105,10 +105,10 @@ Common pull patterns used in this project:
 
 - Input binding: `?title` — the exact page title string (passed as `args[1]`).
 - Finds the entity whose `:node/title` equals the title, then pulls all its attributes.
-- Returns `result[0][0]` — the full PullBlock dict stored in `RoamPage.pull_block`.
+- Returns `[row[0] for row in result]` — a `list[RoamNode]` where each `RoamNode` holds the full pull-block dict.
 
 
-### 2. Schema introspection — `FetchRoamSchema.DATALOG_SCHEMA_QUERY`
+### 2. Schema introspection — `FetchRoamSchema.Request.DATALOG_SCHEMA_QUERY`
 
 ```datalog
 [:find ?namespace ?attr
@@ -156,7 +156,7 @@ Rules are named, reusable Horn clauses that enable recursive queries. Syntax:
  <body-clause> ...]
 ```
 
-The `DATALOG_RULE` constant in `test_roam_model.py` shows the pattern:
+A rule definition takes the following form:
 
 ```datalog
 [(actor-movie ?name ?title)
@@ -167,5 +167,5 @@ The `DATALOG_RULE` constant in `test_roam_model.py` shows the pattern:
 
 Rules are passed as an additional element of the `args` array and referenced in the
 `:where` clause by name. They are the mechanism used for recursive graph traversal
-(corresponding to `FollowLinksDirective.DEEP` in `roam_model.py`).
+(corresponding to `FetchRoamNodes.FollowLinksDirective.DEEP` in `roam_node_fetch.py`).
 

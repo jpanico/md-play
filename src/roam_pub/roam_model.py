@@ -29,7 +29,10 @@ type Order = Annotated[int, Field(ge=0)]
 """Zero-based position of a child block among its siblings (:block/order)."""
 
 type HeadingLevel = Annotated[int, Field(ge=1, le=6)]
-"""Markdown heading level 1–6 (:block/heading). Absent (None) on non-heading blocks."""
+"""Markdown heading level 1–6 (:block/heading).
+
+Absent (None) on non-heading blocks.
+"""
 
 type PageTitle = Annotated[str, Field(min_length=1)]
 """Page title string (:node/title).

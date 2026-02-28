@@ -2,7 +2,7 @@
 
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 from roam_pub.roam_asset import FetchRoamAsset, RoamAsset
-from roam_pub.roam_page import FetchRoamPage, RoamPage
+from roam_pub.roam_node import FetchRoamNodes, RoamPage
 from roam_pub.roam_md_bundle import (
     find_markdown_image_links,
     fetch_and_save_image,
@@ -18,7 +18,7 @@ __all__ = [
     "ApiEndpointURL",
     "FetchRoamAsset",
     "RoamAsset",
-    "FetchRoamPage",
+    "FetchRoamNodes",
     "RoamPage",
     "find_markdown_image_links",
     "fetch_and_save_image",

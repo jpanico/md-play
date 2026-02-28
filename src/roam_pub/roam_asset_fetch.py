@@ -1,4 +1,11 @@
-"""Roam Research asset fetching via the Local API."""
+"""Roam Research asset fetching via the Local API.
+
+Public symbols:
+
+- :class:`FetchRoamAsset` — stateless utility class that fetches a Roam asset
+  (image or file) by its Cloud Firestore URL via the Local API's ``file.get``
+  action.
+"""
 
 from datetime import datetime
 from typing import Literal, Self, final
@@ -6,35 +13,21 @@ from pydantic import Base64Bytes, BaseModel, ConfigDict, Field, validate_call
 import logging
 
 from roam_pub.roam_local_api import ApiEndpoint, Request as LocalApiRequest, Response as LocalApiResponse, invoke_action
-from roam_pub.roam_model import MediaType, Url
+from roam_pub.roam_model import MediaType, RoamAsset, Url
 
 logger = logging.getLogger(__name__)
-
-
-class RoamAsset(BaseModel):
-    """Immutable representation of an asset fetched from Cloud Firestore through the Roam API.
-
-    Roam uploads all user assets (files, media) to Cloud Firestore, and stores only Cloud Firestore
-    locators (URLs) within the Roam graph DB itself (nodes).
-
-    Once created, instances cannot be modified (frozen). All fields are required
-    and validated at construction time.
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    file_name: str = Field(..., min_length=1, description="Name of the file")
-    last_modified: datetime = Field(..., description="Last modification timestamp")
-    media_type: MediaType = Field(..., description="MIME type (e.g., 'image/jpeg')")
-    contents: bytes = Field(..., description="Binary file contents")
 
 
 @final
 class FetchRoamAsset:
     """Stateless utility class for fetching Roam assets from the Roam Research Local API.
 
-    Delegates HTTP transport to :func:`roam_local_api.invoke_action`, which handles
-    header construction and error handling.
+    Executes a ``file.get`` action via the Local API, which proxies
+    ``roamAlphaAPI.file.get`` through the Roam Desktop app's local HTTP server.
+    The decoded asset is returned as a :class:`~roam_pub.roam_model.RoamAsset`.
+
+    Delegates HTTP transport to :func:`~roam_pub.roam_local_api.invoke_action`,
+    which handles header construction and error raising.
     """
 
     def __init__(self) -> None:
@@ -109,8 +102,9 @@ class FetchRoamAsset:
         """Fetch an asset from Cloud Firestore via the Roam Research Local API.
 
         Builds a ``file.get`` request payload and delegates the HTTP call to
-        :func:`roam_local_api.invoke_action`. The Roam Desktop app must be running and
-        the user must be logged into the graph at the time this method is called.
+        :func:`~roam_pub.roam_local_api.invoke_action`. The Roam Desktop app must be
+        running and the user must be logged into the graph at the time this method is
+        called.
 
         Args:
             firebase_url: The Cloud Firestore URL of the asset, as it appears in the
@@ -118,8 +112,9 @@ class FetchRoamAsset:
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
         Returns:
-            An immutable :class:`RoamAsset` with the decoded binary contents,
-            file name, media type, and a ``last_modified`` timestamp of now.
+            An immutable :class:`~roam_pub.roam_model.RoamAsset` with the decoded
+            binary contents, file name, media type, and a ``last_modified``
+            timestamp of now.
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.

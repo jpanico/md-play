@@ -3,11 +3,14 @@
 Public symbols:
 
 - :class:`FetchRoamNodes` — stateless utility class that fetches all Roam nodes
-  matching a given page title via the Local API's ``data.q`` action.
+  by various criteria via the Local API's ``data.q`` action.
+- :class:`FetchRoamNodes.FollowLinksDirective` — controls link traversal depth
+  for hierarchical queries.
 """
 
 import logging
 import textwrap
+from enum import StrEnum
 from typing import Final, final
 
 from pydantic import BaseModel, ConfigDict, validate_call
@@ -25,30 +28,36 @@ logger = logging.getLogger(__name__)
 
 @final
 class FetchRoamNodes:
-    """Stateless utility class for fetching Roam nodes by page title from the Roam Research Local API.
+    """Stateless utility class for fetching Roam nodes by various criteria from the Roam Research Local API.
 
     Executes a Datalog query via the Local API's ``data.q`` action, which proxies
     ``roamAlphaAPI.data.q`` through the Roam Desktop app's local HTTP server.
-
-    The query used is::
-
-        [:find (pull ?page [*])
-         :in $ ?title
-         :where
-         [?page :node/title ?title]]
-
-    This returns all attributes of every page entity whose ``:node/title`` matches
-    the given title, flattened into a ``list[RoamNode]``.
     """
 
     def __init__(self) -> None:
         """Prevent instantiation of this stateless utility class."""
         raise TypeError("FetchRoamNodes is a stateless utility class and cannot be instantiated")
 
-    class Request:
-        """Namespace for the ``data.q`` page request."""
+    class FollowLinksDirective(StrEnum):
+        """Controls how the Roam hierarchical Datomic query traverses :block/children and :block/refs links.
 
-        DATALOG_PAGE_QUERY: Final[str] = textwrap.dedent("""\
+        Values:
+            DONT_FOLLOW: Do not traverse this link type at all. Only the root page
+                entity itself is returned.
+            SHALLOW: Follow links exactly one hop — include immediate children or
+                direct refs but do not recurse further.
+            DEEP: Follow links recursively to arbitrary depth (the ``linker`` Datalog
+                rule is applied inductively).
+        """
+
+        DONT_FOLLOW = "DONT_FOLLOW"
+        SHALLOW = "SHALLOW"
+        DEEP = "DEEP"
+
+    class Request:
+        """Namespace for the ``data.q`` request."""
+
+        BY_PAGE_TITLE_QUERY: Final[str] = textwrap.dedent("""\
             [:find (pull ?page [*])
              :in $ ?title
              :where
@@ -63,23 +72,18 @@ class FetchRoamNodes:
 
             Returns:
                 A :class:`~roam_pub.roam_local_api.Request.Payload` with action
-                ``"data.q"`` and args ``[DATALOG_PAGE_QUERY, page_title]``.
+                ``"data.q"`` and args ``[BY_PAGE_TITLE_QUERY, page_title]``.
             """
             return LocalApiRequest.Payload(
                 action="data.q",
-                args=[FetchRoamNodes.Request.DATALOG_PAGE_QUERY, page_title],
+                args=[FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY, page_title],
             )
 
     class Response:
         """Namespace for ``data.q`` page response types."""
 
         class Payload(BaseModel):
-            """Parsed ``data.q`` page response payload (raw wire format).
-
-            ``result`` holds the raw nested :class:`RoamNode` data exactly as
-            returned by the Local API.  :meth:`FetchRoamNodes.fetch_by_page_title`
-            flattens it into a ``list[RoamNode]``.
-            """
+            """Parsed ``data.q`` response payload (raw wire format)."""
 
             model_config = ConfigDict(frozen=True)
 

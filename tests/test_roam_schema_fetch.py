@@ -1,4 +1,4 @@
-"""Tests for the roam_schema module."""
+"""Tests for the roam_schema_fetch module."""
 
 import json
 import logging
@@ -10,7 +10,8 @@ import requests
 from pydantic import ValidationError
 
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
-from roam_pub.roam_schema import FetchRoamSchema, RoamAttribute, RoamNamespace, RoamSchema
+from roam_pub.roam_schema_fetch import FetchRoamSchema
+from roam_pub.roam_model import RoamAttribute, RoamNamespace, RoamSchema
 
 logger = logging.getLogger(__name__)
 

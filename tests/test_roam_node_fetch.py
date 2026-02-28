@@ -1,4 +1,4 @@
-"""Tests for the roam_node module."""
+"""Tests for the roam_node_fetch module."""
 
 import json
 import logging
@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 from roam_pub.roam_model import IdObject, RoamNode
-from roam_pub.roam_node import FetchRoamNodes
+from roam_pub.roam_node_fetch import FetchRoamNodes
 
 logger = logging.getLogger(__name__)
 
@@ -52,30 +52,30 @@ class TestFetchRoamNodesRequest:
     """Tests for FetchRoamNodes.Request constants and payload factory."""
 
     def test_datalog_page_query_is_non_empty(self) -> None:
-        """Test that DATALOG_PAGE_QUERY is a non-empty string."""
-        assert isinstance(FetchRoamNodes.Request.DATALOG_PAGE_QUERY, str)
-        assert len(FetchRoamNodes.Request.DATALOG_PAGE_QUERY) > 0
+        """Test that BY_PAGE_TITLE_QUERY is a non-empty string."""
+        assert isinstance(FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY, str)
+        assert len(FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY) > 0
 
     def test_datalog_page_query_contains_find_clause(self) -> None:
-        """Test that DATALOG_PAGE_QUERY contains a :find clause."""
-        assert ":find" in FetchRoamNodes.Request.DATALOG_PAGE_QUERY
+        """Test that BY_PAGE_TITLE_QUERY contains a :find clause."""
+        assert ":find" in FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY
 
     def test_datalog_page_query_contains_node_title(self) -> None:
-        """Test that DATALOG_PAGE_QUERY filters by :node/title."""
-        assert ":node/title" in FetchRoamNodes.Request.DATALOG_PAGE_QUERY
+        """Test that BY_PAGE_TITLE_QUERY filters by :node/title."""
+        assert ":node/title" in FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY
 
     def test_payload_action_is_data_q(self) -> None:
-        """Test that payload() produces action 'data.q'."""
+        """Test that payload_by_page_title() produces action 'data.q'."""
         assert FetchRoamNodes.Request.payload_by_page_title("Any Page").action == "data.q"
 
     def test_payload_args_contains_query(self) -> None:
-        """Test that payload() includes the Datalog query string in args."""
+        """Test that payload_by_page_title() includes the Datalog query string in args."""
         assert (
-            FetchRoamNodes.Request.DATALOG_PAGE_QUERY in FetchRoamNodes.Request.payload_by_page_title("Any Page").args
+            FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY in FetchRoamNodes.Request.payload_by_page_title("Any Page").args
         )
 
     def test_payload_args_contains_page_title(self) -> None:
-        """Test that payload() includes the page title in args."""
+        """Test that payload_by_page_title() includes the page title in args."""
         assert "My Page" in FetchRoamNodes.Request.payload_by_page_title("My Page").args
 
 

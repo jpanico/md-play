@@ -1,4 +1,4 @@
-"""Tests for the roam_asset module."""
+"""Tests for the roam_asset_fetch module."""
 
 import json
 import logging
@@ -8,14 +8,15 @@ import pytest
 import base64
 from datetime import datetime
 
-from roam_pub.roam_asset import RoamAsset, FetchRoamAsset
+from roam_pub.roam_asset_fetch import FetchRoamAsset
+from roam_pub.roam_model import RoamAsset
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 
 logger = logging.getLogger(__name__)
 
 
 class TestRoamAsset:
-    """Tests for the RoamAsset Pydantic model."""
+    """Tests for the RoamAsset Pydantic model (defined in roam_pub.roam_model)."""
 
     def test_valid_initialization(self) -> None:
         """Test creating RoamAsset with valid parameters."""

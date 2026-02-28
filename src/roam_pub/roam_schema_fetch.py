@@ -1,0 +1,114 @@
+"""Roam Research Datomic schema fetching via the Local API.
+
+Public symbols:
+
+- :class:`FetchRoamSchema` — stateless utility class that fetches the Datomic
+  schema for a Roam graph via the Local API's ``data.q`` action.
+
+The schema model types (:data:`~roam_pub.roam_model.RoamSchema`,
+:class:`~roam_pub.roam_model.RoamNamespace`,
+:class:`~roam_pub.roam_model.RoamAttribute`) are defined in
+:mod:`roam_pub.roam_model`.
+"""
+
+import logging
+import textwrap
+from typing import Final, final
+
+from pydantic import BaseModel, ConfigDict, validate_call
+
+from roam_pub.roam_local_api import (
+    ApiEndpoint,
+    Request as LocalApiRequest,
+    Response as LocalApiResponse,
+    invoke_action,
+)
+from roam_pub.roam_model import RoamAttribute, RoamNamespace, RoamSchema
+
+logger = logging.getLogger(__name__)
+
+
+@final
+class FetchRoamSchema:
+    """Stateless utility class for fetching the Roam Datomic schema from the Roam Research Local API.
+
+    Executes a ``data.q`` action via the Local API, which proxies
+    ``roamAlphaAPI.data.q`` through the Roam Desktop app's local HTTP server.
+    The schema is returned as a :data:`~roam_pub.roam_model.RoamSchema`.
+
+    Delegates HTTP transport to :func:`~roam_pub.roam_local_api.invoke_action`,
+    which handles header construction and error raising.
+    """
+
+    def __init__(self) -> None:
+        """Prevent instantiation of this stateless utility class."""
+        raise TypeError("FetchRoamSchema is a stateless utility class and cannot be instantiated")
+
+    class Request:
+        """Namespace for the ``data.q`` schema request."""
+
+        DATALOG_SCHEMA_QUERY: Final[str] = textwrap.dedent("""\
+            [:find ?namespace ?attr
+            :where
+            [_ ?attr]
+            [(namespace ?attr) ?namespace]]""")
+
+        PAYLOAD: Final[LocalApiRequest.Payload] = LocalApiRequest.Payload(
+            action="data.q",
+            args=[DATALOG_SCHEMA_QUERY],
+        )
+
+    class Response:
+        """Namespace for ``data.q`` schema response types."""
+
+        class Payload(BaseModel):
+            """Parsed ``data.q`` schema response payload (raw wire format).
+
+            ``result`` holds the raw ``(namespace, attr_name)`` string pairs
+            exactly as returned by the Local API.  :meth:`FetchRoamSchema.fetch`
+            converts them to :data:`RoamSchema` (``list[RoamAttribute]``).
+            """
+
+            model_config = ConfigDict(frozen=True)
+
+            success: bool
+            result: list[tuple[str, str]]
+
+    @staticmethod
+    @validate_call
+    def fetch(api_endpoint: ApiEndpoint) -> RoamSchema:
+        """Fetch the Roam Datomic schema via the Local API.
+
+        Executes the ``data.q`` schema query and returns all attributes present in
+        the graph's Datomic schema as :class:`~roam_pub.roam_model.RoamAttribute` members.
+
+        Args:
+            api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
+
+        Returns:
+            A :data:`~roam_pub.roam_model.RoamSchema` — a list of
+            :class:`~roam_pub.roam_model.RoamAttribute` members, one per row in the
+            schema query result.
+
+        Raises:
+            ValueError: If a ``(namespace, attr_name)`` pair returned by the live graph
+                has no matching :class:`~roam_pub.roam_model.RoamAttribute` member
+                (schema drift detected).
+            ValidationError: If ``api_endpoint`` is ``None`` or invalid.
+            requests.exceptions.ConnectionError: If the Local API is unreachable.
+            requests.exceptions.HTTPError: If the Local API returns a non-200 status.
+        """
+        logger.debug(f"api_endpoint: {api_endpoint}")
+
+        local_api_response_payload: LocalApiResponse.Payload = invoke_action(
+            FetchRoamSchema.Request.PAYLOAD, api_endpoint
+        )
+        logger.debug(f"local_api_response_payload: {local_api_response_payload}")
+
+        schema_response_payload: FetchRoamSchema.Response.Payload = FetchRoamSchema.Response.Payload.model_validate(
+            local_api_response_payload.model_dump(mode="json")
+        )
+        logger.debug(f"schema_response_payload: {schema_response_payload}")
+
+        raw_result: list[tuple[str, str]] = schema_response_payload.result
+        return [RoamAttribute((RoamNamespace(ns), attr_name)) for ns, attr_name in raw_result]

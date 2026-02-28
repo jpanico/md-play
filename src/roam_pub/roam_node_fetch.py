@@ -57,11 +57,37 @@ class FetchRoamNodes:
     class Request:
         """Namespace for the ``data.q`` request."""
 
+        # or-join scoping: ?page must be in the join-variable list AND re-bound inside each branch.
+        # Variables from the outer :where clause that are NOT in the join-variable list are treated
+        # as fresh free variables inside the or-join — not as the outer binding. Omitting ?page from
+        # [?page ?node] would cause (descendant ?page ?node) to match every descendant pair in the
+        # entire graph, returning the full database instead of just this page's subtree.
         BY_PAGE_TITLE_QUERY: Final[str] = textwrap.dedent("""\
-            [:find (pull ?page [*])
-             :in $ ?title
+            [:find (pull ?node [*])
+             :in $ ?title %
              :where
-             [?page :node/title ?title]]""")
+             [?page :node/title ?title]
+             (or-join [?page ?node]
+               (and [?page :node/title ?title]
+                    [?node :node/title ?title])
+               (and [?page :node/title ?title]
+                    (descendant ?page ?node)))]""")
+        """Datalog query fetching the page entity and all its descendant blocks by title.
+
+        Returns the page node itself (first ``or-join`` branch) plus every block reachable
+        through ``:block/children`` at any depth (second branch, driven by
+        :attr:`DESCENDANT_RULE`).  Input bindings: ``?title`` (page title string) and
+        ``%`` (rules vector — :attr:`DESCENDANT_RULE`).
+        """
+
+        DESCENDANT_RULE: Final[str] = textwrap.dedent("""\
+            [
+                [(descendant ?parent ?child) 
+                    [?parent :block/children ?child]] 
+                [(descendant ?parent ?child) 
+                    [?parent :block/children ?mid] 
+                    (descendant ?mid ?child)]
+            ]""")
 
         @staticmethod
         def payload_by_page_title(page_title: str) -> LocalApiRequest.Payload:
@@ -76,7 +102,7 @@ class FetchRoamNodes:
             """
             return LocalApiRequest.Payload(
                 action="data.q",
-                args=[FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY, page_title],
+                args=[FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY, page_title, FetchRoamNodes.Request.DESCENDANT_RULE],
             )
 
     class Response:

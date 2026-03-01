@@ -15,7 +15,7 @@ from pydantic import HttpUrl, validate_call
 
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_asset_fetch import FetchRoamAsset
-from roam_pub.roam_model import RoamAsset
+from roam_pub.roam_asset import RoamAsset
 
 logger = logging.getLogger(__name__)
 

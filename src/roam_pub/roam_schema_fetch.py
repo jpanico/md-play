@@ -5,10 +5,10 @@ Public symbols:
 - :class:`FetchRoamSchema` — stateless utility class that fetches the Datomic
   schema for a Roam graph via the Local API's ``data.q`` action.
 
-The schema model types (:data:`~roam_pub.roam_model.RoamSchema`,
-:class:`~roam_pub.roam_model.RoamNamespace`,
-:class:`~roam_pub.roam_model.RoamAttribute`) are defined in
-:mod:`roam_pub.roam_model`.
+The schema model types (:data:`~roam_pub.roam_schema.RoamSchema`,
+:class:`~roam_pub.roam_schema.RoamNamespace`,
+:class:`~roam_pub.roam_schema.RoamAttribute`) are defined in
+:mod:`roam_pub.roam_schema`.
 """
 
 import logging
@@ -23,7 +23,7 @@ from roam_pub.roam_local_api import (
     Response as LocalApiResponse,
     invoke_action,
 )
-from roam_pub.roam_model import RoamAttribute, RoamNamespace, RoamSchema
+from roam_pub.roam_schema import RoamAttribute, RoamNamespace, RoamSchema
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class FetchRoamSchema:
 
     Executes a ``data.q`` action via the Local API, which proxies
     ``roamAlphaAPI.data.q`` through the Roam Desktop app's local HTTP server.
-    The schema is returned as a :data:`~roam_pub.roam_model.RoamSchema`.
+    The schema is returned as a :data:`~roam_pub.roam_schema.RoamSchema`.
 
     Delegates HTTP transport to :func:`~roam_pub.roam_local_api.invoke_action`,
     which handles header construction and error raising.
@@ -80,19 +80,19 @@ class FetchRoamSchema:
         """Fetch the Roam Datomic schema via the Local API.
 
         Executes the ``data.q`` schema query and returns all attributes present in
-        the graph's Datomic schema as :class:`~roam_pub.roam_model.RoamAttribute` members.
+        the graph's Datomic schema as :class:`~roam_pub.roam_schema.RoamAttribute` members.
 
         Args:
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
         Returns:
-            A :data:`~roam_pub.roam_model.RoamSchema` — a list of
-            :class:`~roam_pub.roam_model.RoamAttribute` members, one per row in the
+            A :data:`~roam_pub.roam_schema.RoamSchema` — a list of
+            :class:`~roam_pub.roam_schema.RoamAttribute` members, one per row in the
             schema query result.
 
         Raises:
             ValueError: If a ``(namespace, attr_name)`` pair returned by the live graph
-                has no matching :class:`~roam_pub.roam_model.RoamAttribute` member
+                has no matching :class:`~roam_pub.roam_schema.RoamAttribute` member
                 (schema drift detected).
             ValidationError: If ``api_endpoint`` is ``None`` or invalid.
             requests.exceptions.ConnectionError: If the Local API is unreachable.

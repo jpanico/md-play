@@ -18,7 +18,7 @@ from roam_pub.roam_md_bundle import (
     _normalize_for_posix,
 )
 from roam_pub.roam_asset_fetch import FetchRoamAsset
-from roam_pub.roam_model import RoamAsset
+from roam_pub.roam_asset import RoamAsset
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 from datetime import datetime
 

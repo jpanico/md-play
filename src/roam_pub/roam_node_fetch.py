@@ -4,13 +4,10 @@ Public symbols:
 
 - :class:`FetchRoamNodes` — stateless utility class that fetches all Roam nodes
   by various criteria via the Local API's ``data.q`` action.
-- :class:`FetchRoamNodes.FollowLinksDirective` — controls link traversal depth
-  for hierarchical queries.
 """
 
 import logging
 import textwrap
-from enum import StrEnum
 from typing import Final, final
 
 from pydantic import BaseModel, ConfigDict, validate_call
@@ -21,7 +18,7 @@ from roam_pub.roam_local_api import (
     Response as LocalApiResponse,
     invoke_action,
 )
-from roam_pub.roam_model import RoamNode
+from roam_pub.roam_node import RoamNode
 
 logger = logging.getLogger(__name__)
 
@@ -37,22 +34,6 @@ class FetchRoamNodes:
     def __init__(self) -> None:
         """Prevent instantiation of this stateless utility class."""
         raise TypeError("FetchRoamNodes is a stateless utility class and cannot be instantiated")
-
-    class FollowLinksDirective(StrEnum):
-        """Controls how the Roam hierarchical Datomic query traverses :block/children and :block/refs links.
-
-        Values:
-            DONT_FOLLOW: Do not traverse this link type at all. Only the root page
-                entity itself is returned.
-            SHALLOW: Follow links exactly one hop — include immediate children or
-                direct refs but do not recurse further.
-            DEEP: Follow links recursively to arbitrary depth (the ``linker`` Datalog
-                rule is applied inductively).
-        """
-
-        DONT_FOLLOW = "DONT_FOLLOW"
-        SHALLOW = "SHALLOW"
-        DEEP = "DEEP"
 
     class Request:
         """Namespace for the ``data.q`` request."""
@@ -153,5 +134,5 @@ class FetchRoamNodes:
         result: list[list[RoamNode]] = page_response_payload.result
         nodes: list[RoamNode] = [row[0] for row in result]
         if not nodes:
-            logger.info(f"no nodes found with for page_title: {page_title!r}")
+            logger.info(f"no nodes found for page_title: {page_title!r}")
         return nodes

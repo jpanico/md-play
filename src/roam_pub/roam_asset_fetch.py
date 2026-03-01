@@ -13,7 +13,8 @@ from pydantic import Base64Bytes, BaseModel, ConfigDict, Field, validate_call
 import logging
 
 from roam_pub.roam_local_api import ApiEndpoint, Request as LocalApiRequest, Response as LocalApiResponse, invoke_action
-from roam_pub.roam_model import MediaType, RoamAsset, Url
+from roam_pub.roam_asset import RoamAsset
+from roam_pub.roam_types import MediaType, Url
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class FetchRoamAsset:
 
     Executes a ``file.get`` action via the Local API, which proxies
     ``roamAlphaAPI.file.get`` through the Roam Desktop app's local HTTP server.
-    The decoded asset is returned as a :class:`~roam_pub.roam_model.RoamAsset`.
+    The decoded asset is returned as a :class:`~roam_pub.roam_asset.RoamAsset`.
 
     Delegates HTTP transport to :func:`~roam_pub.roam_local_api.invoke_action`,
     which handles header construction and error raising.
@@ -112,7 +113,7 @@ class FetchRoamAsset:
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
         Returns:
-            An immutable :class:`~roam_pub.roam_model.RoamAsset` with the decoded
+            An immutable :class:`~roam_pub.roam_asset.RoamAsset` with the decoded
             binary contents, file name, media type, and a ``last_modified``
             timestamp of now.
 

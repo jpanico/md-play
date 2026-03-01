@@ -32,7 +32,9 @@ pytest                            # run tests
   - `roam_md_bundle.py` — core bundling logic
   - `roam_local_api.py` — ApiEndpointURL model for the Roam Local API
   - `roam_asset.py` — Cloud Firestore asset fetching
-  - `roam_model.py`, `roam_page.py`, `roam_transcribe.py` — in progress
+  - `roam_types.py` — foundational type aliases and stub models (dependency root)
+  - `roam_node.py`, `roam_graph.py`, `roam_asset.py` — model layer
+  - `roam_page.py`, `roam_transcribe.py` — in progress
 - `tests/fixtures/` — sample markdown, images, JSON for tests
 
 ## Conventions

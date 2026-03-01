@@ -10,7 +10,8 @@ import requests
 from pydantic import ValidationError
 
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
-from roam_pub.roam_model import IdObject, RoamNode
+from roam_pub.roam_types import IdObject
+from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
 
 logger = logging.getLogger(__name__)

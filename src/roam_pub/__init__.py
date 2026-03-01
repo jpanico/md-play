@@ -2,7 +2,7 @@
 
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 from roam_pub.roam_asset_fetch import FetchRoamAsset
-from roam_pub.roam_model import RoamAsset
+from roam_pub.roam_asset import RoamAsset
 from roam_pub.roam_node_fetch import FetchRoamNodes
 from roam_pub.roam_md_bundle import (
     find_markdown_image_links,

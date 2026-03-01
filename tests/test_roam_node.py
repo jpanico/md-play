@@ -1,0 +1,100 @@
+"""Tests for the roam_node module."""
+
+from roam_pub.roam_node import NodeNetwork, RoamNode, is_root
+from roam_pub.roam_types import IdObject
+
+
+class TestIsRoot:
+    """Tests for is_root."""
+
+    # ------------------------------------------------------------------
+    # parents=None / empty → always root
+    # ------------------------------------------------------------------
+
+    def test_none_parents_is_root(self) -> None:
+        """Test that a node with parents=None is a root."""
+        node = RoamNode(uid="page00001", id=1)
+        assert is_root(node, [node]) is True
+
+    def test_empty_parents_is_root(self) -> None:
+        """Test that a node with an empty parents list is a root."""
+        node = RoamNode(uid="page00001", id=1, parents=[])
+        assert is_root(node, [node]) is True
+
+    # ------------------------------------------------------------------
+    # parents exist but none of their ids are in network → root
+    # ------------------------------------------------------------------
+
+    def test_parent_id_absent_from_network_is_root(self) -> None:
+        """Test that a node whose single parent id is absent from the network is a root."""
+        node = RoamNode(uid="block0001", id=10, parents=[IdObject(id=99)])
+        assert is_root(node, [node]) is True
+
+    def test_all_parent_ids_absent_from_network_is_root(self) -> None:
+        """Test that a node whose every parent id is absent from the network is a root."""
+        node = RoamNode(uid="block0001", id=10, parents=[IdObject(id=97), IdObject(id=98), IdObject(id=99)])
+        assert is_root(node, [node]) is True
+
+    def test_empty_network_with_parentless_node_is_root(self) -> None:
+        """Test that a parentless node is a root even in an empty network."""
+        node = RoamNode(uid="page00001", id=1)
+        assert is_root(node, []) is True
+
+    def test_empty_network_with_parented_node_is_root(self) -> None:
+        """Test that a node with parents is still a root when the network is empty."""
+        node = RoamNode(uid="block0001", id=10, parents=[IdObject(id=1)])
+        assert is_root(node, []) is True
+
+    # ------------------------------------------------------------------
+    # at least one parent id is in network → not root
+    # ------------------------------------------------------------------
+
+    def test_single_parent_in_network_is_not_root(self) -> None:
+        """Test that a node whose single parent id is present in the network is not a root."""
+        parent = RoamNode(uid="page00001", id=1)
+        child = RoamNode(uid="block0001", id=10, parents=[IdObject(id=1)])
+        assert is_root(child, [parent, child]) is False
+
+    def test_all_parents_in_network_is_not_root(self) -> None:
+        """Test that a node with every parent id present in the network is not a root."""
+        parent1 = RoamNode(uid="page00001", id=1)
+        parent2 = RoamNode(uid="page00002", id=2)
+        child = RoamNode(uid="block0001", id=10, parents=[IdObject(id=1), IdObject(id=2)])
+        assert is_root(child, [parent1, parent2, child]) is False
+
+    def test_one_parent_in_network_among_several_is_not_root(self) -> None:
+        """Test that a node is not a root when any one of its parents is in the network."""
+        parent = RoamNode(uid="page00001", id=1)
+        child = RoamNode(uid="block0001", id=10, parents=[IdObject(id=1), IdObject(id=99)])
+        # id=99 is absent, but id=1 is present → not a root
+        assert is_root(child, [parent, child]) is False
+
+    # ------------------------------------------------------------------
+    # two-node parent→child network: both nodes evaluated correctly
+    # ------------------------------------------------------------------
+
+    def test_parent_is_root_in_two_node_network(self) -> None:
+        """Test that the parent node is identified as a root in a simple two-node network."""
+        parent = RoamNode(uid="page00001", id=1)
+        child = RoamNode(uid="block0001", id=10, parents=[IdObject(id=1)])
+        network: NodeNetwork = [parent, child]
+        assert is_root(parent, network) is True
+
+    def test_child_is_not_root_in_two_node_network(self) -> None:
+        """Test that the child node is not a root in a simple two-node network."""
+        parent = RoamNode(uid="page00001", id=1)
+        child = RoamNode(uid="block0001", id=10, parents=[IdObject(id=1)])
+        network: NodeNetwork = [parent, child]
+        assert is_root(child, network) is False
+
+    # ------------------------------------------------------------------
+    # network nodes with id=None are excluded from network_ids
+    # ------------------------------------------------------------------
+
+    def test_network_node_with_none_id_does_not_count_as_parent(self) -> None:
+        """Test that a network node with id=None cannot make another node a non-root."""
+        # ghost has id=None, so it never enters network_ids.
+        # orphan references id=99 which is not present in network_ids.
+        ghost = RoamNode(uid="ghost0001")
+        orphan = RoamNode(uid="orphan001", id=20, parents=[IdObject(id=99)])
+        assert is_root(orphan, [ghost, orphan]) is True

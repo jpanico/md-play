@@ -7,12 +7,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+import yaml
 from pydantic import ValidationError
-
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 from roam_pub.roam_types import IdObject
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
+from fixtures.yaml.test_article_nodes import TEST_ARTICLE_NODES_YAML
 
 logger = logging.getLogger(__name__)
 
@@ -255,7 +256,7 @@ class TestFetchRoamNodesFetch:
     @pytest.mark.live
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
     def test_fetch_testarticle(self) -> None:
-        """Live test: fetch all descendant blocks of a page, build a tree, and print it."""
+        """Live test: fetch all descendant blocks of a page and compare with fixture."""
         live_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
             local_api_port=int(os.environ["ROAM_LOCAL_API_PORT"]),
             graph_name=os.environ["ROAM_GRAPH_NAME"],
@@ -264,60 +265,10 @@ class TestFetchRoamNodesFetch:
         page_title = "Test Article"
 
         nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(page_title=page_title, api_endpoint=live_endpoint)
-        logger.info(f"nodes: {nodes}")
+        logger.debug("nodes: %s", nodes)
 
-        assert len(nodes) > 0
-        assert nodes[0].uid is not None
-        assert len(nodes[0].uid) > 0
+        fixture_nodes: list[RoamNode] = [
+            RoamNode.model_validate(raw) for raw in yaml.safe_load(TEST_ARTICLE_NODES_YAML)
+        ]
 
-        # Build id → node map (nodes whose .id is None cannot participate in parent/child links)
-        id_map: dict[int, RoamNode] = {node.id: node for node in nodes if node.id is not None}
-
-        # A node is a root if none of its parents are in id_map (its parent is the page entity,
-        # which was not returned by the descendant query)
-        def is_root(node: RoamNode) -> bool:
-            if not node.parents:
-                return True
-            return not any(p.id in id_map for p in node.parents)
-
-        lines: list[str] = []
-
-        def collect_tree(node: RoamNode, depth: int) -> None:
-            indent = "  " * depth
-            text: str = node.string or node.title or f"(uid={node.uid})"
-            lines.append(f"{indent}{text}")
-            if node.children:
-                child_nodes: list[RoamNode] = sorted(
-                    [id_map[c.id] for c in node.children if c.id in id_map],
-                    key=lambda n: n.order if n.order is not None else 0,
-                )
-                for child in child_nodes:
-                    collect_tree(child, depth + 1)
-
-        roots: list[RoamNode] = sorted(
-            [n for n in nodes if is_root(n)],
-            key=lambda n: n.order if n.order is not None else 0,
-        )
-
-        for root in roots:
-            collect_tree(root, depth=0)
-
-        expected_tree: str = (
-            "Test Article\n"
-            "  Section 1\n"
-            "    Section 1.1\n"
-            "      illustration 1.1\n"
-            "        ![A flower](https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94)\n"
-            "    AI assistant (Claude Opus 4.6): \n"
-            "  Section 2\n"
-            "    Section 2.1\n"
-            "    Section 2.1.1\n"
-            "      Section 2.1.1.1\n"
-            "    Section 2.1.2\n"
-            "  Section 3\n"
-            "    Section 3.1"
-        )
-
-        actual_tree: str = "\n".join(lines)
-        logger.info("--- %s ---\n%s", page_title, actual_tree)
-        assert actual_tree == expected_tree
+        assert sorted(nodes, key=lambda n: n.uid) == sorted(fixture_nodes, key=lambda n: n.uid)

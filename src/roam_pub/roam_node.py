@@ -3,6 +3,8 @@
 Public symbols:
 
 - :class:`RoamNode` — raw shape of a pull-block as returned by the Roam Local API.
+- :data:`NodeNetwork` — a collection of :class:`RoamNode` instances.
+- :func:`is_root` — return ``True`` when a node has no ancestors inside a :data:`NodeNetwork`.
 """
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -103,3 +105,35 @@ class RoamNode(BaseModel):
     seen_by: list[IdObject] | None = Field(
         default=None, description=f"{RoamAttribute.EDIT_SEEN_BY} — users who have seen this block (purpose unclear)"
     )
+
+
+type NodeNetwork = list[RoamNode]
+"""A collection of :class:`RoamNode` instances.
+
+Relationships between nodes are encoded via :attr:`RoamNode.children`,
+:attr:`RoamNode.parents`, and :attr:`RoamNode.page` as
+:class:`~roam_pub.roam_types.IdObject` stubs referencing :attr:`RoamNode.id`
+values within the collection.
+"""
+
+
+def is_root(node: RoamNode, network: NodeNetwork) -> bool:
+    """Return ``True`` when *node* has no ancestors present in *network*.
+
+    A node is considered a root when either of these conditions holds:
+
+    - It has no ``parents`` at all (the ``parents`` field is ``None`` or empty).
+    - None of its parent :attr:`~RoamNode.id` values match the ``id`` of any
+      node in *network* (i.e. the ancestors are not part of this network).
+
+    Args:
+        node: The candidate node to test.
+        network: The collection of nodes that defines the reachable universe.
+
+    Returns:
+        ``True`` if *node* is a root within *network*; ``False`` otherwise.
+    """
+    if not node.parents:
+        return True
+    network_ids: set[Id] = {n.id for n in network if n.id is not None}
+    return not any(p.id in network_ids for p in node.parents)

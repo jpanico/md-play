@@ -1,1 +1,0 @@
-"""YAML fixture data package."""

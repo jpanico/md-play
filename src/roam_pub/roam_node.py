@@ -29,16 +29,16 @@ class RoamNode(BaseModel):
     This is the *un-normalized* form — property names mirror the raw Datomic
     attribute names, and nested refs are still IdObject stubs rather than resolved UIDs.
 
-    All fields are optional except ``uid``, because the set of attributes present
-    depends on the entity type (Page vs. Block) and which optional features
-    (heading, text-align, etc.) were ever set.
+    All fields are optional except ``uid``, ``id``, ``time``, and ``user``,
+    because the set of attributes present depends on the entity type (Page vs.
+    Block) and which optional features (heading, text-align, etc.) were ever set.
 
     Attributes:
         uid: Nine-character stable block/page identifier (BLOCK_UID). Required.
         id: Datomic internal numeric entity id (:db/id). Ephemeral and not stable
-            across exports; defaults to ``None`` when absent.
-        time: Last-edit Unix timestamp in milliseconds (EDIT_TIME).
-        user: IdObject stub referencing the last-editing user entity.
+            across exports. Required.
+        time: Last-edit Unix timestamp in milliseconds (EDIT_TIME). Required.
+        user: IdObject stub referencing the last-editing user entity. Required.
         string: Block text content (BLOCK_STRING). Present only on Block entities.
         title: Page title (NODE_TITLE). Present only on Page entities.
         order: Zero-based sibling order (BLOCK_ORDER). Present only on child Blocks.
@@ -57,9 +57,9 @@ class RoamNode(BaseModel):
     model_config = ConfigDict(frozen=True, populate_by_name=True)
 
     uid: Uid = Field(..., description=f"{RoamAttribute.BLOCK_UID} — nine-character stable identifier")
-    id: Id | None = Field(default=None, description=":db/id — Datomic internal entity id (ephemeral)")
-    time: int | None = Field(default=None, description=f"{RoamAttribute.EDIT_TIME} — last-edit Unix timestamp (ms)")
-    user: IdObject | None = Field(default=None, description=f"{RoamAttribute.EDIT_USER} — last-editing user stub")
+    id: Id = Field(..., description=":db/id — Datomic internal entity id (ephemeral)")
+    time: int = Field(..., description=f"{RoamAttribute.EDIT_TIME} — last-edit Unix timestamp (ms)")
+    user: IdObject = Field(..., description=f"{RoamAttribute.EDIT_USER} — last-editing user stub")
 
     # Block-only fields
     string: str | None = Field(
@@ -135,5 +135,5 @@ def is_root(node: RoamNode, network: NodeNetwork) -> bool:
     """
     if not node.parents:
         return True
-    network_ids: set[Id] = {n.id for n in network if n.id is not None}
+    network_ids: set[Id] = {n.id for n in network}
     return not any(p.id in network_ids for p in node.parents)

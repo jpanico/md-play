@@ -33,7 +33,7 @@ def make_panel(node: RoamNode) -> Panel:
     text: str = node.string or node.title or f"(uid={node.uid})"
     if node.heading is not None:
         text = f"H{node.heading}: {text}"
-    id_suffix: str = f" ({node.id})" if node.id is not None else ""
+    id_suffix: str = f" ({node.id})"
     title: str = f"{text}{id_suffix}"
     children_str: str = f"[{', '.join(str(c.id) for c in node.children)}]" if node.children else "None"
     parents_str: str = f"[{', '.join(str(p.id) for p in node.parents)}]" if node.parents else "None"
@@ -79,7 +79,7 @@ def build_rich_tree(network: NodeNetwork) -> list[RichTree]:
     Returns:
         One :class:`~rich.tree.Tree` per root node, in order.
     """
-    id_map: dict[Id, RoamNode] = {n.id: n for n in network if n.id is not None}
+    id_map: dict[Id, RoamNode] = {n.id: n for n in network}
     roots: list[RoamNode] = sorted(
         [n for n in network if is_root(n, network)],
         key=lambda n: n.order if n.order is not None else 0,

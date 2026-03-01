@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import pathlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,7 +14,8 @@ from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
 from roam_pub.roam_types import IdObject
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
-from fixtures.yaml.test_article_nodes import TEST_ARTICLE_NODES_YAML
+
+_FIXTURES_YAML_DIR = pathlib.Path(__file__).parent / "fixtures" / "yaml"
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +37,7 @@ def mock_200_response() -> MagicMock:
     mock.text = json.dumps(
         {
             "success": True,
-            "result": [[{"title": "My Page", "uid": "abc123xyz"}]],
+            "result": [[{"title": "My Page", "uid": "abc123xyz", "id": 1, "time": 1700000000000, "user": {"id": 3}}]],
         }
     )
     return mock
@@ -88,7 +90,7 @@ class TestFetchRoamNodesResponsePayload:
         """Test that a valid Payload can be constructed."""
         payload: FetchRoamNodes.Response.Payload = FetchRoamNodes.Response.Payload(
             success=True,
-            result=[[RoamNode(uid="abc123xyz", title="My Page")]],
+            result=[[RoamNode(uid="abc123xyz", id=1, time=1700000000000, user=IdObject(id=3), title="My Page")]],
         )
 
         assert payload.success is True
@@ -104,7 +106,7 @@ class TestFetchRoamNodesResponsePayload:
         """Test that a nested result dict is parsed into a list[list[RoamNode]]."""
         raw: dict[str, object] = {
             "success": True,
-            "result": [[{"title": "My Page", "uid": "abc123xyz", "time": 1700000000000}]],
+            "result": [[{"title": "My Page", "uid": "abc123xyz", "id": 1, "time": 1700000000000, "user": {"id": 3}}]],
         }
 
         payload: FetchRoamNodes.Response.Payload = FetchRoamNodes.Response.Payload.model_validate(raw)
@@ -239,7 +241,16 @@ class TestFetchRoamNodesFetch:
             {
                 "success": True,
                 "result": [
-                    [{"title": "Rich Page", "uid": "rich1234x", "time": 1700000000000, "children": [{"id": 42}]}]
+                    [
+                        {
+                            "title": "Rich Page",
+                            "uid": "rich1234x",
+                            "id": 2,
+                            "time": 1700000000000,
+                            "user": {"id": 3},
+                            "children": [{"id": 42}],
+                        }
+                    ]
                 ],
             }
         )
@@ -268,7 +279,8 @@ class TestFetchRoamNodesFetch:
         logger.debug("nodes: %s", nodes)
 
         fixture_nodes: list[RoamNode] = [
-            RoamNode.model_validate(raw) for raw in yaml.safe_load(TEST_ARTICLE_NODES_YAML)
+            RoamNode.model_validate(raw)
+            for raw in yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
         ]
 
         assert sorted(nodes, key=lambda n: n.uid) == sorted(fixture_nodes, key=lambda n: n.uid)

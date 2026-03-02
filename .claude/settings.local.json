@@ -89,7 +89,11 @@
       "Bash(python3 -c \"import json; data = json.load\\(open\\(''tests/fixtures/json/page_query.json''\\)\\); print\\(repr\\(data\\)\\)\")",
       "Bash(python3 -c \"import json; data = json.load\\(open\\(''tests/fixtures/json/page_query.json''\\)\\); print\\(json.dumps\\(data, indent=2\\)\\)\")",
       "Bash(ROAM_LIVE_TESTS=1 hatch run pytest tests/test_roam_node_fetch.py::TestFetchRoamNodesFetch::test_fetch_testarticle -v -s)",
-      "Bash(git mv src/roam_pub/roam_model.py src/roam_pub/roam_types.py)"
+      "Bash(git mv src/roam_pub/roam_model.py src/roam_pub/roam_types.py)",
+      "Bash(pip show rich)",
+      "Bash(git rm tests/fixtures/yaml/test_article_nodes.py tests/fixtures/yaml/__init__.py tests/fixtures/__init__.py)",
+      "Bash(ROAM_LIVE_TESTS= pytest tests/test_roam_node_fetch.py -x)",
+      "Bash(dump-roam-page \"Test Article\")"
     ]
   }
 }

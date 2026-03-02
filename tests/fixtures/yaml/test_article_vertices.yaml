@@ -1,0 +1,73 @@
+# YAML fixture for the 'Test Article' VertexNetwork.
+# Transcribed from test_article_nodes.yaml using transcribe_node on 2026-03-02.
+# Serialised with model_dump(mode='json', exclude_none=True) and yaml.dump(
+#   default_flow_style=False, allow_unicode=True, sort_keys=False).
+- uid: yFUau9Cpg
+  vertex_type: roam/heading
+  text: Section 2.1.1
+  heading: 4
+  children:
+  - bxkcECGwN
+- uid: mPCzedeKx
+  vertex_type: roam/image
+  source: https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94
+  file_name: -9owRBegJ8.jpeg.enc
+- uid: FL32hVyCv
+  vertex_type: roam/text-content
+  text: 'AI assistant (Claude Opus 4.6): '
+- uid: 0EgPyHSZi
+  vertex_type: roam/heading
+  text: Section 1
+  heading: 2
+  children:
+  - 3BX-iWc-p
+  - FL32hVyCv
+- uid: 40bvW14UU
+  vertex_type: roam/heading
+  text: Section 3
+  heading: 2
+  children:
+  - JW5PswS6v
+- uid: TaN67WqnA
+  vertex_type: roam/heading
+  text: illustration 1.1
+  heading: 4
+  children:
+  - mPCzedeKx
+- uid: wdMgyBiP9
+  vertex_type: roam/heading
+  text: Section 2
+  heading: 2
+  children:
+  - drtANJYTg
+  - 5f1ahOFdp
+- uid: 3BX-iWc-p
+  vertex_type: roam/heading
+  text: Section 1.1
+  heading: 3
+  children:
+  - TaN67WqnA
+- uid: bxkcECGwN
+  vertex_type: roam/heading
+  text: Section 2.1.1.1
+  heading: 5
+- uid: drtANJYTg
+  vertex_type: roam/heading
+  text: Section 2.1
+  heading: 3
+  children:
+  - yFUau9Cpg
+- uid: 5f1ahOFdp
+  vertex_type: roam/text-content
+  text: Section 2.1.2
+- uid: 6olpFWiw1
+  vertex_type: roam/page
+  text: Test Article
+  children:
+  - 0EgPyHSZi
+  - wdMgyBiP9
+  - 40bvW14UU
+- uid: JW5PswS6v
+  vertex_type: roam/heading
+  text: Section 3.1
+  heading: 3

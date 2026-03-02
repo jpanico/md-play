@@ -4,9 +4,10 @@ import json
 import pathlib
 
 import pytest
+import yaml
 from pydantic import ValidationError
 
-from roam_pub.roam_graph import VertexType
+from roam_pub.roam_graph import Vertex, VertexType
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_transcribe import (
     is_image_node,
@@ -31,6 +32,7 @@ _FIRESTORE_URL = (
 _IMAGE_STRING = f"![A flower]({_FIRESTORE_URL})"
 
 _FIXTURES_JSON_DIR = pathlib.Path(__file__).parent / "fixtures" / "json"
+_FIXTURES_YAML_DIR = pathlib.Path(__file__).parent / "fixtures" / "yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -508,3 +510,37 @@ class TestTranscribeNode:
         assert v.source is not None
         assert v.source.host == "firebasestorage.googleapis.com"
         assert v.file_name == "-9owRBegJ8.jpeg.enc"
+
+
+# ---------------------------------------------------------------------------
+# TestTranscribeArticleFixture
+# ---------------------------------------------------------------------------
+
+
+class TestTranscribeArticleFixture:
+    """End-to-end fixture test: transcribe the Test Article NodeNetwork and compare to the vertex fixture."""
+
+    def test_transcribe_article_nodes_matches_vertex_fixture(self) -> None:
+        """Test that transcribing test_article_nodes.yaml produces the vertices in test_article_vertices.yaml."""
+        raw_nodes: list[dict[str, object]] = yaml.safe_load(
+            (_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text()
+        )
+        nodes: list[RoamNode] = [RoamNode.model_validate(r) for r in raw_nodes]
+        id_map: dict[Id, RoamNode] = {n.id: n for n in nodes}
+
+        actual_vertices: list[Vertex] = [transcribe_node(n, id_map) for n in nodes]
+
+        raw_vertices: list[dict[str, object]] = yaml.safe_load(
+            (_FIXTURES_YAML_DIR / "test_article_vertices.yaml").read_text()
+        )
+        expected_vertices: list[Vertex] = [Vertex.model_validate(r) for r in raw_vertices]
+
+        # Serialize both sides to plain dicts (mode='json' converts HttpUrl → str,
+        # StrEnum → str) and sort by uid so the comparison is order-independent.
+        def _as_dict(v: Vertex) -> dict[str, object]:
+            return v.model_dump(mode="json", exclude_none=True)
+
+        actual_by_uid = {d["uid"]: d for d in (_as_dict(v) for v in actual_vertices)}
+        expected_by_uid = {d["uid"]: d for d in (_as_dict(v) for v in expected_vertices)}
+
+        assert actual_by_uid == expected_by_uid

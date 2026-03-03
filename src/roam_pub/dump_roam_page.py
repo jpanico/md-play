@@ -4,11 +4,11 @@
 Fetches all descendant blocks of a named page via the Roam Local API and
 renders them as a colorized :class:`~rich.tree.Tree` panel hierarchy.  Each
 block is displayed as a panel whose body lists selected
-:class:`~roam_pub.roam_node.RoamNode` fields, configurable via ``--props``
+:class:`~roam_pub.roam_node.RoamNode` fields, configurable via ``--node-props``
 (defaults to :data:`~roam_pub.rich.DEFAULT_PANEL_PROPS`).
 
-Logging is colorized by level and configurable via the ``LOG_LEVEL``
-environment variable (default: ``INFO``).
+Logging is colorized by level via :mod:`roam_pub.roam_logging` and
+configurable via the ``LOG_LEVEL`` environment variable (default: ``INFO``).
 
 Public symbols:
 
@@ -19,78 +19,36 @@ Public symbols:
 Example::
 
     dump-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token
-    dump-roam-page "Test Article" -p 3333 -g SCFH -t tok --props heading,parents
+    dump-roam-page "Test Article" -p 3333 -g SCFH -t tok --node-props heading,parents
 """
 
+import enum
 import logging
-import os
-import re
-from typing import Annotated, TextIO
+from typing import Annotated
 
 import typer
 from rich.console import Console
 from rich.tree import Tree as RichTree
 
-from roam_pub.rich import DEFAULT_PANEL_PROPS, build_rich_tree
+from roam_pub.rich import DEFAULT_PANEL_PROPS, build_rich_node_tree, build_rich_vertex_tree
+from roam_pub.roam_graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
+from roam_pub.roam_logging import configure_logging
 from roam_pub.roam_node import NodeTree, RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
+from roam_pub.roam_transcribe import transcribe
 
-_LEVEL_COLORS: dict[str, str] = {
-    "DEBUG": "\033[36m",
-    "INFO": "\033[32m",
-    "WARNING": "\033[33m",
-    "ERROR": "\033[31m",
-    "CRITICAL": "\033[1;31m",
-}
-_LOCATION_COLOR: str = "\033[35m"  # magenta — distinct from all level colors
-_COLOR_RESET: str = "\033[0m"
-
-_MESSAGE_HIGHLIGHTS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\s*id=\d+,"), "\033[1;97m"),  # bold bright white
-]
-
-
-def _highlight_message(message: str) -> str:
-    """Return *message* with all :data:`_MESSAGE_HIGHLIGHTS` patterns ANSI-colorized."""
-    for pattern, color in _MESSAGE_HIGHLIGHTS:
-        message = pattern.sub(lambda m, c=color: f"{c}{m.group()}{_COLOR_RESET}", message)
-    return message
-
-
-class _ColorLevelFormatter(logging.Formatter):
-    """Formatter that ANSI-colorizes the levelname, call-site location, and message highlights."""
-
-    def format(self, record: logging.LogRecord) -> str:
-        """Format *record*, colorizing levelname, module::funcName location, and message highlights."""
-        color = _LEVEL_COLORS.get(record.levelname, "")
-        original_levelname = record.levelname
-        original_msg = record.msg
-        original_args = record.args
-        record.levelname = f"{color}[{record.levelname}]{_COLOR_RESET}"
-        setattr(record, "location", f"{_LOCATION_COLOR}({record.module}::{record.funcName}){_COLOR_RESET}")
-        record.msg = _highlight_message(record.getMessage())
-        record.args = None
-        result = super().format(record)
-        record.levelname = original_levelname
-        record.msg = original_msg
-        record.args = original_args
-        delattr(record, "location")
-        return result
-
-
-_handler: logging.StreamHandler[TextIO] = logging.StreamHandler()
-_handler.setFormatter(
-    _ColorLevelFormatter(
-        fmt="%(asctime)s %(levelname)s %(location)s %(message)s",
-        datefmt="%H:%M:%S",
-    )
-)
-logging.basicConfig(
-    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
-    handlers=[_handler],
-)
+configure_logging()
 logger = logging.getLogger(__name__)
+
+
+class Mode(enum.StrEnum):
+    """Output mode controlling which tree(s) are printed to the console."""
+
+    vertex = "v"
+    node = "n"
+    both = "vn"
+
 
 app = typer.Typer()
 
@@ -125,17 +83,24 @@ def main(
             help="Bearer token for Roam Local API authentication",
         ),
     ],
-    props: Annotated[
+    node_props: Annotated[
         str | None,
         typer.Option(
-            "--props",
+            "--node-props",
             help=(
                 "Comma-separated list of RoamNode property names to include in each panel body. "
-                f"Example: --props heading,parents. "
+                f"Example: --node-props heading,parents. "
                 f"Defaults to: {','.join(DEFAULT_PANEL_PROPS)}."
             ),
         ),
     ] = None,
+    mode: Annotated[
+        Mode,
+        typer.Option(
+            "--mode",
+            help="Output mode: v=vertex tree only, n=node tree only, vn=both.",
+        ),
+    ] = Mode.vertex,
 ) -> None:
     """Dump a Roam Research page as a Rich tree to the console.
 
@@ -143,12 +108,13 @@ def main(
     formatted tree in the terminal.
     """
     logger.debug(
-        "page_title=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, props=%r",
+        "page_title=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, node_props=%r, mode=%r",
         page_title,
         local_api_port,
         graph_name,
         api_bearer_token,
-        props,
+        node_props,
+        mode,
     )
     api_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
         local_api_port=local_api_port,
@@ -163,13 +129,25 @@ def main(
         raise typer.Exit(code=1)
 
     effective_props: list[str] = (
-        [p.strip() for p in props.split(",")] if props is not None else list(DEFAULT_PANEL_PROPS)
+        [p.strip() for p in node_props.split(",")] if node_props is not None else list(DEFAULT_PANEL_PROPS)
     )
     node_tree: NodeTree = NodeTree(network=nodes)
-    rich_tree: RichTree = build_rich_tree(node_tree, effective_props)
+    vertex_tree: VertexTree = transcribe(node_tree)
+    logger.debug("vertex_tree=%r", vertex_tree)
+    node_rich_tree: RichTree = build_rich_node_tree(node_tree, effective_props)
+    vertex_rich_tree: RichTree = build_rich_vertex_tree(vertex_tree)
+    logger.debug("vertex_rich_tree=%r", vertex_rich_tree)
 
     console: Console = Console()
-    console.print(rich_tree)
+    if mode in (Mode.vertex, Mode.both):
+        console.rule("[bold]Vertex Tree[/bold]")
+        console.print()
+        console.print(vertex_rich_tree)
+    if mode in (Mode.node, Mode.both):
+        console.rule("[bold]Node Tree[/bold]")
+        console.print()
+        console.print(node_rich_tree)
+        console.print()
 
 
 if __name__ == "__main__":

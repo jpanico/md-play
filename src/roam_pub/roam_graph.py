@@ -39,8 +39,13 @@ Public symbols:
   :data:`Vertex` from a raw dict.
 - :class:`VertexTree` — normalized (transcribed) form of a
   :class:`~roam_pub.roam_node.NodeTree`; a portable tree of :data:`Vertex` instances.
+- :meth:`VertexTree.dfs` — return a :class:`VertexTreeDFSIterator` for pre-order
+  depth-first traversal.
+- :class:`VertexTreeDFSIterator` — pre-order depth-first iterator over a
+  :class:`VertexTree`.
 """
 
+from collections.abc import Iterator
 from enum import StrEnum
 from typing import Annotated, Literal
 
@@ -267,3 +272,67 @@ class VertexTree(BaseModel):
             Field(discriminator="vertex_type"),
         ]
     ] = Field(..., description="Transcribed vertices, one per source RoamNode.")
+
+    def dfs(self) -> VertexTreeDFSIterator:
+        """Return a pre-order depth-first iterator over this tree.
+
+        Returns:
+            A :class:`VertexTreeDFSIterator` seeded at the root of this tree.
+        """
+        return VertexTreeDFSIterator(self)
+
+
+class VertexTreeDFSIterator(Iterator[Vertex]):
+    """Pre-order depth-first iterator over a :class:`VertexTree`.
+
+    Yields vertices starting from the single root, then recursively yields each
+    child subtree in the order recorded in each vertex's
+    :attr:`~_BaseVertex.children` list (which preserves the original
+    :attr:`~roam_pub.roam_node.RoamNode.order` sort applied during transcription).
+    The traversal is non-recursive internally (stack-based), so deep trees do not
+    risk hitting Python's recursion limit.
+
+    Usage::
+
+        for vertex in VertexTreeDFSIterator(tree):
+            ...
+
+    Attributes:
+        _uid_map: Mapping from :attr:`~_BaseVertex.uid` to :data:`Vertex`,
+            built once at construction time.
+        _stack: LIFO stack of vertices yet to be visited; initialized with the
+            root vertex.
+    """
+
+    def __init__(self, tree: VertexTree) -> None:
+        """Initialize the iterator from *tree*.
+
+        Builds a uid-map over *tree.vertices* and seeds the stack with the
+        single root vertex — the one whose uid does not appear in any other
+        vertex's :attr:`~_BaseVertex.children` list.
+
+        Args:
+            tree: The :class:`VertexTree` to traverse.
+        """
+        self._uid_map: dict[Uid, Vertex] = {v.uid: v for v in tree.vertices}
+        child_uids: set[Uid] = {uid for v in tree.vertices if v.children for uid in v.children}
+        root: Vertex = next(v for v in tree.vertices if v.uid not in child_uids)
+        self._stack: list[Vertex] = [root]
+
+    def __iter__(self) -> Iterator[Vertex]:
+        """Return *self* (this object is its own iterator)."""
+        return self
+
+    def __next__(self) -> Vertex:
+        """Return the next vertex in pre-order depth-first traversal.
+
+        Raises:
+            StopIteration: When all vertices have been yielded.
+        """
+        if not self._stack:
+            raise StopIteration
+        vertex: Vertex = self._stack.pop()
+        if vertex.children:
+            children: list[Vertex] = [self._uid_map[uid] for uid in vertex.children if uid in self._uid_map]
+            self._stack.extend(reversed(children))
+        return vertex

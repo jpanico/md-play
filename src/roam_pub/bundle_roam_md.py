@@ -9,18 +9,14 @@ Example:
 
 import logging
 from pathlib import Path
-
-import typer
 from typing import Annotated
 
+import typer
+
+from roam_pub.roam_logging import configure_logging
 from roam_pub.roam_md_bundle import bundle_md_file
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)8s] (%(module)s.%(funcName)s:%(lineno)d) %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 app = typer.Typer()

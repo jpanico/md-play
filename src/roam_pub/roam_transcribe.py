@@ -141,6 +141,26 @@ def _extract_firestore_url(string: str) -> str | None:
     return m.group("url") if m else None
 
 
+def _extract_alt_text(string: str) -> str | None:
+    """Return the alt text from the first Firestore image link in *string*, or ``None``.
+
+    The captured alt text is stripped of leading and trailing whitespace.  Returns
+    ``None`` when no Firestore image link is found or the alt text is empty after
+    stripping.
+
+    Args:
+        string: A raw block string that may contain a Roam markdown image link.
+
+    Returns:
+        The stripped alt text string, or ``None``.
+    """
+    m = FIRESTORE_IMAGE_RE.search(string)
+    if m is None:
+        return None
+    alt = m.group("alt").strip()
+    return alt if alt else None
+
+
 def _extract_file_name(firestore_url: str) -> str | None:
     """Return the original filename encoded in a Firestore URL, or ``None`` on failure.
 
@@ -259,7 +279,7 @@ def to_page_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> PageVertex:
         raise ValueError(f"RoamNode uid={node.uid!r} has no 'title'")
     return PageVertex(
         uid=node.uid,
-        text=node.title,
+        title=node.title,
         children=_resolve_children(node, id_map),
         refs=_resolve_refs(node, id_map),
     )
@@ -292,6 +312,7 @@ def to_image_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> ImageVertex:
     return ImageVertex(
         uid=node.uid,
         source=_url_adapter.validate_python(firestore_url),
+        alt_text=_extract_alt_text(node.string),
         file_name=file_name,
         media_type=media_type,
         children=_resolve_children(node, id_map),

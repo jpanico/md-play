@@ -123,7 +123,7 @@ class PageVertex(_BaseVertex):
     Attributes:
         vertex_type: Always :attr:`~VertexType.ROAM_PAGE`.
             Serialized as ``'vertex-type'``.
-        text: Page title from the source node's ``title`` field.
+        title: Page title from the source node's ``title`` field.
     """
 
     vertex_type: Literal[VertexType.ROAM_PAGE] = Field(
@@ -131,7 +131,7 @@ class PageVertex(_BaseVertex):
         serialization_alias="vertex-type",
         description="Always VertexType.ROAM_PAGE (serialized as 'vertex-type').",
     )
-    text: str = Field(..., description="Page title from the source node's title field.")
+    title: str = Field(..., description="Page title from the source node's title field.")
 
 
 class HeadingVertex(_BaseVertex):
@@ -187,6 +187,10 @@ class ImageVertex(_BaseVertex):
         vertex_type: Always :attr:`~VertexType.ROAM_IMAGE`.
             Serialized as ``'vertex-type'``.
         source: Cloud Firestore storage URL for the image file.
+        alt_text: Alt text extracted from the Markdown image link
+            (``![<alt_text>](<url>)``), stripped of leading/trailing whitespace.
+            ``None`` when the alt text is absent or empty.
+            Serialized as ``'alt-text'``.
         file_name: Original filename decoded from *source*. ``None`` if the
             filename cannot be extracted.
         media_type: IANA media type inferred from *file_name*'s extension.
@@ -200,6 +204,11 @@ class ImageVertex(_BaseVertex):
         description="Always VertexType.ROAM_IMAGE (serialized as 'vertex-type').",
     )
     source: Url = Field(..., description="Cloud Firestore storage URL for the image file.")
+    alt_text: str | None = Field(
+        default=None,
+        serialization_alias="alt-text",
+        description="Alt text from the Markdown image link, stripped. None when absent or empty.",
+    )
     file_name: str | None = Field(default=None, description="Original filename decoded from source.")
     media_type: MediaType | None = Field(
         default=None,

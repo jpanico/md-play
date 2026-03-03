@@ -11,6 +11,7 @@
 - uid: mPCzedeKx
   vertex_type: roam/image
   source: https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2FSCFH%2F-9owRBegJ8.jpeg.enc?alt=media&token=9b673aae-8089-4a91-84df-9dac152a7f94
+  alt_text: A flower
   file_name: -9owRBegJ8.jpeg.enc
 - uid: FL32hVyCv
   vertex_type: roam/text-content
@@ -62,7 +63,7 @@
   text: Section 2.1.2
 - uid: 6olpFWiw1
   vertex_type: roam/page
-  text: Test Article
+  title: Test Article
   children:
   - 0EgPyHSZi
   - wdMgyBiP9

@@ -214,10 +214,10 @@ class TestToPageVertex:
         node = _make_page(uid="pageuid01")
         assert to_page_vertex(node, _id_map(node)).uid == "pageuid01"
 
-    def test_text_equals_title(self) -> None:
-        """Test that the vertex text equals the page title."""
+    def test_title_equals_node_title(self) -> None:
+        """Test that the vertex title equals the source node's title."""
         node = _make_page(title="Section 1")
-        assert to_page_vertex(node, _id_map(node)).text == "Section 1"
+        assert to_page_vertex(node, _id_map(node)).title == "Section 1"
 
     def test_children_none_when_no_children(self) -> None:
         """Test that children is None when the node has no children."""
@@ -304,6 +304,21 @@ class TestToImageVertex:
         """Test that the vertex source URL points to the Firestore host."""
         v = to_image_vertex(_make_image(), _id_map(_make_image()))
         assert v.source.host == "firebasestorage.googleapis.com"
+
+    def test_alt_text_extracted_from_string(self) -> None:
+        """Test that alt text is extracted and stripped from the Markdown image link."""
+        node = _make_image(string=f"![My Photo]({_FIRESTORE_URL})")
+        assert to_image_vertex(node, _id_map(node)).alt_text == "My Photo"
+
+    def test_alt_text_stripped_of_whitespace(self) -> None:
+        """Test that leading/trailing whitespace (including newlines) is stripped from alt text."""
+        node = _make_image(string=f"![A flower\n        ]({_FIRESTORE_URL})")
+        assert to_image_vertex(node, _id_map(node)).alt_text == "A flower"
+
+    def test_alt_text_none_when_empty(self) -> None:
+        """Test that empty alt text produces None rather than an empty string."""
+        node = _make_image(string=f"![]({_FIRESTORE_URL})")
+        assert to_image_vertex(node, _id_map(node)).alt_text is None
 
     def test_file_name_extracted_from_url(self) -> None:
         """Test that the filename is percent-decoded from the Firestore URL path."""
@@ -459,7 +474,7 @@ class TestTranscribeNode:
         v = transcribe_node(node, _id_map(node))
         assert isinstance(v, PageVertex)
         assert v.vertex_type is VertexType.ROAM_PAGE
-        assert v.text == "My Page"
+        assert v.title == "My Page"
 
     def test_transcribes_image_node(self) -> None:
         """Test that an image block node is transcribed to a ROAM_IMAGE vertex with correct fields."""
@@ -522,6 +537,7 @@ class TestTranscribeNode:
         assert v.vertex_type is VertexType.ROAM_IMAGE
         assert v.uid == "mPCzedeKx"
         assert v.source.host == "firebasestorage.googleapis.com"
+        assert v.alt_text == "A flower"
         assert v.file_name == "-9owRBegJ8.jpeg.enc"
 
 

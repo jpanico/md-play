@@ -18,7 +18,7 @@ from roam_pub.roam_node import (
     is_root,
     is_tree,
 )
-from roam_pub.roam_types import Id, IdObject
+from roam_pub.roam_primitives import Id, IdObject
 from roam_pub.validation import ValidationError
 
 _FIXTURES_YAML_DIR = pathlib.Path(__file__).parent / "fixtures" / "yaml"

@@ -27,7 +27,7 @@ from roam_pub.roam_transcribe import (
     transcribe_node,
     vertex_type,
 )
-from roam_pub.roam_types import Id, IdObject
+from roam_pub.roam_primitives import Id, IdObject
 
 _TIME = 0
 _USER = IdObject(id=1)

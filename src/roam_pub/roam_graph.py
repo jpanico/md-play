@@ -8,7 +8,7 @@ Normalization (transcription) means:
 
 - Datomic-internal numeric entity ids (:attr:`~roam_pub.roam_node.RoamNode.id`) are
   eliminated.
-- Raw :class:`~roam_pub.roam_types.IdObject` stubs in ``children`` and ``refs`` are
+- Raw :class:`~roam_pub.roam_primitives.IdObject` stubs in ``children`` and ``refs`` are
   resolved to stable ``:block/uid`` strings.
 - The raw ``string`` / ``title`` field distinction is collapsed into a single ``text``
   field.
@@ -46,19 +46,19 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-from roam_pub.roam_types import HeadingLevel, MediaType, Uid, Url
+from roam_pub.roam_primitives import HeadingLevel, MediaType, Uid, Url
 
 type VertexChildren = list[Uid]
 """Normalized form of :attr:`~roam_pub.roam_node.RoamNode.children`.
 
-Raw :class:`~roam_pub.roam_types.IdObject` stubs are resolved to stable ``:block/uid``
+Raw :class:`~roam_pub.roam_primitives.IdObject` stubs are resolved to stable ``:block/uid``
 strings and sorted by ``:block/order`` during transcription.
 """
 
 type VertexRefs = list[Uid]
 """Normalized form of :attr:`~roam_pub.roam_node.RoamNode.refs`.
 
-Raw :class:`~roam_pub.roam_types.IdObject` stubs are resolved to stable ``:block/uid``
+Raw :class:`~roam_pub.roam_primitives.IdObject` stubs are resolved to stable ``:block/uid``
 strings during transcription.
 """
 
@@ -97,10 +97,10 @@ class _BaseVertex(BaseModel):
     Attributes:
         uid: Nine-character stable ``:block/uid`` identifier. Required.
         children: Ordered child UIDs resolved from raw
-            :class:`~roam_pub.roam_types.IdObject` stubs. ``None`` when the
+            :class:`~roam_pub.roam_primitives.IdObject` stubs. ``None`` when the
             source node has no children.
         refs: Referenced UIDs resolved from raw
-            :class:`~roam_pub.roam_types.IdObject` stubs. ``None`` when the
+            :class:`~roam_pub.roam_primitives.IdObject` stubs. ``None`` when the
             source node has no refs.
     """
 

@@ -15,7 +15,8 @@ from pydantic import HttpUrl, validate_call
 
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_asset_fetch import FetchRoamAsset
-from roam_pub.roam_asset import FIRESTORE_IMAGE_RE, RoamAsset
+from roam_pub.roam_asset import RoamAsset
+from roam_pub.roam_primitives import IMAGE_LINK_RE
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ def find_markdown_image_links(markdown_text: str) -> list[tuple[str, HttpUrl]]:
         ValidationError: If markdown_text is None or invalid
     """
     matches: list[tuple[str, HttpUrl]] = []
-    for match in FIRESTORE_IMAGE_RE.finditer(markdown_text):
+    for match in IMAGE_LINK_RE.finditer(markdown_text):
         full_match: str = match.group(0)  # Full ![...](...)
         image_url_str: str = match.group("url")  # Just the URL as string
         image_url: HttpUrl = HttpUrl(image_url_str)  # Convert to HttpUrl

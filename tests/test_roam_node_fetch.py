@@ -11,7 +11,7 @@ import requests
 import yaml
 from pydantic import ValidationError
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
-from roam_pub.roam_types import IdObject
+from roam_pub.roam_primitives import IdObject
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
 

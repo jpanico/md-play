@@ -14,7 +14,7 @@ import logging
 
 from roam_pub.roam_local_api import ApiEndpoint, Request as LocalApiRequest, Response as LocalApiResponse, invoke_action
 from roam_pub.roam_asset import RoamAsset
-from roam_pub.roam_types import MediaType, Url
+from roam_pub.roam_primitives import MediaType, Url
 
 logger = logging.getLogger(__name__)
 

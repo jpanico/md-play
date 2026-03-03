@@ -1,14 +1,17 @@
-"""Foundational Roam Research type aliases and stub models.
+"""Foundational Roam Research primitives: type aliases, stub models, and pattern constants.
 
-Public symbols are organized into three groups:
+Public symbols are organized into four groups:
 
 - **Primitive type aliases**: :data:`Uid`, :data:`Id`, :data:`Order`, :data:`HeadingLevel`,
   :data:`PageTitle`, :data:`Url`, :data:`MediaType`.
 - **Composite type aliases**: :data:`UidPair`, :data:`RawChildren`, :data:`RawRefs`.
 - **Stub models**: :class:`IdObject`, :class:`LinkObject`.
+- **Pattern constants**: :data:`IMAGE_LINK_RE` — compiled regex matching a Roam markdown image
+  link whose URL is a Cloud Firestore storage URL.
 """
 
 import logging
+import re
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
@@ -102,4 +105,21 @@ type RawRefs = list[IdObject]
 """Page/block reference stubs as returned directly by ``pull [*]``.
 
 Same shape as :data:`RawChildren` — :class:`IdObject` stubs awaiting normalization.
+"""
+
+IMAGE_LINK_RE: re.Pattern[str] = re.compile(
+    r"!\[(?P<alt>(?:[^\]]|\n)*?)\]\((?P<url>https://firebasestorage\.googleapis\.com/[^\)]+)\)"
+)
+"""Compiled regex matching a Roam markdown image link whose URL is a Cloud Firestore storage URL.
+
+Named groups:
+
+- ``alt`` — the alt-text content between ``[`` and ``]`` (may be empty or multi-line).
+- ``url`` — the Cloud Firestore storage URL between ``(`` and ``)``.
+
+Example match on ``![my photo](https://firebasestorage.googleapis.com/v0/b/...)``:
+
+- ``match.group(0)`` — the full ``![...](..)`` string.
+- ``match.group("url")`` — just the URL.
+- ``match.group("alt")`` — just the alt text.
 """

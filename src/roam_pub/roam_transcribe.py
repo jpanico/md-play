@@ -22,12 +22,10 @@ Public symbols:
 
 import logging
 import mimetypes
-import re
 from urllib.parse import unquote, urlparse
 
 from pydantic import TypeAdapter, validate_call
 
-from roam_pub.roam_asset import FIRESTORE_IMAGE_RE
 from roam_pub.roam_graph import (
     HeadingVertex,
     ImageVertex,
@@ -40,22 +38,14 @@ from roam_pub.roam_graph import (
     VertexType,
 )
 from roam_pub.roam_node import NodeTree, RoamNode
-from roam_pub.roam_types import HeadingLevel, Id, Url
+from roam_pub.roam_primitives import IMAGE_LINK_RE, HeadingLevel, Id, Url
 
 logger = logging.getLogger(__name__)
 
 _url_adapter: TypeAdapter[Url] = TypeAdapter(Url)
 """Pydantic :class:`~pydantic.TypeAdapter` for validating and coercing URL strings to.
 
-:data:`~roam_pub.roam_types.Url`.
-"""
-
-_IMAGE_LINK_RE: re.Pattern[str] = re.compile(r"!\[(?:[^\]]|\n)*?\]\(https?://[^\)]+\)")
-"""Compiled regex matching a single Markdown image link ``![<alt>](<url>)``.
-
-Used by :func:`is_image_node` to verify that a block string consists of exactly
-one image link and no surrounding content (after stripping leading/trailing whitespace).
-The URL must begin with ``http://`` or ``https://``.
+:data:`~roam_pub.roam_primitives.Url`.
 """
 
 
@@ -137,7 +127,7 @@ def _extract_firestore_url(string: str) -> str | None:
     Returns:
         The URL string captured from the first Firestore image link, or ``None``.
     """
-    m = FIRESTORE_IMAGE_RE.search(string)
+    m = IMAGE_LINK_RE.search(string)
     return m.group("url") if m else None
 
 
@@ -154,7 +144,7 @@ def _extract_alt_text(string: str) -> str | None:
     Returns:
         The stripped alt text string, or ``None``.
     """
-    m = FIRESTORE_IMAGE_RE.search(string)
+    m = IMAGE_LINK_RE.search(string)
     if m is None:
         return None
     alt = m.group("alt").strip()
@@ -218,7 +208,7 @@ def is_image_node(node: RoamNode) -> bool:
     """
     if node.string is None:
         return False
-    return bool(_IMAGE_LINK_RE.fullmatch(node.string.strip()))
+    return bool(IMAGE_LINK_RE.fullmatch(node.string.strip()))
 
 
 @validate_call
@@ -384,7 +374,7 @@ def transcribe_node(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
     r"""Transcribe *node* into a normalized :class:`~roam_pub.roam_graph.Vertex`.
 
     Determines the :class:`~roam_pub.roam_graph.VertexType` via :func:`vertex_type`,
-    resolves raw :class:`~roam_pub.roam_types.IdObject` stubs in children and refs to
+    resolves raw :class:`~roam_pub.roam_primitives.IdObject` stubs in children and refs to
     stable UIDs via *id_map*, and handles both native Roam headings (levels 1–3 via
     ``node.heading``) and Augmented Headings extension levels (4–6 via
     ``node.props['ah-level']``).

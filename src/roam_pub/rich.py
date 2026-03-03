@@ -16,7 +16,7 @@ from rich.text import Text
 from rich.tree import Tree as RichTree
 
 from roam_pub.roam_node import NodeTree, NodeTreeDFSIterator, RoamNode
-from roam_pub.roam_types import Id
+from roam_pub.roam_primitives import Id
 
 logger = logging.getLogger(__name__)
 

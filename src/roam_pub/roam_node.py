@@ -25,7 +25,7 @@ from collections.abc import Iterator
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from roam_pub.roam_types import (
+from roam_pub.roam_primitives import (
     HeadingLevel,
     Id,
     IdObject,
@@ -138,7 +138,7 @@ type NodeNetwork = list[RoamNode]
 
 Relationships between nodes are encoded via :attr:`RoamNode.children`,
 :attr:`RoamNode.parents`, and :attr:`RoamNode.page` as
-:class:`~roam_pub.roam_types.IdObject` stubs referencing :attr:`RoamNode.id`
+:class:`~roam_pub.roam_primitives.IdObject` stubs referencing :attr:`RoamNode.id`
 values within the collection.
 """
 

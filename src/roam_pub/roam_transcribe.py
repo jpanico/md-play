@@ -6,16 +6,16 @@ Public symbols:
   Markdown image link and nothing else.
 - :func:`vertex_type` — classify a :class:`~roam_pub.roam_node.RoamNode` into a
   :class:`~roam_pub.roam_graph.VertexType`.
-- :func:`to_page_vertex` — build a :attr:`~roam_pub.roam_graph.VertexType.ROAM_PAGE`
-  :class:`~roam_pub.roam_graph.Vertex` from a page node.
-- :func:`to_image_vertex` — build a :attr:`~roam_pub.roam_graph.VertexType.ROAM_IMAGE`
-  :class:`~roam_pub.roam_graph.Vertex` from a Firestore image block node.
-- :func:`to_heading_vertex` — build a :attr:`~roam_pub.roam_graph.VertexType.ROAM_HEADING`
-  :class:`~roam_pub.roam_graph.Vertex` from a heading block node.
-- :func:`to_text_content_vertex` — build a :attr:`~roam_pub.roam_graph.VertexType.ROAM_TEXT_CONTENT`
-  :class:`~roam_pub.roam_graph.Vertex` from a plain text block node.
+- :func:`to_page_vertex` — build a :class:`~roam_pub.roam_graph.PageVertex` from a
+  page node.
+- :func:`to_image_vertex` — build an :class:`~roam_pub.roam_graph.ImageVertex` from a
+  Firestore image block node.
+- :func:`to_heading_vertex` — build a :class:`~roam_pub.roam_graph.HeadingVertex` from
+  a heading block node.
+- :func:`to_text_content_vertex` — build a
+  :class:`~roam_pub.roam_graph.TextContentVertex` from a plain text block node.
 - :func:`transcribe_node` — transcribe a :class:`~roam_pub.roam_node.RoamNode` into
-  a normalized :class:`~roam_pub.roam_graph.Vertex`.
+  the appropriate :data:`~roam_pub.roam_graph.Vertex` subtype.
 - :func:`transcribe` — transcribe all nodes in a :class:`~roam_pub.roam_node.NodeTree`
   into a :class:`~roam_pub.roam_graph.VertexTree`.
 """
@@ -28,7 +28,17 @@ from urllib.parse import unquote, urlparse
 from pydantic import TypeAdapter, validate_call
 
 from roam_pub.roam_asset import FIRESTORE_IMAGE_RE
-from roam_pub.roam_graph import Vertex, VertexChildren, VertexRefs, VertexTree, VertexType
+from roam_pub.roam_graph import (
+    HeadingVertex,
+    ImageVertex,
+    PageVertex,
+    TextContentVertex,
+    Vertex,
+    VertexChildren,
+    VertexRefs,
+    VertexTree,
+    VertexType,
+)
 from roam_pub.roam_node import NodeTree, RoamNode
 from roam_pub.roam_types import HeadingLevel, Id, Url
 
@@ -229,8 +239,8 @@ def vertex_type(node: RoamNode) -> VertexType:
 
 
 @validate_call
-def to_page_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
-    """Build a :attr:`~roam_pub.roam_graph.VertexType.ROAM_PAGE` vertex from *node*.
+def to_page_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> PageVertex:
+    """Build a :class:`~roam_pub.roam_graph.PageVertex` from *node*.
 
     Args:
         node: A page node with ``node.title`` set.
@@ -238,8 +248,7 @@ def to_page_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
             used to resolve child and ref stubs to UIDs.
 
     Returns:
-        A :class:`~roam_pub.roam_graph.Vertex` of type
-        :attr:`~roam_pub.roam_graph.VertexType.ROAM_PAGE`.
+        A :class:`~roam_pub.roam_graph.PageVertex`.
 
     Raises:
         ValidationError: If *node* or *id_map* is ``None`` or invalid.
@@ -248,9 +257,8 @@ def to_page_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
     logger.debug("node=%r, id_map keys=%r", node, list(id_map.keys()))
     if node.title is None:
         raise ValueError(f"RoamNode uid={node.uid!r} has no 'title'")
-    return Vertex(
+    return PageVertex(
         uid=node.uid,
-        vertex_type=VertexType.ROAM_PAGE,
         text=node.title,
         children=_resolve_children(node, id_map),
         refs=_resolve_refs(node, id_map),
@@ -258,8 +266,8 @@ def to_page_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
 
 
 @validate_call
-def to_image_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
-    """Build a :attr:`~roam_pub.roam_graph.VertexType.ROAM_IMAGE` vertex from *node*.
+def to_image_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> ImageVertex:
+    """Build an :class:`~roam_pub.roam_graph.ImageVertex` from *node*.
 
     Args:
         node: A block node whose ``node.string`` embeds a Firestore image URL.
@@ -267,8 +275,7 @@ def to_image_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
             used to resolve child and ref stubs to UIDs.
 
     Returns:
-        A :class:`~roam_pub.roam_graph.Vertex` of type
-        :attr:`~roam_pub.roam_graph.VertexType.ROAM_IMAGE`.
+        An :class:`~roam_pub.roam_graph.ImageVertex`.
 
     Raises:
         ValidationError: If *node* or *id_map* is ``None`` or invalid.
@@ -282,9 +289,8 @@ def to_image_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
         raise ValueError(f"RoamNode uid={node.uid!r} 'string' contains no Firestore URL")
     file_name = _extract_file_name(firestore_url)
     media_type = _infer_media_type(file_name) if file_name is not None else None
-    return Vertex(
+    return ImageVertex(
         uid=node.uid,
-        vertex_type=VertexType.ROAM_IMAGE,
         source=_url_adapter.validate_python(firestore_url),
         file_name=file_name,
         media_type=media_type,
@@ -294,8 +300,8 @@ def to_image_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
 
 
 @validate_call
-def to_heading_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
-    """Build a :attr:`~roam_pub.roam_graph.VertexType.ROAM_HEADING` vertex from *node*.
+def to_heading_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> HeadingVertex:
+    """Build a :class:`~roam_pub.roam_graph.HeadingVertex` from *node*.
 
     Args:
         node: A block node with an effective heading level (native ``node.heading``
@@ -304,8 +310,7 @@ def to_heading_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
             used to resolve child and ref stubs to UIDs.
 
     Returns:
-        A :class:`~roam_pub.roam_graph.Vertex` of type
-        :attr:`~roam_pub.roam_graph.VertexType.ROAM_HEADING`.
+        A :class:`~roam_pub.roam_graph.HeadingVertex`.
 
     Raises:
         ValidationError: If *node* or *id_map* is ``None`` or invalid.
@@ -317,9 +322,8 @@ def to_heading_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
     heading = _effective_heading_level(node)
     if heading is None:
         raise ValueError(f"RoamNode uid={node.uid!r} has no effective heading level")
-    return Vertex(
+    return HeadingVertex(
         uid=node.uid,
-        vertex_type=VertexType.ROAM_HEADING,
         text=node.string,
         heading=heading,
         children=_resolve_children(node, id_map),
@@ -328,8 +332,8 @@ def to_heading_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
 
 
 @validate_call
-def to_text_content_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
-    """Build a :attr:`~roam_pub.roam_graph.VertexType.ROAM_TEXT_CONTENT` vertex from *node*.
+def to_text_content_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> TextContentVertex:
+    """Build a :class:`~roam_pub.roam_graph.TextContentVertex` from *node*.
 
     Args:
         node: A plain text block node with ``node.string`` set.
@@ -337,8 +341,7 @@ def to_text_content_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex
             used to resolve child and ref stubs to UIDs.
 
     Returns:
-        A :class:`~roam_pub.roam_graph.Vertex` of type
-        :attr:`~roam_pub.roam_graph.VertexType.ROAM_TEXT_CONTENT`.
+        A :class:`~roam_pub.roam_graph.TextContentVertex`.
 
     Raises:
         ValidationError: If *node* or *id_map* is ``None`` or invalid.
@@ -347,9 +350,8 @@ def to_text_content_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex
     logger.debug("node=%r, id_map keys=%r", node, list(id_map.keys()))
     if node.string is None:
         raise ValueError(f"RoamNode uid={node.uid!r} has no 'string'")
-    return Vertex(
+    return TextContentVertex(
         uid=node.uid,
-        vertex_type=VertexType.ROAM_TEXT_CONTENT,
         text=node.string,
         children=_resolve_children(node, id_map),
         refs=_resolve_refs(node, id_map),

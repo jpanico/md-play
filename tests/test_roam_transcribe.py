@@ -7,7 +7,15 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from roam_pub.roam_graph import Vertex, VertexType
+from roam_pub.roam_graph import (
+    HeadingVertex,
+    ImageVertex,
+    PageVertex,
+    TextContentVertex,
+    Vertex,
+    VertexType,
+    vertex_adapter,
+)
 from roam_pub.roam_node import NodeTree, RoamNode
 from roam_pub.roam_transcribe import (
     is_image_node,
@@ -295,7 +303,6 @@ class TestToImageVertex:
     def test_source_host_is_firestore(self) -> None:
         """Test that the vertex source URL points to the Firestore host."""
         v = to_image_vertex(_make_image(), _id_map(_make_image()))
-        assert v.source is not None
         assert v.source.host == "firebasestorage.googleapis.com"
 
     def test_file_name_extracted_from_url(self) -> None:
@@ -450,6 +457,7 @@ class TestTranscribeNode:
         """Test that a page node is transcribed to a ROAM_PAGE vertex with correct fields."""
         node = _make_page(title="My Page")
         v = transcribe_node(node, _id_map(node))
+        assert isinstance(v, PageVertex)
         assert v.vertex_type is VertexType.ROAM_PAGE
         assert v.text == "My Page"
 
@@ -457,8 +465,8 @@ class TestTranscribeNode:
         """Test that an image block node is transcribed to a ROAM_IMAGE vertex with correct fields."""
         node = _make_image()
         v = transcribe_node(node, _id_map(node))
+        assert isinstance(v, ImageVertex)
         assert v.vertex_type is VertexType.ROAM_IMAGE
-        assert v.source is not None
         assert v.file_name == "photo.jpeg"
         assert v.media_type == "image/jpeg"
 
@@ -466,6 +474,7 @@ class TestTranscribeNode:
         """Test that a heading block node is transcribed to a ROAM_HEADING vertex with correct fields."""
         node = _make_heading(string="Intro", heading=1)
         v = transcribe_node(node, _id_map(node))
+        assert isinstance(v, HeadingVertex)
         assert v.vertex_type is VertexType.ROAM_HEADING
         assert v.text == "Intro"
         assert v.heading == 1
@@ -474,6 +483,7 @@ class TestTranscribeNode:
         """Test that a plain text block node is transcribed to a ROAM_TEXT_CONTENT vertex."""
         node = _make_text(string="Body text")
         v = transcribe_node(node, _id_map(node))
+        assert isinstance(v, TextContentVertex)
         assert v.vertex_type is VertexType.ROAM_TEXT_CONTENT
         assert v.text == "Body text"
 
@@ -488,7 +498,9 @@ class TestTranscribeNode:
             title="Page",
             children=[IdObject(id=201)],
         )
-        assert transcribe_node(page, _id_map(page, child)).children == ["child0001"]
+        v = transcribe_node(page, _id_map(page, child))
+        assert isinstance(v, PageVertex)
+        assert v.children == ["child0001"]
 
     def test_node_with_neither_title_nor_string_raises_value_error(self) -> None:
         """Test that a node missing both title and string raises ValueError."""
@@ -506,9 +518,9 @@ class TestTranscribeNode:
         raw = json.loads((_FIXTURES_JSON_DIR / "image_node.json").read_text())[0]
         node = RoamNode.model_validate(raw)
         v = transcribe_node(node, _id_map(node))
+        assert isinstance(v, ImageVertex)
         assert v.vertex_type is VertexType.ROAM_IMAGE
         assert v.uid == "mPCzedeKx"
-        assert v.source is not None
         assert v.source.host == "firebasestorage.googleapis.com"
         assert v.file_name == "-9owRBegJ8.jpeg.enc"
 
@@ -534,7 +546,7 @@ class TestTranscribeArticleFixture:
         raw_vertices: list[dict[str, object]] = yaml.safe_load(
             (_FIXTURES_YAML_DIR / "test_article_vertices.yaml").read_text()
         )
-        expected_vertices: list[Vertex] = [Vertex.model_validate(r) for r in raw_vertices]
+        expected_vertices: list[Vertex] = [vertex_adapter.validate_python(r) for r in raw_vertices]
 
         # Serialize both sides to plain dicts (mode='json' converts HttpUrl → str,
         # StrEnum → str) and sort by uid so the comparison is order-independent.
@@ -558,7 +570,7 @@ class TestTranscribeArticleFixture:
         raw_vertices: list[dict[str, object]] = yaml.safe_load(
             (_FIXTURES_YAML_DIR / "test_article_vertices.yaml").read_text()
         )
-        expected: list[Vertex] = [Vertex.model_validate(r) for r in raw_vertices]
+        expected: list[Vertex] = [vertex_adapter.validate_python(r) for r in raw_vertices]
 
         def _serialise(v: Vertex) -> dict[str, object]:
             return v.model_dump(mode="json", exclude_none=True)

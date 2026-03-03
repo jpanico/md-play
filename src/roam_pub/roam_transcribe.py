@@ -37,6 +37,7 @@ from roam_pub.roam_graph import (
     VertexTree,
     VertexType,
 )
+from roam_pub.roam_md_normalize import normalize
 from roam_pub.roam_node import NodeTree, RoamNode
 from roam_pub.roam_primitives import IMAGE_LINK_RE, HeadingLevel, Id, Url
 
@@ -269,7 +270,7 @@ def to_page_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> PageVertex:
         raise ValueError(f"RoamNode uid={node.uid!r} has no 'title'")
     return PageVertex(
         uid=node.uid,
-        title=node.title,
+        title=normalize(node.title),
         children=_resolve_children(node, id_map),
         refs=_resolve_refs(node, id_map),
     )
@@ -335,7 +336,7 @@ def to_heading_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> HeadingVert
         raise ValueError(f"RoamNode uid={node.uid!r} has no effective heading level")
     return HeadingVertex(
         uid=node.uid,
-        text=node.string,
+        text=normalize(node.string),
         heading=heading,
         children=_resolve_children(node, id_map),
         refs=_resolve_refs(node, id_map),
@@ -363,7 +364,7 @@ def to_text_content_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> TextCo
         raise ValueError(f"RoamNode uid={node.uid!r} has no 'string'")
     return TextContentVertex(
         uid=node.uid,
-        text=node.string,
+        text=normalize(node.string),
         children=_resolve_children(node, id_map),
         refs=_resolve_refs(node, id_map),
     )

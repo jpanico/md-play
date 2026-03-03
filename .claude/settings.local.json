@@ -8,6 +8,8 @@
       "Bash(git push:*)",
       "Bash(/opt/local/bin/gh auth:*)",
       "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
       "Bash(git check-ignore:*)",
       "Bash(git commit:*)",
       "Bash(chmod:*)",

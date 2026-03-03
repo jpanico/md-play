@@ -8,6 +8,7 @@ import yaml
 from roam_pub.roam_node import (
     NodeNetwork,
     NodeTree,
+    NodeTreeDFSIterator,
     RoamNode,
     all_children_present,
     all_parents_present,
@@ -17,7 +18,7 @@ from roam_pub.roam_node import (
     is_root,
     is_tree,
 )
-from roam_pub.roam_types import IdObject
+from roam_pub.roam_types import Id, IdObject
 from roam_pub.validation import ValidationError
 
 _FIXTURES_YAML_DIR = pathlib.Path(__file__).parent / "fixtures" / "yaml"
@@ -624,3 +625,132 @@ class TestRoamNodeProps:
         node = RoamNode(uid="block0001", id=1, time=_TIME, user=_USER, props={"ah-level": "h4"})
         with pytest.raises(Exception):
             node.props = None  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# TestNodeTreeDFSIterator
+# ---------------------------------------------------------------------------
+
+
+class TestNodeTreeDFSIterator:
+    """Tests for NodeTreeDFSIterator — pre-order depth-first traversal of a NodeTree."""
+
+    def test_single_node_tree_yields_root(self) -> None:
+        """Test that a one-node tree yields only the root node."""
+        root = RoamNode(uid="root00001", id=1, time=_TIME, user=_USER)
+        tree = NodeTree(network=[root])
+        assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001"]
+
+    def test_two_node_tree_yields_root_then_child(self) -> None:
+        """Test that a root→child tree yields root first, then child."""
+        root = RoamNode(uid="root00001", id=1, time=_TIME, user=_USER, children=[IdObject(id=10)])
+        child = RoamNode(uid="chld00001", id=10, time=_TIME, user=_USER, string="c", order=0, parents=[IdObject(id=1)])
+        tree = NodeTree(network=[root, child])
+        assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "chld00001"]
+
+    def test_children_yielded_in_ascending_order_field(self) -> None:
+        """Test that children are visited in ascending order-field order, not id order."""
+        root = RoamNode(uid="root00001", id=1, time=_TIME, user=_USER, children=[IdObject(id=10), IdObject(id=20)])
+        # id=20 has order=0 so it should come first despite having the larger id
+        child_first = RoamNode(
+            uid="chld00002", id=20, time=_TIME, user=_USER, string="first", order=0, parents=[IdObject(id=1)]
+        )
+        child_second = RoamNode(
+            uid="chld00001", id=10, time=_TIME, user=_USER, string="second", order=1, parents=[IdObject(id=1)]
+        )
+        tree = NodeTree(network=[root, child_first, child_second])
+        assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "chld00002", "chld00001"]
+
+    def test_preorder_visits_subtree_before_sibling(self) -> None:
+        """Test that a child's full subtree is visited before the next sibling (pre-order)."""
+        root = RoamNode(uid="root00001", id=1, time=_TIME, user=_USER, children=[IdObject(id=10), IdObject(id=20)])
+        node_a = RoamNode(
+            uid="nodeA0001",
+            id=10,
+            time=_TIME,
+            user=_USER,
+            string="A",
+            order=0,
+            parents=[IdObject(id=1)],
+            children=[IdObject(id=11)],
+        )
+        node_a1 = RoamNode(
+            uid="nodeA1001", id=11, time=_TIME, user=_USER, string="A1", order=0, parents=[IdObject(id=10)]
+        )
+        node_b = RoamNode(uid="nodeB0001", id=20, time=_TIME, user=_USER, string="B", order=1, parents=[IdObject(id=1)])
+        tree = NodeTree(network=[root, node_a, node_a1, node_b])
+        assert [n.uid for n in NodeTreeDFSIterator(tree)] == ["root00001", "nodeA0001", "nodeA1001", "nodeB0001"]
+
+    def test_all_nodes_yielded_exactly_once(self) -> None:
+        """Test that every node in the tree is yielded exactly once with no duplicates."""
+        root = RoamNode(uid="root00001", id=1, time=_TIME, user=_USER, children=[IdObject(id=10), IdObject(id=20)])
+        child_a = RoamNode(
+            uid="chld00001", id=10, time=_TIME, user=_USER, string="a", order=0, parents=[IdObject(id=1)]
+        )
+        child_b = RoamNode(
+            uid="chld00002", id=20, time=_TIME, user=_USER, string="b", order=1, parents=[IdObject(id=1)]
+        )
+        tree = NodeTree(network=[root, child_a, child_b])
+        yielded: list[RoamNode] = list(NodeTreeDFSIterator(tree))
+        assert len(yielded) == 3
+        assert len({n.uid for n in yielded}) == 3
+
+    def test_iterator_exhausted_raises_stop_iteration(self) -> None:
+        """Test that __next__ raises StopIteration once all nodes have been yielded."""
+        root = RoamNode(uid="root00001", id=1, time=_TIME, user=_USER)
+        tree = NodeTree(network=[root])
+        it: NodeTreeDFSIterator = NodeTreeDFSIterator(tree)
+        assert next(it).uid == "root00001"
+        with pytest.raises(StopIteration):
+            next(it)
+
+    def test_article_fixture_root_is_first(self) -> None:
+        """Test that the root node is the first node yielded from the article fixture."""
+        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
+        tree = NodeTree(network=[RoamNode.model_validate(r) for r in raw])
+        first: RoamNode = next(iter(NodeTreeDFSIterator(tree)))
+        assert is_root(first, tree.network)
+
+    def test_article_fixture_yields_all_nodes(self) -> None:
+        """Test that the iterator yields every node in the article fixture exactly once."""
+        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
+        tree = NodeTree(network=[RoamNode.model_validate(r) for r in raw])
+        yielded: list[RoamNode] = list(NodeTreeDFSIterator(tree))
+        assert len(yielded) == len(tree.network)
+        assert {n.uid for n in yielded} == {n.uid for n in tree.network}
+
+    def test_article_fixture_parent_always_precedes_children(self) -> None:
+        """Test that every parent node appears before all of its children in the traversal."""
+        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
+        tree = NodeTree(network=[RoamNode.model_validate(r) for r in raw])
+        id_map: dict[Id, RoamNode] = {n.id: n for n in tree.network}
+        yielded: list[RoamNode] = list(NodeTreeDFSIterator(tree))
+        position: dict[str, int] = {n.uid: i for i, n in enumerate(yielded)}
+        for node in tree.network:
+            if node.children:
+                for child_stub in node.children:
+                    child: RoamNode = id_map[child_stub.id]
+                    assert position[node.uid] < position[child.uid]
+
+    def test_article_fixture_dfs_id_order(self) -> None:
+        """Test the exact pre-order DFS id sequence for the test_article fixture.
+
+        Expected traversal (by Datomic entity id):
+          3327  — root page "Test Article"
+          3328  — Section 1         (order=0, child of root)
+          3331  — Section 1.1       (order=0, child of 3328)
+          3334  — illustration 1.1  (order=0, child of 3331)
+          3336  — image block       (order=0, child of 3334)
+          4029  — AI assistant text (order=1, child of 3328)
+          3329  — Section 2         (order=1, child of root)
+          3332  — Section 2.1       (order=0, child of 3329)
+          4025  — Section 2.1.1     (order=0, child of 3332)
+          4028  — Section 2.1.1.1   (order=0, child of 4025)
+          4026  — Section 2.1.2     (order=1, child of 3329)
+          3330  — Section 3         (order=2, child of root)
+          3333  — Section 3.1       (order=0, child of 3330)
+        """
+        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
+        tree = NodeTree(network=[RoamNode.model_validate(r) for r in raw])
+        expected_ids: list[Id] = [3327, 3328, 3331, 3334, 3336, 4029, 3329, 3332, 4025, 4028, 4026, 3330, 3333]
+        assert [n.id for n in NodeTreeDFSIterator(tree)] == expected_ids

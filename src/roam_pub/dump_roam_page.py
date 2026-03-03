@@ -31,9 +31,9 @@ import typer
 from rich.console import Console
 from rich.tree import Tree as RichTree
 
-from roam_pub.rich import DEFAULT_PANEL_PROPS, build_rich_trees
+from roam_pub.rich import DEFAULT_PANEL_PROPS, build_rich_tree
 from roam_pub.roam_local_api import ApiEndpoint
-from roam_pub.roam_node import RoamNode
+from roam_pub.roam_node import NodeTree, RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
 
 _LEVEL_COLORS: dict[str, str] = {
@@ -165,11 +165,11 @@ def main(
     effective_props: list[str] = (
         [p.strip() for p in props.split(",")] if props is not None else list(DEFAULT_PANEL_PROPS)
     )
-    trees: list[RichTree] = build_rich_trees(nodes, effective_props)
+    node_tree: NodeTree = NodeTree(network=nodes)
+    rich_tree: RichTree = build_rich_tree(node_tree, effective_props)
 
     console: Console = Console()
-    for tree in trees:
-        console.print(tree)
+    console.print(rich_tree)
 
 
 if __name__ == "__main__":

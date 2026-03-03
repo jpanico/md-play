@@ -5,8 +5,8 @@ Public symbols:
 - :data:`DEFAULT_PANEL_PROPS` — the property names rendered in a panel body by default.
 - :func:`make_panel` — render a :class:`~roam_pub.roam_node.RoamNode` as a Rich
   :class:`~rich.panel.Panel`.
-- :func:`build_rich_trees` — build a list of Rich :class:`~rich.tree.Tree` instances
-  from a :data:`~roam_pub.roam_node.NodeNetwork`, one per root node.
+- :func:`build_rich_tree` — build a Rich :class:`~rich.tree.Tree` from a
+  :class:`~roam_pub.roam_node.NodeTree` using a depth-first traversal.
 """
 
 import logging
@@ -15,7 +15,7 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.tree import Tree as RichTree
 
-from roam_pub.roam_node import NodeNetwork, RoamNode, is_root
+from roam_pub.roam_node import NodeTree, NodeTreeDFSIterator, RoamNode
 from roam_pub.roam_types import Id
 
 logger = logging.getLogger(__name__)
@@ -111,56 +111,29 @@ def make_panel(node: RoamNode, props: list[str] = DEFAULT_PANEL_PROPS) -> Panel:
     return Panel(Text(content), title=title, expand=False)
 
 
-def _populate_subtree(node: RoamNode, rich_parent: RichTree, id_map: dict[Id, RoamNode], props: list[str]) -> None:
-    """Recursively attach *node*'s children to *rich_parent*.
+def build_rich_tree(tree: NodeTree, props: list[str] = DEFAULT_PANEL_PROPS) -> RichTree:
+    """Build a Rich tree from *tree* using a depth-first traversal.
 
-    Children are resolved via *id_map*, sorted by
-    :attr:`~roam_pub.roam_node.RoamNode.order`, and each rendered with
-    :func:`make_panel` before being added to the tree.  Children whose ``id``
-    is absent from *id_map* are silently skipped.
-
-    Args:
-        node: The node whose children are to be rendered.
-        rich_parent: The Rich tree node to attach children to.
-        id_map: Mapping from Datomic entity id to
-            :class:`~roam_pub.roam_node.RoamNode`, used to resolve child stubs.
-        props: Property names forwarded to :func:`make_panel` for each child.
-    """
-    logger.debug("node=%r, rich_parent=%r, id_map=%r, props=%r", node, rich_parent, id_map, props)
-    if node.children:
-        child_nodes: list[RoamNode] = sorted(
-            [id_map[c.id] for c in node.children if c.id in id_map],
-            key=lambda n: n.order if n.order is not None else 0,
-        )
-        for child in child_nodes:
-            _populate_subtree(child, rich_parent.add(make_panel(child, props)), id_map, props)
-
-
-def build_rich_trees(network: NodeNetwork, props: list[str] = DEFAULT_PANEL_PROPS) -> list[RichTree]:
-    """Build one Rich tree per root node in *network*.
-
-    Root nodes are determined by :func:`~roam_pub.roam_node.is_root` and sorted
-    by :attr:`~roam_pub.roam_node.RoamNode.order`.  Each root becomes the label
-    of a top-level :class:`~rich.tree.Tree`; its descendants are populated
-    recursively via :func:`make_panel`.
+    Iterates *tree* in pre-order depth-first order via
+    :meth:`~roam_pub.roam_node.NodeTree.dfs`, attaching each node as a Rich
+    panel under its parent in the rendered tree.
 
     Args:
-        network: The collection of nodes to render.
+        tree: The :class:`~roam_pub.roam_node.NodeTree` to render.
         props: Ordered list of :class:`~roam_pub.roam_node.RoamNode` field names
             to include in each panel body.  Defaults to :data:`DEFAULT_PANEL_PROPS`.
 
     Returns:
-        One :class:`~rich.tree.Tree` per root node, in order.
+        A :class:`~rich.tree.Tree` rooted at the single root node of *tree*.
     """
-    logger.debug("network=%r, props=%r", network, props)
-    id_map: dict[Id, RoamNode] = {n.id: n for n in network}
-    roots: list[RoamNode] = sorted(
-        [n for n in network if is_root(n, network)],
-        key=lambda n: n.order if n.order is not None else 0,
-    )
-    trees: list[RichTree] = []
-    for root in roots:
-        rich_tree: RichTree = RichTree(make_panel(root, props))
-        _populate_subtree(root, rich_tree, id_map, props)
-        trees.append(rich_tree)
-    return trees
+    logger.debug("tree=%r, props=%r", tree, props)
+    child_to_parent: dict[Id, Id] = {c.id: n.id for n in tree.network if n.children for c in n.children}
+    rich_node_map: dict[Id, RichTree] = {}
+    dfs_iter: NodeTreeDFSIterator = tree.dfs()
+    root_node: RoamNode = next(dfs_iter)
+    root_rich: RichTree = RichTree(make_panel(root_node, props))
+    rich_node_map[root_node.id] = root_rich
+    for node in dfs_iter:
+        parent_rich: RichTree = rich_node_map[child_to_parent[node.id]]
+        rich_node_map[node.id] = parent_rich.add(make_panel(node, props))
+    return root_rich

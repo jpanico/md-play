@@ -5,6 +5,8 @@ Public symbols:
 - :class:`RoamNode` — raw shape of a pull-block as returned by the Roam Local API.
 - :data:`NodeNetwork` — a collection of :class:`RoamNode` instances.
 - :class:`NodeTree` — a Pydantic-typed wrapper holding a :data:`NodeNetwork`.
+- :meth:`NodeTree.dfs` — return a :class:`NodeTreeDFSIterator` for pre-order depth-first traversal.
+- :class:`NodeTreeDFSIterator` — pre-order depth-first iterator over a :class:`NodeTree`.
 - :func:`is_root` — return ``True`` when a node has no ancestors inside a :data:`NodeNetwork`.
 - :func:`has_single_root` — :data:`~roam_pub.validation.Validator` requiring exactly one root node.
 - :func:`all_children_present` — :data:`~roam_pub.validation.Validator` requiring all child ids in a
@@ -18,6 +20,8 @@ Public symbols:
 - :func:`is_tree` — validate all tree invariants against a :data:`NodeNetwork`; returns a
   :class:`~roam_pub.validation.ValidationResult`.
 """
+
+from collections.abc import Iterator
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -162,6 +166,69 @@ class NodeTree(BaseModel):
             messages = "; ".join(e.message for e in result.errors)
             raise ValueError(messages)
         return self
+
+    def dfs(self) -> NodeTreeDFSIterator:
+        """Return a pre-order depth-first iterator over this tree.
+
+        Returns:
+            A :class:`NodeTreeDFSIterator` seeded at the root of this tree.
+        """
+        return NodeTreeDFSIterator(self)
+
+
+class NodeTreeDFSIterator(Iterator[RoamNode]):
+    """Pre-order depth-first iterator over a :class:`NodeTree`.
+
+    Yields nodes starting from the single root, then recursively yields each
+    child subtree in ascending :attr:`~RoamNode.order` order.  The traversal
+    is non-recursive internally (stack-based), so deep trees do not risk
+    hitting Python's recursion limit.
+
+    Usage::
+
+        for node in NodeTreeDFSIterator(tree):
+            ...
+
+    Attributes:
+        _id_map: Mapping from :attr:`~RoamNode.id` to :class:`RoamNode`,
+            built once at construction time.
+        _stack: LIFO stack of nodes yet to be visited; initialized with the
+            root node.
+    """
+
+    def __init__(self, tree: NodeTree) -> None:
+        """Initialize the iterator from *tree*.
+
+        Builds an id-map over *tree.network* and seeds the stack with the
+        single root node.
+
+        Args:
+            tree: The :class:`NodeTree` to traverse.
+        """
+        self._id_map: dict[Id, RoamNode] = {n.id: n for n in tree.network}
+        root: RoamNode = next(n for n in tree.network if is_root(n, tree.network))
+        self._stack: list[RoamNode] = [root]
+
+    def __iter__(self) -> Iterator[RoamNode]:
+        """Return *self* (this object is its own iterator)."""
+        return self
+
+    def __next__(self) -> RoamNode:
+        """Return the next node in pre-order depth-first traversal.
+
+        Raises:
+            StopIteration: When all nodes have been yielded.
+        """
+        if not self._stack:
+            raise StopIteration
+        node: RoamNode = self._stack.pop()
+        if node.children:
+            children: list[RoamNode] = sorted(
+                [self._id_map[c.id] for c in node.children if c.id in self._id_map],
+                key=lambda n: n.order if n.order is not None else 0,
+            )
+            self._stack.extend(reversed(children))
+        return node
 
 
 def is_root(node: RoamNode, network: NodeNetwork) -> bool:

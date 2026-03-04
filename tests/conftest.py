@@ -1,5 +1,6 @@
 """Shared pytest configuration and test infrastructure for the roam_pub test suite."""
 
+import os
 import pathlib
 
 import pytest
@@ -35,6 +36,20 @@ def api_endpoint() -> ApiEndpoint:
     return ApiEndpoint(
         url=ApiEndpointURL(local_api_port=3333, graph_name="test-graph"),
         bearer_token="test-token",
+    )
+
+
+@pytest.fixture
+def live_api_endpoint() -> ApiEndpoint:
+    """Return a live :class:`~roam_pub.roam_local_api.ApiEndpoint` built from env vars.
+
+    Requires ``ROAM_LOCAL_API_PORT``, ``ROAM_GRAPH_NAME``, and ``ROAM_API_TOKEN``
+    to be set in the environment.  Intended for use in tests marked ``@pytest.mark.live``.
+    """
+    return ApiEndpoint.from_parts(
+        local_api_port=int(os.environ["ROAM_LOCAL_API_PORT"]),
+        graph_name=os.environ["ROAM_GRAPH_NAME"],
+        bearer_token=os.environ["ROAM_API_TOKEN"],
     )
 
 

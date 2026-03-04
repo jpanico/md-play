@@ -336,21 +336,18 @@ class TestFetchRoamNodesFetchByPageTitle:
 
     @pytest.mark.live
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
-    def test_fetch_testarticle(self) -> None:
+    def test_fetch_testarticle(self, live_api_endpoint: ApiEndpoint) -> None:
         """Live test: fetch all descendant blocks of a page and compare with fixture.
 
         Transient fields (``time``, ``user``, ``open``, ``sidebar``, ``lookup``,
         ``seen_by``) are excluded from the comparison because they change with
         normal Roam activity and are not meaningful for structural correctness.
         """
-        live_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
-            local_api_port=int(os.environ["ROAM_LOCAL_API_PORT"]),
-            graph_name=os.environ["ROAM_GRAPH_NAME"],
-            bearer_token=os.environ["ROAM_API_TOKEN"],
-        )
         page_title = "Test Article 0"
 
-        nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(page_title=page_title, api_endpoint=live_endpoint)
+        nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
+            page_title=page_title, api_endpoint=live_api_endpoint
+        )
         logger.debug("nodes: %s", nodes)
 
         fixture_nodes = article0_node_tree().network
@@ -383,6 +380,31 @@ class TestFetchRoamNodesFetchByNodeUid:
             nodes: list[RoamNode] = FetchRoamNodes.fetch_by_node_uid(node_uid="wdMgyBiP9", api_endpoint=api_endpoint)
 
         assert nodes == []
+
+    @pytest.mark.live
+    @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
+    def test_live_fetch_by_node_uid(self, live_api_endpoint: ApiEndpoint) -> None:
+        """Live test: fetch the wdMgyBiP9 subtree and compare with the fixture hierarchy.
+
+        The ``wdMgyBiP9`` node (Section 2) has four descendants in the
+        ``test_article_0_nodes.yaml`` fixture: Section 2.1 (``drtANJYTg``),
+        Section 2.1.1 (``yFUau9Cpg``), Section 2.1.1.1 (``bxkcECGwN``), and
+        Section 2.2 (``5f1ahOFdp``).  Transient fields are excluded from the
+        comparison.
+        """
+        node_uid = "wdMgyBiP9"
+        section2_uids: set[str] = {"wdMgyBiP9", "drtANJYTg", "5f1ahOFdp", "yFUau9Cpg", "bxkcECGwN"}
+
+        all_fixture_nodes = article0_node_tree().network
+        expected_nodes: list[RoamNode] = [n for n in all_fixture_nodes if n.uid in section2_uids]
+
+        nodes: list[RoamNode] = FetchRoamNodes.fetch_by_node_uid(node_uid=node_uid, api_endpoint=live_api_endpoint)
+        logger.debug("nodes: %s", nodes)
+
+        assert {n.uid for n in nodes} == section2_uids
+        assert [_stable_node_dict(n) for n in sorted(nodes, key=lambda n: n.uid)] == [
+            _stable_node_dict(n) for n in sorted(expected_nodes, key=lambda n: n.uid)
+        ]
 
     def test_fetch_by_node_uid_returns_node_and_descendants(self, api_endpoint: ApiEndpoint) -> None:
         """Test that fetch_by_node_uid returns the root node and all its descendants.

@@ -174,7 +174,7 @@ class TestFetchRoamSchemaFetch:
 
     @pytest.mark.live
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
-    def test_live_schema_matches_enum(self) -> None:
+    def test_live_schema_matches_enum(self, live_api_endpoint: ApiEndpoint) -> None:
         """Live test: fetched schema must exactly match the RoamAttribute enum.
 
         Fails with a diff when either direction of drift is detected:
@@ -184,14 +184,8 @@ class TestFetchRoamSchemaFetch:
         - :class:`RoamAttribute` has stale members absent from the live graph
           (enum needs old members removed).
         """
-        live_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
-            local_api_port=int(os.environ["ROAM_LOCAL_API_PORT"]),
-            graph_name=os.environ["ROAM_GRAPH_NAME"],
-            bearer_token=os.environ["ROAM_API_TOKEN"],
-        )
-
         try:
-            fetched: RoamSchema = FetchRoamSchema.fetch(live_endpoint)
+            fetched: RoamSchema = FetchRoamSchema.fetch(live_api_endpoint)
         except ValueError as exc:
             pytest.fail(f"Live schema contains attribute(s) not in RoamAttribute enum: {exc}")
 
@@ -213,15 +207,9 @@ class TestFetchRoamSchemaFetch:
 
     @pytest.mark.live
     @pytest.mark.skipif(not os.getenv("ROAM_LIVE_TESTS"), reason="requires Roam Desktop app running locally")
-    def test_live_fetch(self) -> None:
+    def test_live_fetch(self, live_api_endpoint: ApiEndpoint) -> None:
         """Live test: fetch the real Datomic schema from a running Roam graph."""
-        live_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
-            local_api_port=int(os.environ["ROAM_LOCAL_API_PORT"]),
-            graph_name=os.environ["ROAM_GRAPH_NAME"],
-            bearer_token=os.environ["ROAM_API_TOKEN"],
-        )
-
-        schema: RoamSchema = FetchRoamSchema.fetch(live_endpoint)
+        schema: RoamSchema = FetchRoamSchema.fetch(live_api_endpoint)
 
         assert isinstance(schema, list)
         assert len(schema) > 0

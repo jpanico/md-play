@@ -359,7 +359,7 @@ class TestFetchRoamNodesFetch:
             graph_name=os.environ["ROAM_GRAPH_NAME"],
             bearer_token=os.environ["ROAM_API_TOKEN"],
         )
-        page_title = "Test Article"
+        page_title = "Test Article 0"
 
         nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(page_title=page_title, api_endpoint=live_endpoint)
         logger.debug("nodes: %s", nodes)

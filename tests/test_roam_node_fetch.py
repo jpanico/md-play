@@ -366,7 +366,7 @@ class TestFetchRoamNodesFetch:
 
         fixture_nodes: list[RoamNode] = [
             RoamNode.model_validate(raw)
-            for raw in yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
+            for raw in yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
         ]
 
         assert [_stable_node_dict(n) for n in sorted(nodes, key=lambda n: n.uid)] == [

@@ -21,7 +21,7 @@ _FIXTURES_YAML_DIR = pathlib.Path(__file__).parent / "fixtures" / "yaml"
 
 def _article_vertex_tree() -> VertexTree:
     """Load and return the test_article VertexTree from its YAML fixture."""
-    raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_vertices.yaml").read_text())
+    raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_0_vertices.yaml").read_text())
     return VertexTree(vertices=[vertex_adapter.validate_python(r) for r in raw])
 
 

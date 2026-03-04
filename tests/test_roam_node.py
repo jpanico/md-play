@@ -558,8 +558,8 @@ class TestNodeTree:
     """Tests for NodeTree."""
 
     def test_article_fixture_is_valid_tree(self) -> None:
-        """Test that test_article_nodes.yaml constructs a valid NodeTree without raising."""
-        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
+        """Test that test_article_0_nodes.yaml constructs a valid NodeTree without raising."""
+        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
         network: NodeNetwork = [RoamNode.model_validate(r) for r in raw]
         node_tree = NodeTree(network=network)
         assert node_tree.network == network
@@ -706,14 +706,14 @@ class TestNodeTreeDFSIterator:
 
     def test_article_fixture_root_is_first(self) -> None:
         """Test that the root node is the first node yielded from the article fixture."""
-        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
+        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
         tree = NodeTree(network=[RoamNode.model_validate(r) for r in raw])
         first: RoamNode = next(iter(NodeTreeDFSIterator(tree)))
         assert is_root(first, tree.network)
 
     def test_article_fixture_yields_all_nodes(self) -> None:
         """Test that the iterator yields every node in the article fixture exactly once."""
-        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
+        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
         tree = NodeTree(network=[RoamNode.model_validate(r) for r in raw])
         yielded: list[RoamNode] = list(NodeTreeDFSIterator(tree))
         assert len(yielded) == len(tree.network)
@@ -721,7 +721,7 @@ class TestNodeTreeDFSIterator:
 
     def test_article_fixture_parent_always_precedes_children(self) -> None:
         """Test that every parent node appears before all of its children in the traversal."""
-        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
+        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
         tree = NodeTree(network=[RoamNode.model_validate(r) for r in raw])
         id_map: dict[Id, RoamNode] = {n.id: n for n in tree.network}
         yielded: list[RoamNode] = list(NodeTreeDFSIterator(tree))
@@ -750,7 +750,7 @@ class TestNodeTreeDFSIterator:
           3330  — Section 3         (order=2, child of root)
           3333  — Section 3.1       (order=0, child of 3330)
         """
-        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text())
+        raw: list[dict[str, object]] = yaml.safe_load((_FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
         tree = NodeTree(network=[RoamNode.model_validate(r) for r in raw])
         expected_ids: list[Id] = [3327, 3328, 3331, 3334, 3336, 4029, 3329, 3332, 4025, 4028, 4026, 3330, 3333]
         assert [n.id for n in NodeTreeDFSIterator(tree)] == expected_ids

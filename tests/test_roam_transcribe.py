@@ -550,9 +550,9 @@ class TestTranscribeArticleFixture:
     """End-to-end fixture test: transcribe the Test Article NodeNetwork and compare to the vertex fixture."""
 
     def test_transcribe_article_nodes_matches_vertex_fixture(self) -> None:
-        """Test that transcribing test_article_nodes.yaml produces the vertices in test_article_vertices.yaml."""
+        """Test that transcribing test_article_0_nodes.yaml produces the vertices in test_article_0_vertices.yaml."""
         raw_nodes: list[dict[str, object]] = yaml.safe_load(
-            (_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text()
+            (_FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text()
         )
         nodes: list[RoamNode] = [RoamNode.model_validate(r) for r in raw_nodes]
         id_map: dict[Id, RoamNode] = {n.id: n for n in nodes}
@@ -560,7 +560,7 @@ class TestTranscribeArticleFixture:
         actual_vertices: list[Vertex] = [transcribe_node(n, id_map) for n in nodes]
 
         raw_vertices: list[dict[str, object]] = yaml.safe_load(
-            (_FIXTURES_YAML_DIR / "test_article_vertices.yaml").read_text()
+            (_FIXTURES_YAML_DIR / "test_article_0_vertices.yaml").read_text()
         )
         expected_vertices: list[Vertex] = [vertex_adapter.validate_python(r) for r in raw_vertices]
 
@@ -577,14 +577,14 @@ class TestTranscribeArticleFixture:
     def test_article_node_tree_transcribes_to_vertex_tree(self) -> None:
         """Transcribing the Test Article NodeTree via transcribe() produces the expected VertexTree."""
         raw_nodes: list[dict[str, object]] = yaml.safe_load(
-            (_FIXTURES_YAML_DIR / "test_article_nodes.yaml").read_text()
+            (_FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text()
         )
         node_tree = NodeTree(network=[RoamNode.model_validate(r) for r in raw_nodes])
 
         vertex_tree = transcribe(node_tree)
 
         raw_vertices: list[dict[str, object]] = yaml.safe_load(
-            (_FIXTURES_YAML_DIR / "test_article_vertices.yaml").read_text()
+            (_FIXTURES_YAML_DIR / "test_article_0_vertices.yaml").read_text()
         )
         expected: list[Vertex] = [vertex_adapter.validate_python(r) for r in raw_vertices]
 

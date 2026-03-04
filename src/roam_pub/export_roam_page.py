@@ -143,6 +143,10 @@ def main(
         logger.error("Error fetching page %r: %s", page_title, e)
         raise typer.Exit(code=1)
 
+    if not nodes:
+        logger.info("No Roam page found with title %r — nothing to export.", page_title)
+        raise typer.Exit(code=1)
+
     node_tree: NodeTree = NodeTree(network=nodes)
     vertex_tree: VertexTree = transcribe(node_tree)
     logger.debug("vertex_tree=%r", vertex_tree)

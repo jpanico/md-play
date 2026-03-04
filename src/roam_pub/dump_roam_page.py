@@ -140,6 +140,10 @@ def main(
         logger.error(f"Error fetching page '{page_title}': {e}")
         raise typer.Exit(code=1)
 
+    if not nodes:
+        logger.info("No Roam page found with title %r — nothing to dump.", page_title)
+        raise typer.Exit(code=1)
+
     effective_props: list[str] = (
         [p.strip() for p in node_props.split(",")] if node_props is not None else list(DEFAULT_NODE_PANEL_PROPS)
     )

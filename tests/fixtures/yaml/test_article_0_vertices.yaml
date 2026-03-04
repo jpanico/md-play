@@ -59,8 +59,9 @@
   children:
   - yFUau9Cpg
 - uid: 5f1ahOFdp
-  vertex_type: roam/text-content
+  vertex_type: roam/heading
   text: Section 2.2
+  heading: 3
 - uid: 6olpFWiw1
   vertex_type: roam/page
   title: Test Article 0

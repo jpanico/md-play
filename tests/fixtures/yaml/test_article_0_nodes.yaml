@@ -213,7 +213,7 @@
     id: 0
   string: Section 2.2
   order: 1
-  heading: null
+  heading: 3
   children: null
   refs: null
   page:

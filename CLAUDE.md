@@ -12,9 +12,8 @@ pip install -e ".[dev]"
 
 ## Key Commands
 ```bash
-bundle-roam-md -m <file> -p <port> -g <graph> -t <token> -o <output_dir>
 dump-roam-page "Page Title" -p <port> -g <graph> -t <token> [--mode v|n|vn] [--node-props <props>]
-export-roam-page "Page Title" -p <port> -g <graph> -t <token> -o <output_dir>
+export-roam-page "Page Title" -p <port> -g <graph> -t <token> -o <output_dir> [--bundle|--no-bundle] [--cache-dir <dir>]
 
 # Run the full check pipeline (format + lint + type check + tests) in one shot:
 hatch run check
@@ -31,9 +30,8 @@ pytest                            # run tests
 ## Project Structure
 - `src/roam_pub/` — main package
   - **CLI entry points**
-    - `bundle_roam_md.py` — bundles a Roam export + Firestore images into `.mdbundle`
     - `dump_roam_page.py` — dumps a Roam page as a Rich tree to the terminal (`--mode v|n|vn`)
-    - `export_roam_page.py` — exports a Roam page to a CommonMark `.md` file (`export-roam-page`)
+    - `export_roam_page.py` — exports a Roam page to a `.mdbundle` (default) or plain `.md` (`--no-bundle`) (`export-roam-page`)
   - **Core logic**
     - `roam_md_bundle.py` — core bundling logic
     - `roam_md_normalize.py` — normalizes Roam-flavored Markdown strings to CommonMark
@@ -54,7 +52,7 @@ pytest                            # run tests
     - `roam_asset_fetch.py` — fetches Firestore assets via Local API
   - **Infrastructure**
     - `logging_config.py` — colorized logging (`configure_logging()`); reads `LOG_LEVEL` env var
-- `scripts/` — shell wrapper scripts (`dump-roam-page.sh`, `bundle-roam-md.sh`)
+- `scripts/` — shell wrapper scripts (`dump-roam-page.sh`, `export-roam-page.sh`)
 - `tests/fixtures/` — sample markdown, images, JSON, YAML for tests
 
 ## Conventions
@@ -84,4 +82,4 @@ All code written or modified by Claude MUST follow these conventions — no exce
 - `ROAM_GRAPH_NAME` — Roam graph name (all CLI tools)
 - `ROAM_API_TOKEN` — bearer token for auth (all CLI tools)
 - `ROAM_EXPORT_DIR` — output directory for `export-roam-page`
-- `ROAM_CACHE_DIR` — directory for caching downloaded Cloud Firestore assets (`bundle-roam-md`)
+- `ROAM_CACHE_DIR` — directory for caching downloaded Cloud Firestore assets (`export-roam-page`)

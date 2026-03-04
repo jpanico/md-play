@@ -56,7 +56,7 @@ pytest -v
 
 To run a specific test file:
 ```bash
-pytest tests/test_roam_asset.py
+pytest tests/test_roam_asset_fetch.py
 ```
 
 #### Live Integration Tests
@@ -134,9 +134,8 @@ roam-pub/
 ├── src/
 │   └── roam_pub/                  # Main package
 │       ├── __init__.py
-│       ├── bundle_roam_md.py      # CLI: bundle a Roam export + images into .mdbundle
 │       ├── dump_roam_page.py      # CLI: dump a Roam page as a Rich tree to the terminal
-│       ├── export_roam_page.py    # CLI: export a Roam page to a CommonMark .md file
+│       ├── export_roam_page.py    # CLI: export a Roam page to a .mdbundle or plain .md
 │       ├── roam_md_bundle.py      # Core bundling logic
 │       ├── roam_md_normalize.py   # Normalize Roam-flavored Markdown to CommonMark
 │       ├── roam_transcribe.py     # Transcribe NodeTree → VertexTree (applies normalize())
@@ -155,7 +154,6 @@ roam-pub/
 │       └── logging_config.py      # Colorized logging; reads LOG_LEVEL env var
 ├── tests/                         # pytest test suite
 │   ├── fixtures/                  # Sample markdown, images, JSON, YAML
-│   ├── test_bundle_roam_md_cli.py
 │   ├── test_roam_asset_fetch.py
 │   ├── test_roam_graph.py
 │   ├── test_roam_local_api.py
@@ -167,8 +165,8 @@ roam-pub/
 │   ├── test_roam_schema_fetch.py
 │   └── test_roam_transcribe.py
 ├── scripts/
-│   ├── bundle-roam-md.sh           # Shell wrapper for bundle-roam-md
 │   ├── dump-roam-page.sh           # Shell wrapper for dump-roam-page
+│   ├── export-roam-page.sh         # Shell wrapper for export-roam-page
 │   ├── setup-mdbundle-handler.sh   # Setup .mdbundle auto-open in Typora
 │   └── refresh-mdbundle-folders.sh # Refresh existing .mdbundle folders
 ├── docs/
@@ -184,28 +182,37 @@ roam-pub/
 
 ## Usage
 
-The package provides three command-line utilities.
+The package provides two command-line utilities.
 
 ### `export-roam-page` — Export a Roam page to CommonMark
 
-Fetches a named Roam page via the Local API, normalizes it, and writes a CommonMark `.md` file to the output directory.
+Fetches a named Roam page via the Local API, normalizes it, and writes the result to the output directory. By default it creates a `.mdbundle` directory containing the CommonMark document and any downloaded Cloud Firestore images. Pass `--no-bundle` to write a plain `.md` file instead.
 
 ```bash
-export-roam-page "My Page" -p <port> -g <graph> -t <token> -o <output_dir>
+export-roam-page "My Page" -p <port> -g <graph> -t <token> -o <output_dir> [--bundle|--no-bundle] [--cache-dir <dir>]
 ```
 
-Example:
+Example — bundled output (default):
 ```bash
 export-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token -o ~/docs
+# → creates ~/docs/Test_Article.mdbundle/
 ```
 
-Supported environment variables (same as `bundle-roam-md`):
+Example — plain `.md` output:
+```bash
+export-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token -o ~/docs --no-bundle
+# → creates ~/docs/Test Article.md
+```
+
+Supported environment variables:
 ```bash
 export ROAM_LOCAL_API_PORT=3333
 export ROAM_GRAPH_NAME=SCFH
 export ROAM_API_TOKEN=your-bearer-token
+export ROAM_EXPORT_DIR=~/docs
+export ROAM_CACHE_DIR=~/.cache/roam   # optional: skip re-downloading unchanged images
 
-export-roam-page "Test Article" -o ~/docs
+export-roam-page "Test Article"
 ```
 
 ### `dump-roam-page` — Inspect a Roam page as a Rich tree
@@ -225,85 +232,6 @@ Example:
 ```bash
 dump-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token --mode vn
 ```
-
-### `bundle-roam-md` — Bundle a Roam markdown export with its images
-
-The package provides the `bundle-roam-md` command-line utility for bundling Roam Research markdown files with their Cloud Firestore-hosted images.
-
-**Method 1: Using the installed command (recommended)**
-
-After installing the package with `pip install -e ".[dev]"`, you can use the installed command with named arguments:
-
-```bash
-bundle-roam-md --markdown-file <file> --port <port> --graph <name> --token <token> --output <dir>
-```
-
-Example with long flags:
-```bash
-bundle-roam-md --markdown-file my_notes.md --port 3333 --graph SCFH --token your-bearer-token --output ./output
-```
-
-Example with short flags:
-```bash
-bundle-roam-md -m my_notes.md -p 3333 -g SCFH -t your-bearer-token -o ./output
-```
-
-**Using Environment Variables**
-
-To avoid passing sensitive tokens on the command line, you can use environment variables:
-
-```bash
-export ROAM_LOCAL_API_PORT=3333
-export ROAM_GRAPH_NAME=SCFH
-export ROAM_API_TOKEN=your-bearer-token
-
-# Now you can omit these flags
-bundle-roam-md -m my_notes.md -o ./output
-```
-
-Supported environment variables:
-- `ROAM_LOCAL_API_PORT` — Port for Roam Local API
-- `ROAM_GRAPH_NAME` — Name of the Roam graph
-- `ROAM_API_TOKEN` — Bearer token for authentication
-
-Command-line arguments always override environment variables.
-
-**Method 2: Using the shell wrapper script**
-
-For direct execution without activating the virtual environment:
-
-```bash
-./bundle-roam-md.sh --markdown-file <file> --port <port> --graph <name> --token <token> --output <dir>
-```
-
-Example:
-```bash
-./bundle-roam-md.sh -m my_notes.md -p 3333 -g SCFH -t your-bearer-token -o ./output
-```
-
-**Getting help:**
-
-```bash
-bundle-roam-md --help
-# or
-./bundle-roam-md.sh --help
-```
-
-### What it does
-
-The script:
-1. Reads a Roam Research markdown file
-2. Finds all Cloud Firestore-hosted images (`firebasestorage.googleapis.com` URLs)
-3. Fetches each image via the Roam Local API
-4. Saves images locally in a `.mdbundle` directory
-5. Updates the markdown file with local image references
-6. Performs cleanup: normalizes link text and removes escaped brackets
-
-### Output
-
-Creates a directory named `<markdown_file>.mdbundle/` containing:
-- Updated markdown file with local image references
-- All downloaded images
 
 ### macOS Integration: Auto-Open in Typora
 

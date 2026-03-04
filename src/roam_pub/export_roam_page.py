@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""CLI tool for exporting a Roam Research page to a CommonMark ``.mdbundle``.
+"""CLI tool for exporting a Roam Research page to CommonMark.
 
 Fetches all descendant blocks of a named page via the Roam Local API,
 transcribes them into a :class:`~roam_pub.roam_graph.VertexTree`, renders
-the tree to a CommonMark document via
-:func:`~roam_pub.roam_render_md.render`, and bundles the result (with any
-Cloud Firestore images) into ``<output_dir>/<page_title>.mdbundle/`` via
-:func:`~roam_pub.roam_md_bundle.bundle_md_document`.
+the tree to a CommonMark document via :func:`~roam_pub.roam_render_md.render`,
+then writes the result in one of two modes controlled by ``--bundle/--no-bundle``:
+
+- **Bundle mode** (default, ``--bundle``) — fetches any Cloud Firestore images
+  referenced in the document and writes a self-contained
+  ``<output_dir>/<page_title>.mdbundle/`` directory via
+  :func:`~roam_pub.roam_md_bundle.bundle_md_document`.  Pass ``--cache-dir``
+  to avoid re-downloading unchanged assets across runs.
+- **Plain mode** (``--no-bundle``) — writes the rendered CommonMark text
+  directly to ``<output_dir>/<page_title>.md`` without fetching any images.
 
 Logging is colorized by level via :mod:`roam_pub.logging_config` and
 configurable via the ``LOG_LEVEL`` environment variable (default: ``INFO``).
@@ -20,6 +26,8 @@ Public symbols:
 Example::
 
     export-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token -o ~/docs
+    export-roam-page "Test Article" -p 3333 -g SCFH -t tok -o ~/docs --cache-dir ~/.roam-cache
+    export-roam-page "Test Article" -p 3333 -g SCFH -t tok -o ~/docs --no-bundle
     export-roam-page "Test Article"  # reads all options from env vars
 """
 
@@ -106,12 +114,12 @@ def main(
         ),
     ] = None,
 ) -> None:
-    """Export a Roam Research page to a CommonMark ``.mdbundle``.
+    """Export a Roam Research page to CommonMark.
 
-    Fetches all descendant blocks of PAGE_TITLE, transcribes them into a
-    normalized VertexTree, renders the tree to CommonMark, and bundles the
-    result (with any Cloud Firestore images) into
-    OUTPUT_DIR/<page_title>.mdbundle/.
+    Fetches all descendant blocks of PAGE_TITLE, transcribes them, and renders
+    the result to CommonMark.  With ``--bundle`` (default) the output is written
+    to OUTPUT_DIR/<page_title>.mdbundle/ with Cloud Firestore images downloaded
+    alongside; with ``--no-bundle`` a plain .md file is written instead.
     """
     logger.debug(
         "page_title=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, output_dir=%r, bundle=%r, cache_dir=%r",

@@ -1,7 +1,30 @@
-"""Functions for processing Roam Research Markdown files.
+r"""Core bundling logic for Roam Research Markdown documents and files.
 
-This module provides utilities for finding Cloud Firestore image links in Markdown files,
-fetching images via the Roam Local API, and updating Markdown files with local references.
+Provides utilities for finding Cloud Firestore image links in Markdown content,
+fetching the images via the Roam Local API, and writing self-contained
+``.mdbundle`` directories that contain the updated Markdown and all downloaded
+images.
+
+Public symbols:
+
+- :func:`find_markdown_image_links` — find all Cloud Firestore image links in a
+  Markdown string; return a list of ``(full_match, url)`` tuples.
+- :func:`fetch_and_save_image` — fetch a single image from Cloud Firestore via
+  the Local API and write it to a local directory; supports a file-based cache.
+- :func:`fetch_all_images` — fetch and save all images from a list of image
+  links; collect ``(url, local_filename)`` pairs for later URL replacement.
+- :func:`replace_image_links` — replace Cloud Firestore URLs with local
+  filenames in a Markdown string.
+- :func:`normalize_link_text` — remove line breaks from link text in Markdown
+  links.
+- :func:`remove_escaped_double_brackets` — strip escaped ``\\[\\[`` / ``\\]\\]``
+  bracket pairs from Markdown text (artefacts of Roam's export format).
+- :func:`create_bundle_directory` — create the ``.mdbundle`` output directory
+  for a Markdown file stem.
+- :func:`bundle_md_file` — end-to-end: read a Markdown file from disk, fetch
+  its Cloud Firestore images, and write a ``.mdbundle`` directory.
+- :func:`bundle_md_document` — end-to-end: accept a Markdown string, fetch its
+  Cloud Firestore images, and write a ``.mdbundle`` directory.
 """
 
 import hashlib

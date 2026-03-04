@@ -1,8 +1,8 @@
-"""Rich terminal-rendering utilities for Roam node trees.
+"""Rich terminal-rendering utilities for Roam node trees and vertex trees.
 
 Public symbols:
 
-- :data:`DEFAULT_PANEL_PROPS` — the property names rendered in a panel body by default.
+- :data:`DEFAULT_NODE_PANEL_PROPS` — the property names rendered in a panel body by default.
 - :func:`make_node_panel` — render a :class:`~roam_pub.roam_node.RoamNode` as a Rich
   :class:`~rich.panel.Panel`.
 - :func:`build_rich_node_tree` — build a Rich :class:`~rich.tree.Tree` from a
@@ -32,7 +32,7 @@ from roam_pub.roam_primitives import Id, IMAGE_LINK_RE, Uid
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PANEL_PROPS: list[str] = ["heading", "order", "children", "parents", "page"]
+DEFAULT_NODE_PANEL_PROPS: list[str] = ["heading", "order", "children", "parents", "page"]
 """Property names rendered in the panel body by :func:`make_node_panel` when no explicit list is given.
 
 ``string``/``title`` and ``id`` are always shown in the panel title and are not
@@ -94,7 +94,7 @@ def _format_node_prop(node: RoamNode, prop: str) -> str:
             return f"{prop}=?"
 
 
-def make_node_panel(node: RoamNode, props: list[str] = DEFAULT_PANEL_PROPS) -> Panel:
+def make_node_panel(node: RoamNode, props: list[str] = DEFAULT_NODE_PANEL_PROPS) -> Panel:
     """Render *node* as a Rich Panel for display in a terminal tree.
 
     The panel title always shows the block string or page title with the node
@@ -116,7 +116,7 @@ def make_node_panel(node: RoamNode, props: list[str] = DEFAULT_PANEL_PROPS) -> P
         props: Ordered list of :class:`~roam_pub.roam_node.RoamNode` field names
             to include.  Controls both the ``H{n}:`` title prefix (shown only when
             ``"heading"`` is present) and the body pairs (``heading`` itself is
-            never written to the body).  Defaults to :data:`DEFAULT_PANEL_PROPS`.
+            never written to the body).  Defaults to :data:`DEFAULT_NODE_PANEL_PROPS`.
 
     Returns:
         A :class:`~rich.panel.Panel` with a labelled title and metadata body.
@@ -133,7 +133,7 @@ def make_node_panel(node: RoamNode, props: list[str] = DEFAULT_PANEL_PROPS) -> P
     return Panel(Text(content), title=title, expand=False)
 
 
-def build_rich_node_tree(tree: NodeTree, props: list[str] = DEFAULT_PANEL_PROPS) -> RichTree:
+def build_rich_node_tree(tree: NodeTree, props: list[str] = DEFAULT_NODE_PANEL_PROPS) -> RichTree:
     """Build a Rich tree from *tree* using a depth-first traversal.
 
     Iterates *tree* in pre-order depth-first order via
@@ -143,7 +143,7 @@ def build_rich_node_tree(tree: NodeTree, props: list[str] = DEFAULT_PANEL_PROPS)
     Args:
         tree: The :class:`~roam_pub.roam_node.NodeTree` to render.
         props: Ordered list of :class:`~roam_pub.roam_node.RoamNode` field names
-            to include in each panel body.  Defaults to :data:`DEFAULT_PANEL_PROPS`.
+            to include in each panel body.  Defaults to :data:`DEFAULT_NODE_PANEL_PROPS`.
 
     Returns:
         A :class:`~rich.tree.Tree` rooted at the single root node of *tree*.

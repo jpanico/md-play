@@ -1,17 +1,28 @@
 #!/usr/bin/env python3
 """CLI tool for dumping a Roam Research page as a Rich tree to the terminal.
 
-Fetches all descendant blocks of a named page via the Roam Local API and
-renders them as a colorized :class:`~rich.tree.Tree` panel hierarchy.  Each
-block is displayed as a panel whose body lists selected
-:class:`~roam_pub.roam_node.RoamNode` fields, configurable via ``--node-props``
-(defaults to :data:`~roam_pub.rich.DEFAULT_PANEL_PROPS`).
+Fetches all descendant blocks of a named page via the Roam Local API,
+transcribes them into a :class:`~roam_pub.roam_graph.VertexTree`, and renders
+one or both of the following as a colorized :class:`~rich.tree.Tree` panel
+hierarchy:
+
+- **Vertex tree** (default, ``--mode v``) — normalized
+  :class:`~roam_pub.roam_graph.VertexTree` produced by
+  :func:`~roam_pub.roam_transcribe.transcribe`.
+- **Node tree** (``--mode n``) — raw :class:`~roam_pub.roam_node.NodeTree`
+  as returned by the Roam Local API; each panel body lists selected
+  :class:`~roam_pub.roam_node.RoamNode` fields, configurable via
+  ``--node-props`` (defaults to
+  :data:`~roam_pub.rich.DEFAULT_NODE_PANEL_PROPS`).
+- **Both** (``--mode vn``) — vertex tree followed by node tree.
 
 Logging is colorized by level via :mod:`roam_pub.logging_config` and
 configurable via the ``LOG_LEVEL`` environment variable (default: ``INFO``).
 
 Public symbols:
 
+- :class:`Mode` — ``StrEnum`` of output modes: ``v`` (vertex), ``n`` (node),
+  ``vn`` (both).
 - :data:`app` — the :class:`~typer.Typer` application instance.
 - :func:`main` — the CLI entry point; registered as the ``dump-roam-page``
   console script.
@@ -19,7 +30,7 @@ Public symbols:
 Example::
 
     dump-roam-page "Test Article" -p 3333 -g SCFH -t your-bearer-token
-    dump-roam-page "Test Article" -p 3333 -g SCFH -t tok --node-props heading,parents
+    dump-roam-page "Test Article" -p 3333 -g SCFH -t tok --mode n --node-props heading,parents
 """
 
 import enum
@@ -30,7 +41,7 @@ import typer
 from rich.console import Console
 from rich.tree import Tree as RichTree
 
-from roam_pub.rich import DEFAULT_PANEL_PROPS, build_rich_node_tree, build_rich_vertex_tree
+from roam_pub.rich import DEFAULT_NODE_PANEL_PROPS, build_rich_node_tree, build_rich_vertex_tree
 from roam_pub.roam_graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.logging_config import configure_logging
@@ -90,7 +101,7 @@ def main(
             help=(
                 "Comma-separated list of RoamNode property names to include in each panel body. "
                 f"Example: --node-props heading,parents. "
-                f"Defaults to: {','.join(DEFAULT_PANEL_PROPS)}."
+                f"Defaults to: {','.join(DEFAULT_NODE_PANEL_PROPS)}."
             ),
         ),
     ] = None,
@@ -104,8 +115,9 @@ def main(
 ) -> None:
     """Dump a Roam Research page as a Rich tree to the console.
 
-    Fetches all descendant blocks of PAGE_TITLE and renders them as a
-    formatted tree in the terminal.
+    Fetches all descendant blocks of PAGE_TITLE, transcribes them, and renders
+    the vertex tree, the raw node tree, or both, depending on ``--mode``
+    (default: vertex tree only).
     """
     logger.debug(
         "page_title=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, node_props=%r, mode=%r",
@@ -129,7 +141,7 @@ def main(
         raise typer.Exit(code=1)
 
     effective_props: list[str] = (
-        [p.strip() for p in node_props.split(",")] if node_props is not None else list(DEFAULT_PANEL_PROPS)
+        [p.strip() for p in node_props.split(",")] if node_props is not None else list(DEFAULT_NODE_PANEL_PROPS)
     )
     node_tree: NodeTree = NodeTree(network=nodes)
     vertex_tree: VertexTree = transcribe(node_tree)

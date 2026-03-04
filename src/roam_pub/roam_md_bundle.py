@@ -376,3 +376,56 @@ def bundle_md_file(
         logger.info(f"Successfully processed {len(url_replacements)} images")
     else:
         logger.warning("No images were successfully fetched")
+
+
+@validate_call
+def bundle_md_document(
+    md_text: str,
+    document_name: str,
+    output_dir: Path,
+    api_endpoint: ApiEndpoint,
+    cache_dir: Path | None = None,
+) -> None:
+    """Bundle a Markdown document string with its referenced Cloud Firestore images.
+
+    Accepts the Markdown content as a string rather than reading from a file on disk.
+    Fetches and saves Cloud Firestore-hosted images found in the text, rewrites the image
+    links to use local filenames, and writes the updated document into a new
+    ``<document_name>.mdbundle/`` directory inside ``output_dir``.
+
+    Args:
+        md_text: The Markdown content to bundle.
+        document_name: Name used to derive the bundle directory and output filename
+            (e.g. a Roam page title). POSIX-normalized before use.
+        output_dir: Parent directory where the ``.mdbundle`` folder will be created.
+        api_endpoint: The Roam Local API endpoint (URL + bearer token).
+        cache_dir: Optional directory for caching downloaded assets across runs.
+
+    Raises:
+        ValidationError: If any parameter is ``None`` or fails Pydantic validation.
+        Exception: If image fetching or writing fails.
+    """
+    bundle_dir_stem: str = _normalize_for_posix(document_name)
+    bundle_dir_name: str = f"{bundle_dir_stem}.mdbundle"
+    bundle_dir: Path = output_dir / bundle_dir_name
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("Created bundle directory: %s", bundle_dir)
+
+    image_links: list[tuple[str, HttpUrl]] = find_markdown_image_links(md_text)
+
+    if not image_links:
+        logger.info("No Cloud Firestore image links found in the document")
+        return
+
+    url_replacements: list[tuple[HttpUrl, str]] = fetch_all_images(image_links, api_endpoint, bundle_dir, cache_dir)
+
+    if url_replacements:
+        updated_text: str = replace_image_links(md_text, url_replacements)
+        # updated_text = normalize_link_text(updated_text)
+        # updated_text = remove_escaped_double_brackets(updated_text)
+        output_file: Path = bundle_dir / f"{bundle_dir_stem}.md"
+        output_file.write_text(updated_text, encoding="utf-8")
+        logger.info("Wrote updated Markdown to: %s", output_file)
+        logger.info("Successfully processed %d images", len(url_replacements))
+    else:
+        logger.warning("No images were successfully fetched")

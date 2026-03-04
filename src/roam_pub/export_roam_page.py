@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""CLI tool for exporting a Roam Research page to a CommonMark document.
+"""CLI tool for exporting a Roam Research page to a CommonMark ``.mdbundle``.
 
 Fetches all descendant blocks of a named page via the Roam Local API,
 transcribes them into a :class:`~roam_pub.roam_graph.VertexTree`, renders
 the tree to a CommonMark document via
-:func:`~roam_pub.roam_render_md.render`, and writes the result to
-``<output_dir>/<page_title>.md``.
+:func:`~roam_pub.roam_render_md.render`, and bundles the result (with any
+Cloud Firestore images) into ``<output_dir>/<page_title>.mdbundle/`` via
+:func:`~roam_pub.roam_md_bundle.bundle_md_document`.
 
 Logging is colorized by level via :mod:`roam_pub.logging_config` and
 configurable via the ``LOG_LEVEL`` environment variable (default: ``INFO``).
@@ -31,6 +32,7 @@ import typer
 from roam_pub.logging_config import configure_logging
 from roam_pub.roam_graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
+from roam_pub.roam_md_bundle import bundle_md_document
 from roam_pub.roam_node import NodeTree, RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
 from roam_pub.roam_render_md import render
@@ -81,20 +83,45 @@ def main(
             help="Directory to write the exported CommonMark document into.",
         ),
     ],
+    bundle: Annotated[
+        bool,
+        typer.Option(
+            "--bundle/--no-bundle",
+            help=(
+                "When enabled (default), fetches Cloud Firestore images and writes a "
+                ".mdbundle directory. When disabled, writes a plain .md file instead."
+            ),
+        ),
+    ] = True,
+    cache_dir: Annotated[
+        pathlib.Path | None,
+        typer.Option(
+            "--cache-dir",
+            "-c",
+            envvar="ROAM_CACHE_DIR",
+            help=(
+                "Directory for caching downloaded Cloud Firestore assets across runs. "
+                "Skips re-downloading unchanged assets."
+            ),
+        ),
+    ] = None,
 ) -> None:
-    """Export a Roam Research page to a CommonMark document.
+    """Export a Roam Research page to a CommonMark ``.mdbundle``.
 
     Fetches all descendant blocks of PAGE_TITLE, transcribes them into a
-    normalized VertexTree, renders the tree to CommonMark, and writes the
-    result to OUTPUT_DIR/<page_title>.md.
+    normalized VertexTree, renders the tree to CommonMark, and bundles the
+    result (with any Cloud Firestore images) into
+    OUTPUT_DIR/<page_title>.mdbundle/.
     """
     logger.debug(
-        "page_title=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, output_dir=%r",
+        "page_title=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, output_dir=%r, bundle=%r, cache_dir=%r",
         page_title,
         local_api_port,
         graph_name,
         api_bearer_token,
         output_dir,
+        bundle,
+        cache_dir,
     )
     api_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
         local_api_port=local_api_port,
@@ -114,10 +141,23 @@ def main(
 
     md_document: str = render(vertex_tree)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path: pathlib.Path = output_dir / f"{page_title}.md"
-    output_path.write_text(md_document)
-    logger.info("Wrote CommonMark document to %s", output_path)
+    if bundle:
+        try:
+            bundle_md_document(
+                md_text=md_document,
+                document_name=page_title,
+                output_dir=output_dir,
+                api_endpoint=api_endpoint,
+                cache_dir=cache_dir,
+            )
+        except Exception as e:
+            logger.error("Error bundling page %r: %s", page_title, e)
+            raise typer.Exit(code=1)
+    else:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path: pathlib.Path = output_dir / f"{page_title}.md"
+        output_path.write_text(md_document)
+        logger.info("Wrote CommonMark document to %s", output_path)
 
 
 if __name__ == "__main__":

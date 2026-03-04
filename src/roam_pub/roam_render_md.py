@@ -26,6 +26,7 @@ import logging
 
 from roam_pub.roam_graph import (
     HeadingVertex,
+    ImageVertex,
     PageVertex,
     TextContentVertex,
     Vertex,
@@ -82,37 +83,39 @@ def _render_children(children: VertexChildren, uid_map: dict[Uid, Vertex], depth
 def _render_vertex(vertex: Vertex, uid_map: dict[Uid, Vertex], depth: int, out: list[str]) -> None:
     """Render *vertex* and its subtree into *out* at *depth*.
 
-    Dispatches to type-specific rendering logic and recurses into children.
+    Dispatches to type-specific rendering logic via a ``match`` on the concrete
+    vertex class, then recurses into children.
 
     Args:
         vertex: The :data:`~roam_pub.roam_graph.Vertex` to render.
         uid_map: Mapping from UID to :data:`~roam_pub.roam_graph.Vertex`.
         depth: Current tree depth (0 = page root, 1 = direct page child, …).
         out: Accumulator list of output lines.
+
+    Raises:
+        TypeError: If *vertex* is not one of the four known concrete
+            :data:`~roam_pub.roam_graph.Vertex` subclasses.
     """
     logger.debug("vertex=%r, depth=%d", vertex, depth)
-    if isinstance(vertex, PageVertex):
-        out.append(f"# {vertex.title}")
-        out.append("")
-        if vertex.children:
-            _render_children(vertex.children, uid_map, depth + 1, out)
-    elif isinstance(vertex, HeadingVertex):
-        out.append(f"{'#' * vertex.heading} {vertex.text}")
-        out.append("")
-        if vertex.children:
-            _render_children(vertex.children, uid_map, depth + 1, out)
-    elif isinstance(vertex, TextContentVertex):
-        if depth == 1:
-            out.append(vertex.text)
+    match vertex:
+        case PageVertex(title=title):
+            out.append(f"# {title}")
             out.append("")
-        else:
-            indent = "  " * (depth - 2)
-            out.append(f"{indent}- {vertex.text}")
-        if vertex.children:
-            _render_children(vertex.children, uid_map, depth + 1, out)
-    else:
-        alt = vertex.alt_text or ""
-        out.append(f"![{alt}]({vertex.source})")
-        out.append("")
-        if vertex.children:
-            _render_children(vertex.children, uid_map, depth + 1, out)
+        case HeadingVertex(heading=heading, text=text):
+            out.append(f"{'#' * heading} {text}")
+            out.append("")
+        case TextContentVertex(text=text):
+            if depth == 1:
+                out.append(text)
+                out.append("")
+            else:
+                indent = "  " * (depth - 2)
+                out.append(f"{indent}- {text}")
+        case ImageVertex(source=source, alt_text=alt_text):
+            alt = alt_text or ""
+            out.append(f"![{alt}]({source})")
+            out.append("")
+        case _:
+            raise TypeError(f"Unrecognized vertex type: {type(vertex).__name__!r} (uid={vertex.uid!r})")
+    if vertex.children:
+        _render_children(vertex.children, uid_map, depth + 1, out)

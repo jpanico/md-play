@@ -2,11 +2,13 @@
 
 Public symbols:
 
+- :class:`TargetKind` — enum distinguishing a page-title target from a node-UID target.
 - :class:`FetchRoamNodes` — stateless utility class that fetches all Roam nodes
   by various criteria via the Local API's ``data.q`` action, including
-  :meth:`~FetchRoamNodes.fetch_roam_nodes` which dispatches on target shape.
+  :meth:`~FetchRoamNodes.fetch_roam_nodes` which dispatches on :class:`TargetKind`.
 """
 
+import enum
 import logging
 import textwrap
 from typing import Final, final
@@ -20,9 +22,16 @@ from roam_pub.roam_local_api import (
     invoke_action,
 )
 from roam_pub.roam_node import RoamNode
-from roam_pub.roam_primitives import UID_RE, Uid
+from roam_pub.roam_primitives import Uid
 
 logger = logging.getLogger(__name__)
+
+
+class TargetKind(enum.Enum):
+    """Whether a fetch target is a Roam page title or a node UID."""
+
+    page = "page"
+    node = "node"
 
 
 @final
@@ -172,18 +181,18 @@ class FetchRoamNodes:
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
         local_api_response_payload: LocalApiResponse.Payload = invoke_action(request_payload, api_endpoint)
-        logger.debug(f"local_api_response_payload: {local_api_response_payload}")
+        logger.debug("local_api_response_payload: %s", local_api_response_payload)
 
         response_payload: FetchRoamNodes.Response.Payload = FetchRoamNodes.Response.Payload.model_validate(
             local_api_response_payload.model_dump(mode="json")
         )
-        logger.debug(f"response_payload: {response_payload}")
+        logger.debug("response_payload: %s", response_payload)
 
         # Datalog :find returns an array-of-arrays; (pull ...) value is at row[0]
         result: list[list[RoamNode]] = response_payload.result
         nodes: list[RoamNode] = [row[0] for row in result]
         if not nodes:
-            logger.info(f"no nodes found for {lookup_description}")
+            logger.info("no nodes found for %s", lookup_description)
         return nodes
 
     @staticmethod
@@ -211,7 +220,7 @@ class FetchRoamNodes:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug(f"api_endpoint: {api_endpoint}, page_title: {page_title!r}")
+        logger.debug("api_endpoint: %s, page_title: %r", api_endpoint, page_title)
         return FetchRoamNodes._fetch(
             FetchRoamNodes.Request.payload_by_page_title(page_title),
             api_endpoint,
@@ -244,7 +253,7 @@ class FetchRoamNodes:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug(f"api_endpoint: {api_endpoint}, node_uid: {node_uid!r}")
+        logger.debug("api_endpoint: %s, node_uid: %r", api_endpoint, node_uid)
         return FetchRoamNodes._fetch(
             FetchRoamNodes.Request.payload_by_node_uid(node_uid),
             api_endpoint,
@@ -252,15 +261,16 @@ class FetchRoamNodes:
         )
 
     @staticmethod
-    def fetch_roam_nodes(target: str, api_endpoint: ApiEndpoint) -> list[RoamNode]:
-        """Fetch Roam nodes by page title or node UID, dispatching on the shape of *target*.
+    def fetch_roam_nodes(target: str, target_kind: TargetKind, api_endpoint: ApiEndpoint) -> list[RoamNode]:
+        """Fetch Roam nodes by page title or node UID, dispatching on *target_kind*.
 
-        *target* is treated as a node UID and routed to :meth:`fetch_by_node_uid` if it
-        matches :data:`~roam_pub.roam_primitives.UID_RE`; otherwise it is treated as a page
-        title and routed to :meth:`fetch_by_page_title`.
+        Routes to :meth:`fetch_by_node_uid` when *target_kind* is
+        :attr:`~TargetKind.node`, or to :meth:`fetch_by_page_title` when it is
+        :attr:`~TargetKind.page`.
 
         Args:
             target: A Roam page title or nine-character node UID.
+            target_kind: Whether *target* is a page title or a node UID.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
         Returns:
@@ -270,6 +280,6 @@ class FetchRoamNodes:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        if UID_RE.match(target):
+        if target_kind is TargetKind.node:
             return FetchRoamNodes.fetch_by_node_uid(node_uid=target, api_endpoint=api_endpoint)
         return FetchRoamNodes.fetch_by_page_title(page_title=target, api_endpoint=api_endpoint)

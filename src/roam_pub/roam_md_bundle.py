@@ -97,7 +97,7 @@ def create_bundle_directory(markdown_file: Path, output_dir: Path) -> Path:
     bundle_dir_name: str = f"{bundle_dir_stem}.mdbundle"
     bundle_dir: Path = output_dir / bundle_dir_name
     bundle_dir.mkdir(parents=True, exist_ok=True)
-    logger.info(f"Created bundle directory: {bundle_dir}")
+    logger.info("Created bundle directory: %s", bundle_dir)
 
     return bundle_dir
 
@@ -123,7 +123,7 @@ def find_markdown_image_links(markdown_text: str) -> list[tuple[str, HttpUrl]]:
         image_url: HttpUrl = HttpUrl(image_url_str)  # Convert to HttpUrl
         matches.append((full_match, image_url))
 
-    logger.info(f"Found {len(matches)} Cloud Firestore image links")
+    logger.info("Found %d Cloud Firestore image links", len(matches))
     return matches
 
 
@@ -166,10 +166,10 @@ def fetch_and_save_image(
             cached_file: Path = cached_files[0]
             dest: Path = output_dir / cached_file.name
             shutil.copy2(cached_file, dest)
-            logger.info(f"Cache hit for {firebase_url} -> {cached_file.name}")
+            logger.info("Cache hit for %s -> %s", firebase_url, cached_file.name)
             return (firebase_url, cached_file.name)
 
-    logger.info(f"Fetching image from: {firebase_url}")
+    logger.info("Fetching image from: %s", firebase_url)
 
     # Fetch the file from Roam
     roam_asset: RoamAsset = FetchRoamAsset.fetch(api_endpoint=api_endpoint, firebase_url=firebase_url)
@@ -185,7 +185,7 @@ def fetch_and_save_image(
         cache_path: Path = cache_dir / cache_file_name
         with open(cache_path, "wb") as f:
             f.write(roam_asset.contents)
-        logger.info(f"Cached asset to: {cache_path}")
+        logger.info("Cached asset to: %s", cache_path)
         # Use the cache file name in the bundle so repeated runs produce identical output
         file_name = cache_file_name
 
@@ -194,7 +194,7 @@ def fetch_and_save_image(
     with open(output_path, "wb") as f:
         f.write(roam_asset.contents)
 
-    logger.info(f"Saved image to: {output_path}")
+    logger.info("Saved image to: %s", output_path)
 
     return (firebase_url, file_name)
 
@@ -230,7 +230,7 @@ def replace_image_links(markdown_text: str | None, url_replacements: list[tuple[
     for firebase_url, local_filename in url_replacements:
         # Replace the Cloud Firestore URL with the local filename (convert HttpUrl to string for replacement)
         updated_text = updated_text.replace(str(firebase_url), local_filename)
-        logger.info(f"Replaced {firebase_url} with {local_filename}")
+        logger.info("Replaced %s with %s", firebase_url, local_filename)
 
     return updated_text
 
@@ -321,7 +321,7 @@ def fetch_all_images(
             )
             url_replacements.append((firebase_url_result, local_filename))
         except Exception as e:
-            logger.error(f"Failed to fetch {firebase_url}: {e}")
+            logger.error("Failed to fetch %s: %s", firebase_url, e)
             # Continue with other images
 
     return url_replacements
@@ -362,7 +362,7 @@ def bundle_md_file(
 
     bundle_dir: Path = create_bundle_directory(markdown_file, output_dir)
 
-    logger.info(f"Processing Markdown file: {markdown_file}")
+    logger.info("Processing Markdown file: %s", markdown_file)
 
     # Read the Markdown file
     markdown_text: str = markdown_file.read_text(encoding="utf-8")
@@ -395,8 +395,8 @@ def bundle_md_file(
         # Write the updated Markdown file to the bundle directory
         output_file: Path = bundle_dir / f"{bundle_dir.stem}.md"
         output_file.write_text(updated_text, encoding="utf-8")
-        logger.info(f"Wrote updated Markdown to: {output_file}")
-        logger.info(f"Successfully processed {len(url_replacements)} images")
+        logger.info("Wrote updated Markdown to: %s", output_file)
+        logger.info("Successfully processed %d images", len(url_replacements))
     else:
         logger.warning("No images were successfully fetched")
 

@@ -30,6 +30,8 @@ Public symbols:
 
 - :class:`Mode` — ``StrEnum`` of output modes: ``v`` (vertex), ``n`` (node),
   ``vn`` (both).
+- :func:`dump_trees` — renders and prints a flat node list as Rich tree(s) to
+  the console.
 - :data:`app` — the :class:`~typer.Typer` application instance.
 - :func:`main` — the CLI entry point; registered as the ``dump-roam-tree``
   console script.
@@ -43,7 +45,7 @@ Example::
 
 import enum
 import logging
-from typing import Annotated
+from typing import Annotated, Final
 
 import typer
 from rich.console import Console
@@ -54,8 +56,8 @@ from roam_pub.roam_graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.logging_config import configure_logging
 from roam_pub.roam_node import NodeTree, RoamNode
-from roam_pub.roam_node_fetch import FetchRoamNodes
-from roam_pub.roam_primitives import UID_PATTERN
+from roam_pub.roam_node_fetch import FetchRoamNodes, TargetKind
+from roam_pub.roam_primitives import UID_PATTERN, UID_RE
 from roam_pub.roam_transcribe import transcribe
 
 configure_logging()
@@ -71,6 +73,40 @@ class Mode(enum.StrEnum):
 
 
 app = typer.Typer()
+
+
+def dump_trees(node_tree: NodeTree, vertex_tree: VertexTree, node_props: str | None, mode: Mode) -> None:
+    """Render and print a Roam node tree as Rich tree(s) to the console.
+
+    Prints the vertex tree, the raw node tree, or both, depending on *mode*.
+
+    Args:
+        node_tree: Raw :class:`~roam_pub.roam_node.NodeTree` as returned by the
+            Roam Local API.
+        vertex_tree: Normalized :class:`~roam_pub.roam_graph.VertexTree` produced
+            by :func:`~roam_pub.roam_transcribe.transcribe`.
+        node_props: Comma-separated list of :class:`~roam_pub.roam_node.RoamNode`
+            field names to include in each node panel body, or ``None`` to use
+            :data:`~roam_pub.rich.DEFAULT_NODE_PANEL_PROPS`.
+        mode: Which tree(s) to print — vertex only, node only, or both.
+    """
+    effective_props: list[str] = (
+        [p.strip() for p in node_props.split(",")] if node_props is not None else list(DEFAULT_NODE_PANEL_PROPS)
+    )
+    node_rich_tree: RichTree = build_rich_node_tree(node_tree, effective_props)
+    vertex_rich_tree: RichTree = build_rich_vertex_tree(vertex_tree)
+    logger.debug("vertex_rich_tree=%r", vertex_rich_tree)
+
+    console: Console = Console()
+    if mode in (Mode.vertex, Mode.both):
+        console.rule("[bold]Vertex Tree[/bold]")
+        console.print()
+        console.print(vertex_rich_tree)
+    if mode in (Mode.node, Mode.both):
+        console.rule("[bold]Node Tree[/bold]")
+        console.print()
+        console.print(node_rich_tree)
+        console.print()
 
 
 @app.command()
@@ -147,14 +183,18 @@ def main(
         node_props,
         mode,
     )
-    api_endpoint: ApiEndpoint = ApiEndpoint.from_parts(
+    api_endpoint: Final[ApiEndpoint] = ApiEndpoint.from_parts(
         local_api_port=local_api_port,
         graph_name=graph_name,
         bearer_token=api_bearer_token,
     )
 
+    target_kind: Final[TargetKind] = TargetKind.node if UID_RE.match(target) else TargetKind.page
+    logger.debug("target_kind=%r", target_kind)
     try:
-        nodes: list[RoamNode] = FetchRoamNodes.fetch_roam_nodes(target=target, api_endpoint=api_endpoint)
+        nodes: Final[list[RoamNode]] = FetchRoamNodes.fetch_roam_nodes(
+            target=target, target_kind=target_kind, api_endpoint=api_endpoint
+        )
     except Exception as e:
         logger.error("Error fetching %r: %s", target, e)
         raise typer.Exit(code=1)
@@ -163,26 +203,10 @@ def main(
         logger.info("No Roam nodes found for %r — nothing to dump.", target)
         raise typer.Exit(code=1)
 
-    effective_props: list[str] = (
-        [p.strip() for p in node_props.split(",")] if node_props is not None else list(DEFAULT_NODE_PANEL_PROPS)
-    )
-    node_tree: NodeTree = NodeTree(network=nodes)
-    vertex_tree: VertexTree = transcribe(node_tree)
-    logger.debug("vertex_tree=%r", vertex_tree)
-    node_rich_tree: RichTree = build_rich_node_tree(node_tree, effective_props)
-    vertex_rich_tree: RichTree = build_rich_vertex_tree(vertex_tree)
-    logger.debug("vertex_rich_tree=%r", vertex_rich_tree)
-
-    console: Console = Console()
-    if mode in (Mode.vertex, Mode.both):
-        console.rule("[bold]Vertex Tree[/bold]")
-        console.print()
-        console.print(vertex_rich_tree)
-    if mode in (Mode.node, Mode.both):
-        console.rule("[bold]Node Tree[/bold]")
-        console.print()
-        console.print(node_rich_tree)
-        console.print()
+    node_tree: Final[NodeTree] = NodeTree(network=nodes, is_rooted=target_kind is TargetKind.page)
+    vertex_tree: Final[VertexTree] = transcribe(node_tree)
+    logger.debug("node_tree=%r\n\nvertex_tree=%r", node_tree, vertex_tree)
+    dump_trees(node_tree=node_tree, vertex_tree=vertex_tree, node_props=node_props, mode=mode)
 
 
 if __name__ == "__main__":

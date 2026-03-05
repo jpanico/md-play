@@ -21,6 +21,7 @@ Public symbols:
   :class:`~roam_pub.validation.ValidationResult`.
 """
 
+import logging
 from collections.abc import Iterator
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -38,6 +39,8 @@ from roam_pub.roam_primitives import (
 )
 from roam_pub.roam_schema import RoamAttribute
 from roam_pub.validation import ValidationError, ValidationResult, validate_all
+
+logger = logging.getLogger(__name__)
 
 
 class RoamNode(BaseModel):
@@ -152,16 +155,18 @@ class NodeTree(BaseModel):
 
     Attributes:
         network: The constituent nodes of this tree.
+        is_rooted: Whether this tree has a single root node. Defaults to ``True``.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
 
     network: NodeNetwork = Field(..., description="The constituent nodes of this tree.")
+    is_rooted: bool = Field(default=True, description="Whether this tree has a single root node.")
 
     @model_validator(mode="after")
     def _validate_is_tree(self) -> NodeTree:
         """Raise ValueError if *network* fails any tree invariant checked by is_tree."""
-        result = is_tree(self.network)
+        result = is_tree(self.network, is_rooted=self.is_rooted)
         if not result.is_valid:
             messages = "; ".join(e.message for e in result.errors)
             raise ValueError(messages)
@@ -232,26 +237,31 @@ class NodeTreeDFSIterator(Iterator[RoamNode]):
 
 
 def is_root(node: RoamNode, network: NodeNetwork) -> bool:
-    """Return ``True`` when *node* has no parents.
+    """Return ``True`` when *node* has no ancestors inside *network*.
 
     A node is considered a root when its ``parents`` field is ``None`` or
-    empty.
+    empty, or when none of its parent ids resolve to a node in *network*.
 
     Args:
         node: The candidate node to test.
-        network: Unused; retained for call-site compatibility.
+        network: The collection of nodes used to resolve parent ids.
 
     Returns:
-        ``True`` if *node* has no parents; ``False`` otherwise.
+        ``True`` if *node* has no parents or no parents present in *network*;
+        ``False`` otherwise.
     """
-    return not node.parents
+    if not node.parents:
+        return True
+    network_ids: set[Id] = {n.id for n in network}
+    return not any(p.id in network_ids for p in node.parents)
 
 
 def has_single_root(network: NodeNetwork) -> ValidationError | None:
     """Return ``None`` when *network* contains exactly one root node.
 
-    A node is a root when its :attr:`~RoamNode.parents` field is ``None`` or
-    empty.  The validator fails if the root count is anything other than one.
+    A node is a root per :func:`is_root` — its :attr:`~RoamNode.parents` field is
+    ``None`` or empty, or none of its parent ids resolve to a node in *network*.
+    The validator fails if the root count is anything other than one.
 
     Args:
         network: The collection of nodes to validate.
@@ -294,7 +304,7 @@ def all_children_present(network: NodeNetwork) -> ValidationError | None:
     return ValidationError(message=f"child ids absent from network: {missing_ids}")
 
 
-def all_parents_present(network: NodeNetwork) -> ValidationError | None:
+def all_parents_present(network: NodeNetwork, *, is_rooted: bool = True) -> ValidationError | None:
     """Return ``None`` when every parent id referenced in *network* resolves to a node in *network*.
 
     Iterates every node in *network* and checks that each :attr:`~RoamNode.id`
@@ -304,16 +314,25 @@ def all_parents_present(network: NodeNetwork) -> ValidationError | None:
     A network with no parents at all vacuously satisfies this condition and
     returns ``None``.
 
+    When *is_rooted* is ``False``, root nodes (those for which :func:`is_root` returns
+    ``True``) are excluded from the check, because their parents may legitimately
+    reside outside the network.
+
     Args:
         network: The collection of nodes to examine.
+        is_rooted: When ``True`` (default), every node's parents must be present in
+            *network*.  When ``False``, root nodes are exempt from the check.
 
     Returns:
-        ``None`` if every parent id in *network* resolves to a node in *network*;
-        a :class:`~roam_pub.validation.ValidationError` listing the sorted
+        ``None`` if every applicable parent id in *network* resolves to a node in
+        *network*; a :class:`~roam_pub.validation.ValidationError` listing the sorted
         absent parent ids otherwise.
     """
     network_ids: set[Id] = {n.id for n in network}
-    missing: set[Id] = {parent.id for n in network if n.parents for parent in n.parents if parent.id not in network_ids}
+    nodes_to_check = network if is_rooted else [n for n in network if not is_root(n, network)]
+    missing: set[Id] = {
+        parent.id for n in nodes_to_check if n.parents for parent in n.parents if parent.id not in network_ids
+    }
     if not missing:
         return None
     missing_ids = sorted(missing)
@@ -401,7 +420,7 @@ def is_acyclic(network: NodeNetwork) -> ValidationError | None:
     return None
 
 
-def is_tree(network: NodeNetwork) -> ValidationResult:
+def is_tree(network: NodeNetwork, *, is_rooted: bool = True) -> ValidationResult:
     """Return a :class:`~roam_pub.validation.ValidationResult` for all tree invariants on *network*.
 
     Runs every tree-invariant validator — :func:`has_unique_ids`, :func:`has_single_root`,
@@ -411,13 +430,22 @@ def is_tree(network: NodeNetwork) -> ValidationResult:
 
     Args:
         network: The collection of nodes to validate.
+        is_rooted: Forwarded to :func:`all_parents_present`.  When ``False``, root nodes are
+            exempt from the parent-presence check.
 
     Returns:
         A :class:`~roam_pub.validation.ValidationResult` that is valid when *network* satisfies
         every tree invariant, or contains one :class:`~roam_pub.validation.ValidationError` per
         failed validator otherwise.
     """
+    logger.debug("network=%r, is_rooted=%r", network, is_rooted)
     return validate_all(
         network,
-        [has_unique_ids, has_single_root, all_children_present, all_parents_present, is_acyclic],
+        [
+            has_unique_ids,
+            has_single_root,
+            all_children_present,
+            lambda n: all_parents_present(n, is_rooted=is_rooted),
+            is_acyclic,
+        ],
     )

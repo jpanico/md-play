@@ -49,8 +49,8 @@ from roam_pub.roam_graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_md_bundle import bundle_md_document
 from roam_pub.roam_node import NodeTree, RoamNode
-from roam_pub.roam_node_fetch import FetchRoamNodes
-from roam_pub.roam_primitives import UID_PATTERN
+from roam_pub.roam_node_fetch import FetchRoamNodes, TargetKind
+from roam_pub.roam_primitives import UID_PATTERN, UID_RE
 from roam_pub.roam_render_md import render
 from roam_pub.roam_transcribe import transcribe
 
@@ -155,8 +155,11 @@ def main(
         bearer_token=api_bearer_token,
     )
 
+    target_kind: TargetKind = TargetKind.node if UID_RE.match(target) else TargetKind.page
     try:
-        nodes: list[RoamNode] = FetchRoamNodes.fetch_roam_nodes(target=target, api_endpoint=api_endpoint)
+        nodes: list[RoamNode] = FetchRoamNodes.fetch_roam_nodes(
+            target=target, target_kind=target_kind, api_endpoint=api_endpoint
+        )
     except Exception as e:
         logger.error("Error fetching %r: %s", target, e)
         raise typer.Exit(code=1)

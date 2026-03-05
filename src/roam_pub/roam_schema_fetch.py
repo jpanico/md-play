@@ -98,17 +98,17 @@ class FetchRoamSchema:
             requests.exceptions.ConnectionError: If the Local API is unreachable.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug(f"api_endpoint: {api_endpoint}")
+        logger.debug("api_endpoint: %s", api_endpoint)
 
         local_api_response_payload: LocalApiResponse.Payload = invoke_action(
             FetchRoamSchema.Request.PAYLOAD, api_endpoint
         )
-        logger.debug(f"local_api_response_payload: {local_api_response_payload}")
+        logger.debug("local_api_response_payload: %s", local_api_response_payload)
 
         schema_response_payload: FetchRoamSchema.Response.Payload = FetchRoamSchema.Response.Payload.model_validate(
             local_api_response_payload.model_dump(mode="json")
         )
-        logger.debug(f"schema_response_payload: {schema_response_payload}")
+        logger.debug("schema_response_payload: %s", schema_response_payload)
 
         raw_result: list[tuple[str, str]] = schema_response_payload.result
         return [RoamAttribute((RoamNamespace(ns), attr_name)) for ns, attr_name in raw_result]

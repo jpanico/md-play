@@ -183,7 +183,7 @@ def invoke_action(request_payload: Request.Payload, api_endpoint: ApiEndpoint) -
         requests.exceptions.ConnectionError: If the Local API is unreachable.
         requests.exceptions.HTTPError: If the Local API returns a non-200 status.
     """
-    logger.debug(f"payload: {request_payload}, api_endpoint: {api_endpoint}")
+    logger.debug("payload: %s, api_endpoint: %s", request_payload, api_endpoint)
     request_headers: Request.Headers = Request.Headers.with_bearer_token(api_endpoint.bearer_token)
 
     response: requests.Response = requests.post(
@@ -192,7 +192,7 @@ def invoke_action(request_payload: Request.Payload, api_endpoint: ApiEndpoint) -
         headers=request_headers.model_dump(by_alias=True),
         stream=False,
     )
-    logger.debug(f"response: {response}")
+    logger.debug("response: %s", response)
 
     if response.status_code == 200:
         return Response.Payload.model_validate_json(response.text)

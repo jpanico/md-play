@@ -63,7 +63,9 @@
       "Bash(git mv tests/fixtures/markdown/test_article_expected.md tests/fixtures/markdown/test_article_0_expected.md)",
       "Bash(.venv/bin/pytest tests/test_export_roam_page.py -v)",
       "Bash(.venv/bin/pytest tests/test_export_roam_page.py -v --tb=short -s)",
-      "Bash(.venv/bin/pytest tests/test_export_roam_page.py --tb=long)"
+      "Bash(.venv/bin/pytest tests/test_export_roam_page.py --tb=long)",
+      "Bash(git mv scripts/dump-roam-page.sh scripts/dump-roam-tree.sh)",
+      "Bash(git mv scripts/export-roam-page.sh scripts/export-roam-tree.sh)"
     ]
   }
 }

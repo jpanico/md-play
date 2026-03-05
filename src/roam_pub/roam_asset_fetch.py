@@ -122,15 +122,15 @@ class FetchRoamAsset:
             requests.exceptions.ConnectionError: If the Local API is unreachable.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug(f"api_endpoint: {api_endpoint}, firebase_url: {firebase_url}")
+        logger.debug("api_endpoint: %s, firebase_url: %s", api_endpoint, firebase_url)
 
         request_payload: FetchRoamAsset.Request.Payload = FetchRoamAsset.Request.Payload.with_url(firebase_url)
         local_api_response_payload: LocalApiResponse.Payload = invoke_action(request_payload, api_endpoint)
-        logger.debug(f"local_api_response_payload: {local_api_response_payload}")
+        logger.debug("local_api_response_payload: %s", local_api_response_payload)
         fetch_asset_response_payload: FetchRoamAsset.Response.Payload = FetchRoamAsset.Response.Payload.model_validate(
             local_api_response_payload.model_dump(mode="json")
         )
-        logger.debug(f"fetch_asset_response_payload: {fetch_asset_response_payload}")
+        logger.debug("fetch_asset_response_payload: %s", fetch_asset_response_payload)
 
         result: FetchRoamAsset.Response.Payload.Result = fetch_asset_response_payload.result
         return RoamAsset(

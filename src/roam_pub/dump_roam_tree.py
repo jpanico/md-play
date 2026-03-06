@@ -203,7 +203,7 @@ def main(
         logger.info("No Roam nodes found for %r — nothing to dump.", target)
         raise typer.Exit(code=1)
 
-    node_tree: Final[NodeTree] = NodeTree(network=nodes, is_rooted=target_kind is TargetKind.page)
+    node_tree: Final[NodeTree] = NodeTree(network=nodes, is_standalone=target_kind is TargetKind.page)
     vertex_tree: Final[VertexTree] = transcribe(node_tree)
     logger.debug("node_tree=%r\n\nvertex_tree=%r", node_tree, vertex_tree)
     dump_trees(node_tree=node_tree, vertex_tree=vertex_tree, node_props=node_props, mode=mode)

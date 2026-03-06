@@ -1,4 +1,4 @@
-"""Shared CLI utilities for Roam Research tree commands.
+"""Shared tree-loading pipeline for Roam Research CLI commands.
 
 Public symbols:
 

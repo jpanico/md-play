@@ -37,13 +37,14 @@ pytest                            # run tests
     - `roam_md_bundle.py` — core bundling logic
     - `roam_md_normalize.py` — normalizes Roam-flavored Markdown strings to CommonMark
     - `roam_transcribe.py` — transcribes `NodeTree` → `VertexTree`; applies `normalize()` to all text fields
-    - `roam_render_md.py` — renders a `VertexTree` to a CommonMark document string
-    - `rich.py` — Rich panel/tree rendering for `NodeTree` and `VertexTree`
+    - `md_rendering.py` — renders a `VertexTree` to a CommonMark document string
+    - `rich_rendering.py` — Rich panel/tree rendering for `NodeTree` and `VertexTree`
     - `validation.py` — generic accumulator-pipeline validation framework
   - **Model layer**
     - `roam_primitives.py` — foundational type aliases, stub models, `UID_PATTERN`, `UID_RE`, `IMAGE_LINK_RE` (dependency root)
-    - `roam_node.py` — `RoamNode`, `NodeTree`, `NodeTreeDFSIterator`
-    - `roam_graph.py` — `Vertex` union, `VertexTree`, `VertexTreeDFSIterator`
+    - `roam_node.py` — `RoamNode`, `NodeNetwork`; tree-invariant validators (`is_root`, `has_single_root`, `all_children_present`, `all_parents_present`, `has_unique_ids`, `is_acyclic`)
+    - `roam_tree.py` — `NodeTree`, `NodeTreeDFSIterator`, `is_tree`
+    - `graph.py` — `Vertex` union, `VertexTree`, `VertexTreeDFSIterator`
     - `roam_schema.py` — Datomic schema model types (`RoamNamespace`, etc.)
     - `roam_asset.py` — Cloud Firestore asset model
   - **API / fetching**

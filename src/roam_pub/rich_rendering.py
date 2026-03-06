@@ -6,11 +6,11 @@ Public symbols:
 - :func:`make_node_panel` — render a :class:`~roam_pub.roam_node.RoamNode` as a Rich
   :class:`~rich.panel.Panel`.
 - :func:`build_rich_node_tree` — build a Rich :class:`~rich.tree.Tree` from a
-  :class:`~roam_pub.roam_node.NodeTree` using a depth-first traversal.
-- :func:`make_vertex_panel` — render a :data:`~roam_pub.roam_graph.Vertex` as a Rich
+  :class:`~roam_pub.roam_tree.NodeTree` using a depth-first traversal.
+- :func:`make_vertex_panel` — render a :data:`~roam_pub.graph.Vertex` as a Rich
   :class:`~rich.panel.Panel`.
 - :func:`build_rich_vertex_tree` — build a Rich :class:`~rich.tree.Tree` from a
-  :class:`~roam_pub.roam_graph.VertexTree` using a depth-first traversal.
+  :class:`~roam_pub.graph.VertexTree` using a depth-first traversal.
 """
 
 import logging
@@ -19,7 +19,7 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.tree import Tree as RichTree
 
-from roam_pub.roam_graph import (
+from roam_pub.graph import (
     HeadingVertex,
     PageVertex,
     TextContentVertex,
@@ -27,7 +27,8 @@ from roam_pub.roam_graph import (
     VertexTree,
     VertexTreeDFSIterator,
 )
-from roam_pub.roam_node import NodeTree, NodeTreeDFSIterator, RoamNode
+from roam_pub.roam_node import RoamNode
+from roam_pub.roam_tree import NodeTree, NodeTreeDFSIterator
 from roam_pub.roam_primitives import Id, IMAGE_LINK_RE, Uid
 
 logger = logging.getLogger(__name__)
@@ -137,11 +138,11 @@ def build_rich_node_tree(tree: NodeTree, props: list[str] = DEFAULT_NODE_PANEL_P
     """Build a Rich tree from *tree* using a depth-first traversal.
 
     Iterates *tree* in pre-order depth-first order via
-    :meth:`~roam_pub.roam_node.NodeTree.dfs`, attaching each node as a Rich
+    :meth:`~roam_pub.roam_tree.NodeTree.dfs`, attaching each node as a Rich
     panel under its parent in the rendered tree.
 
     Args:
-        tree: The :class:`~roam_pub.roam_node.NodeTree` to render.
+        tree: The :class:`~roam_pub.roam_tree.NodeTree` to render.
         props: Ordered list of :class:`~roam_pub.roam_node.RoamNode` field names
             to include in each panel body.  Defaults to :data:`DEFAULT_NODE_PANEL_PROPS`.
 
@@ -167,15 +168,15 @@ def make_vertex_panel(vertex: Vertex) -> Panel:
     The panel title shows a type-specific summary with the vertex ``uid`` in
     parentheses:
 
-    - :class:`~roam_pub.roam_graph.PageVertex` — page title.
-    - :class:`~roam_pub.roam_graph.HeadingVertex` — ``H{n}: <text>``.
-    - :class:`~roam_pub.roam_graph.TextContentVertex` — block text as-is.
-    - :class:`~roam_pub.roam_graph.ImageVertex` — ``IMAGE [<alt>](<firestore_url>)``.
+    - :class:`~roam_pub.graph.PageVertex` — page title.
+    - :class:`~roam_pub.graph.HeadingVertex` — ``H{n}: <text>``.
+    - :class:`~roam_pub.graph.TextContentVertex` — block text as-is.
+    - :class:`~roam_pub.graph.ImageVertex` — ``IMAGE [<alt>](<firestore_url>)``.
 
     The panel body shows ``type``, ``children``, and ``refs``.
 
     Args:
-        vertex: The :data:`~roam_pub.roam_graph.Vertex` to render.
+        vertex: The :data:`~roam_pub.graph.Vertex` to render.
 
     Returns:
         A :class:`~rich.panel.Panel` with a labelled title and metadata body.
@@ -204,7 +205,7 @@ def build_rich_vertex_tree(vertex_tree: VertexTree) -> RichTree:
     as a Rich panel under its parent in the rendered tree.
 
     Args:
-        vertex_tree: The :class:`~roam_pub.roam_graph.VertexTree` to render.
+        vertex_tree: The :class:`~roam_pub.graph.VertexTree` to render.
 
     Returns:
         A :class:`~rich.tree.Tree` rooted at the single root vertex of

@@ -2,8 +2,8 @@
 
 Public symbols:
 
-- :func:`fetch_roam_trees` — resolve a target to a :class:`~roam_pub.roam_node.NodeTree`
-  and :class:`~roam_pub.roam_graph.VertexTree`, ready for rendering or further processing.
+- :func:`fetch_roam_trees` — resolve a target to a :class:`~roam_pub.roam_tree.NodeTree`
+  and :class:`~roam_pub.graph.VertexTree`, ready for rendering or further processing.
 """
 
 import logging
@@ -11,9 +11,10 @@ from typing import Final
 
 import typer
 
-from roam_pub.roam_graph import VertexTree
+from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
-from roam_pub.roam_node import NodeTree, RoamNode
+from roam_pub.roam_node import RoamNode
+from roam_pub.roam_tree import NodeTree
 from roam_pub.roam_node_fetch import FetchRoamNodes, TargetKind
 from roam_pub.roam_primitives import UID_RE
 from roam_pub.roam_transcribe import transcribe
@@ -26,9 +27,9 @@ def fetch_roam_trees(target: str, api_endpoint: ApiEndpoint, include_refs: bool 
 
     Resolves *target* to a :data:`~roam_pub.roam_node_fetch.TargetKind`, fetches the
     corresponding :class:`~roam_pub.roam_node.RoamNode` records via *api_endpoint*,
-    constructs a :class:`~roam_pub.roam_node.NodeTree` (with
-    :attr:`~roam_pub.roam_node.NodeTree.is_standalone` set appropriately for the target
-    kind), transcribes it to a :class:`~roam_pub.roam_graph.VertexTree`, and returns both.
+    constructs a :class:`~roam_pub.roam_tree.NodeTree` (with
+    :attr:`~roam_pub.roam_tree.NodeTree.is_standalone` set appropriately for the target
+    kind), transcribes it to a :class:`~roam_pub.graph.VertexTree`, and returns both.
 
     Exits the CLI with code 1 when the fetch raises an exception or when no nodes are found.
 

@@ -2,18 +2,18 @@
 """CLI tool for dumping a Roam Research page or node subtree as a Rich tree to the terminal.
 
 Fetches all descendant blocks identified by ``TARGET`` via the Roam Local API,
-transcribes them into a :class:`~roam_pub.roam_graph.VertexTree`, and renders
+transcribes them into a :class:`~roam_pub.graph.VertexTree`, and renders
 one or both of the following as a colorized :class:`~rich.tree.Tree` panel
 hierarchy:
 
 - **Vertex tree** (default, ``--mode v``) — normalized
-  :class:`~roam_pub.roam_graph.VertexTree` produced by
+  :class:`~roam_pub.graph.VertexTree` produced by
   :func:`~roam_pub.roam_transcribe.transcribe`.
-- **Node tree** (``--mode n``) — raw :class:`~roam_pub.roam_node.NodeTree`
+- **Node tree** (``--mode n``) — raw :class:`~roam_pub.roam_tree.NodeTree`
   as returned by the Roam Local API; each panel body lists selected
   :class:`~roam_pub.roam_node.RoamNode` fields, configurable via
   ``--node-props`` (defaults to
-  :data:`~roam_pub.rich.DEFAULT_NODE_PANEL_PROPS`).
+  :data:`~roam_pub.rich_rendering.DEFAULT_NODE_PANEL_PROPS`).
 - **Both** (``--mode vn``) — vertex tree followed by node tree.
 
 ``TARGET`` is interpreted as a **node UID** if it matches
@@ -51,12 +51,12 @@ import typer
 from rich.console import Console
 from rich.tree import Tree as RichTree
 
-from roam_pub.rich import DEFAULT_NODE_PANEL_PROPS, build_rich_node_tree, build_rich_vertex_tree
+from roam_pub.rich_rendering import DEFAULT_NODE_PANEL_PROPS, build_rich_node_tree, build_rich_vertex_tree
 from roam_pub.roam_tree_loader import fetch_roam_trees
-from roam_pub.roam_graph import VertexTree
+from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.logging_config import configure_logging
-from roam_pub.roam_node import NodeTree
+from roam_pub.roam_tree import NodeTree
 from roam_pub.roam_primitives import UID_PATTERN
 
 configure_logging()
@@ -80,13 +80,13 @@ def dump_trees(node_tree: NodeTree, vertex_tree: VertexTree, node_props: str | N
     Prints the vertex tree, the raw node tree, or both, depending on *mode*.
 
     Args:
-        node_tree: Raw :class:`~roam_pub.roam_node.NodeTree` as returned by the
+        node_tree: Raw :class:`~roam_pub.roam_tree.NodeTree` as returned by the
             Roam Local API.
-        vertex_tree: Normalized :class:`~roam_pub.roam_graph.VertexTree` produced
+        vertex_tree: Normalized :class:`~roam_pub.graph.VertexTree` produced
             by :func:`~roam_pub.roam_transcribe.transcribe`.
         node_props: Comma-separated list of :class:`~roam_pub.roam_node.RoamNode`
             field names to include in each node panel body, or ``None`` to use
-            :data:`~roam_pub.rich.DEFAULT_NODE_PANEL_PROPS`.
+            :data:`~roam_pub.rich_rendering.DEFAULT_NODE_PANEL_PROPS`.
         mode: Which tree(s) to print — vertex only, node only, or both.
     """
     effective_props: list[str] = (

@@ -134,15 +134,17 @@ roam-pub/
 │       ├── __init__.py
 │       ├── dump_roam_tree.py      # CLI: dump a Roam page or node subtree as a Rich tree to the terminal
 │       ├── export_roam_tree.py    # CLI: export a Roam page or node subtree to a .mdbundle or plain .md
+│       ├── roam_tree_loader.py    # Shared tree-loading pipeline; fetch_roam_trees resolves a target, fetches nodes, returns (NodeTree, VertexTree)
 │       ├── roam_md_bundle.py      # Core bundling logic
 │       ├── roam_md_normalize.py   # Normalize Roam-flavored Markdown to CommonMark
 │       ├── roam_transcribe.py     # Transcribe NodeTree → VertexTree (applies normalize())
-│       ├── roam_render_md.py      # Render VertexTree → CommonMark document string
-│       ├── rich.py                # Rich panel/tree rendering for NodeTree and VertexTree
+│       ├── md_rendering.py        # Render VertexTree → CommonMark document string
+│       ├── rich_rendering.py      # Rich panel/tree rendering for NodeTree and VertexTree
 │       ├── validation.py          # Generic accumulator-pipeline validation framework
 │       ├── roam_primitives.py     # Foundational type aliases, UID_PATTERN/UID_RE, IMAGE_LINK_RE (dep root)
-│       ├── roam_node.py           # RoamNode, NodeTree, NodeTreeDFSIterator
-│       ├── roam_graph.py          # Vertex union, VertexTree, VertexTreeDFSIterator
+│       ├── roam_node.py           # RoamNode, NodeNetwork; tree-invariant validators (is_root, has_single_root, all_children_present, all_parents_present, has_unique_ids, is_acyclic)
+│       ├── roam_tree.py           # NodeTree, NodeTreeDFSIterator, is_tree
+│       ├── graph.py               # Vertex union, VertexTree, VertexTreeDFSIterator
 │       ├── roam_schema.py         # Datomic schema model types (RoamNamespace, etc.)
 │       ├── roam_asset.py          # Cloud Firestore asset model
 │       ├── roam_local_api.py      # ApiEndpoint model for the Roam Local API
@@ -162,6 +164,7 @@ roam-pub/
 │   ├── test_roam_render_md.py
 │   ├── test_roam_schema_fetch.py
 │   ├── test_roam_transcribe.py
+│   ├── test_roam_tree.py
 │   └── test_export_roam_tree.py
 ├── scripts/
 │   ├── dump-roam-tree.sh           # Shell wrapper for dump-roam-tree

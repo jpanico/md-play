@@ -6,7 +6,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from roam_pub.roam_graph import (
+from roam_pub.graph import (
     HeadingVertex,
     ImageVertex,
     PageVertex,

@@ -2,8 +2,8 @@
 """CLI tool for exporting a Roam Research page or node subtree to CommonMark.
 
 Fetches all descendant blocks identified by ``TARGET`` via the Roam Local API,
-transcribes them into a :class:`~roam_pub.roam_graph.VertexTree`, renders
-the tree to a CommonMark document via :func:`~roam_pub.roam_render_md.render`,
+transcribes them into a :class:`~roam_pub.graph.VertexTree`, renders
+the tree to a CommonMark document via :func:`~roam_pub.md_rendering.render`,
 then writes the result in one of two modes controlled by ``--bundle/--no-bundle``:
 
 - **Bundle mode** (default, ``--bundle``) — fetches any Cloud Firestore images
@@ -46,12 +46,12 @@ import typer
 
 from roam_pub.logging_config import configure_logging
 from roam_pub.roam_tree_loader import fetch_roam_trees
-from roam_pub.roam_graph import VertexTree
+from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_md_bundle import bundle_md_document
-from roam_pub.roam_node import NodeTree
+from roam_pub.roam_tree import NodeTree
 from roam_pub.roam_primitives import UID_PATTERN
-from roam_pub.roam_render_md import render
+from roam_pub.md_rendering import render
 
 configure_logging()
 logger = logging.getLogger(__name__)

@@ -1,4 +1,4 @@
-"""Render a :class:`~roam_pub.roam_graph.VertexTree` to a CommonMark document.
+"""Render a :class:`~roam_pub.graph.VertexTree` to a CommonMark document.
 
 Converts the normalized vertex tree produced by
 :func:`~roam_pub.roam_transcribe.transcribe` into a CommonMark string suitable
@@ -6,25 +6,25 @@ for further processing or direct publication.
 
 Rendering rules:
 
-- :class:`~roam_pub.roam_graph.PageVertex` — rendered as an H1 heading
+- :class:`~roam_pub.graph.PageVertex` — rendered as an H1 heading
   (``# title``).
-- :class:`~roam_pub.roam_graph.HeadingVertex` — rendered as a CommonMark
+- :class:`~roam_pub.graph.HeadingVertex` — rendered as a CommonMark
   heading at the vertex's recorded level (``#`` … ``######``).
-- :class:`~roam_pub.roam_graph.TextContentVertex` — direct children of the
+- :class:`~roam_pub.graph.TextContentVertex` — direct children of the
   page (depth 1) are rendered as paragraphs; deeper vertices are rendered as
   indented bullet-list items (``- text``, ``  - text``, …).
-- :class:`~roam_pub.roam_graph.ImageVertex` — rendered as a CommonMark image
+- :class:`~roam_pub.graph.ImageVertex` — rendered as a CommonMark image
   link (``![alt](url)``).
 
 Public symbols:
 
-- :func:`render` — render a :class:`~roam_pub.roam_graph.VertexTree` to a
+- :func:`render` — render a :class:`~roam_pub.graph.VertexTree` to a
   CommonMark document string.
 """
 
 import logging
 
-from roam_pub.roam_graph import (
+from roam_pub.graph import (
     HeadingVertex,
     ImageVertex,
     PageVertex,
@@ -48,7 +48,7 @@ def render(vertex_tree: VertexTree) -> str:
     Image vertices are rendered as CommonMark image links.
 
     Args:
-        vertex_tree: The :class:`~roam_pub.roam_graph.VertexTree` to render.
+        vertex_tree: The :class:`~roam_pub.graph.VertexTree` to render.
 
     Returns:
         A CommonMark document string ending with a single trailing newline.
@@ -69,7 +69,7 @@ def _render_children(children: VertexChildren, uid_map: dict[Uid, Vertex], depth
 
     Args:
         children: Ordered list of child UIDs to render.
-        uid_map: Mapping from UID to :data:`~roam_pub.roam_graph.Vertex`.
+        uid_map: Mapping from UID to :data:`~roam_pub.graph.Vertex`.
         depth: Current tree depth (0 = page root).
         out: Accumulator list of output lines.
     """
@@ -87,14 +87,14 @@ def _render_vertex(vertex: Vertex, uid_map: dict[Uid, Vertex], depth: int, out: 
     vertex class, then recurses into children.
 
     Args:
-        vertex: The :data:`~roam_pub.roam_graph.Vertex` to render.
-        uid_map: Mapping from UID to :data:`~roam_pub.roam_graph.Vertex`.
+        vertex: The :data:`~roam_pub.graph.Vertex` to render.
+        uid_map: Mapping from UID to :data:`~roam_pub.graph.Vertex`.
         depth: Current tree depth (0 = page root, 1 = direct page child, …).
         out: Accumulator list of output lines.
 
     Raises:
         TypeError: If *vertex* is not one of the four known concrete
-            :data:`~roam_pub.roam_graph.Vertex` subclasses.
+            :data:`~roam_pub.graph.Vertex` subclasses.
     """
     logger.debug("vertex=%r, depth=%d", vertex, depth)
     match vertex:

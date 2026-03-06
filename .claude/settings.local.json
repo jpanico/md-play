@@ -66,7 +66,11 @@
       "Bash(.venv/bin/pytest tests/test_export_roam_page.py --tb=long)",
       "Bash(git mv scripts/dump-roam-page.sh scripts/dump-roam-tree.sh)",
       "Bash(git mv scripts/export-roam-page.sh scripts/export-roam-tree.sh)",
-      "Bash(ROAM_RUN_LIVE_TESTS=1 pytest -m live -v)"
+      "Bash(ROAM_RUN_LIVE_TESTS=1 pytest -m live -v)",
+      "Bash(git mv src/roam_pub/rich.py src/roam_pub/rich_rendering.py)",
+      "Bash(git mv src/roam_pub/roam_graph.py src/roam_pub/graph.py)",
+      "Bash(git mv src/roam_pub/roam_render_md.py src/roam_pub/md_rendering.py)",
+      "Bash(ROAM_LIVE_TESTS=1 python -m pytest -m live -v)"
     ]
   }
 }

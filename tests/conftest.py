@@ -6,9 +6,10 @@ import pathlib
 import pytest
 import yaml
 
-from roam_pub.roam_graph import VertexTree, vertex_adapter
+from roam_pub.graph import VertexTree, vertex_adapter
 from roam_pub.roam_local_api import ApiEndpoint, ApiEndpointURL
-from roam_pub.roam_node import NodeTree, RoamNode
+from roam_pub.roam_node import RoamNode
+from roam_pub.roam_tree import NodeTree
 from roam_pub.roam_primitives import IdObject
 
 FIXTURES_YAML_DIR: pathlib.Path = pathlib.Path(__file__).parent / "fixtures" / "yaml"
@@ -54,12 +55,12 @@ def live_api_endpoint() -> ApiEndpoint:
 
 
 def article0_node_tree() -> NodeTree:
-    """Load and return the ``Test Article 0`` :class:`~roam_pub.roam_node.NodeTree` from its YAML fixture."""
+    """Load and return the ``Test Article 0`` :class:`~roam_pub.roam_tree.NodeTree` from its YAML fixture."""
     raw: list[dict[str, object]] = yaml.safe_load((FIXTURES_YAML_DIR / "test_article_0_nodes.yaml").read_text())
     return NodeTree(network=[RoamNode.model_validate(r) for r in raw])
 
 
 def article0_vertex_tree() -> VertexTree:
-    """Load and return the ``Test Article 0`` :class:`~roam_pub.roam_graph.VertexTree` from its YAML fixture."""
+    """Load and return the ``Test Article 0`` :class:`~roam_pub.graph.VertexTree` from its YAML fixture."""
     raw: list[dict[str, object]] = yaml.safe_load((FIXTURES_YAML_DIR / "test_article_0_vertices.yaml").read_text())
     return VertexTree(vertices=[vertex_adapter.validate_python(r) for r in raw])

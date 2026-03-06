@@ -1,8 +1,8 @@
-"""Tests for the roam_graph module."""
+"""Tests for the graph module."""
 
 import pytest
 
-from roam_pub.roam_graph import (
+from roam_pub.graph import (
     HeadingVertex,
     PageVertex,
     TextContentVertex,

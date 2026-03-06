@@ -5,19 +5,19 @@ Public symbols:
 - :func:`is_image_node` — return ``True`` when a node's string is exactly one
   Markdown image link and nothing else.
 - :func:`vertex_type` — classify a :class:`~roam_pub.roam_node.RoamNode` into a
-  :class:`~roam_pub.roam_graph.VertexType`.
-- :func:`to_page_vertex` — build a :class:`~roam_pub.roam_graph.PageVertex` from a
+  :class:`~roam_pub.graph.VertexType`.
+- :func:`to_page_vertex` — build a :class:`~roam_pub.graph.PageVertex` from a
   page node.
-- :func:`to_image_vertex` — build an :class:`~roam_pub.roam_graph.ImageVertex` from a
+- :func:`to_image_vertex` — build an :class:`~roam_pub.graph.ImageVertex` from a
   Firestore image block node.
-- :func:`to_heading_vertex` — build a :class:`~roam_pub.roam_graph.HeadingVertex` from
+- :func:`to_heading_vertex` — build a :class:`~roam_pub.graph.HeadingVertex` from
   a heading block node.
 - :func:`to_text_content_vertex` — build a
-  :class:`~roam_pub.roam_graph.TextContentVertex` from a plain text block node.
+  :class:`~roam_pub.graph.TextContentVertex` from a plain text block node.
 - :func:`transcribe_node` — transcribe a :class:`~roam_pub.roam_node.RoamNode` into
-  the appropriate :data:`~roam_pub.roam_graph.Vertex` subtype.
-- :func:`transcribe` — transcribe all nodes in a :class:`~roam_pub.roam_node.NodeTree`
-  into a :class:`~roam_pub.roam_graph.VertexTree`.
+  the appropriate :data:`~roam_pub.graph.Vertex` subtype.
+- :func:`transcribe` — transcribe all nodes in a :class:`~roam_pub.roam_tree.NodeTree`
+  into a :class:`~roam_pub.graph.VertexTree`.
 """
 
 import logging
@@ -26,7 +26,7 @@ from urllib.parse import unquote, urlparse
 
 from pydantic import TypeAdapter, validate_call
 
-from roam_pub.roam_graph import (
+from roam_pub.graph import (
     HeadingVertex,
     ImageVertex,
     PageVertex,
@@ -38,7 +38,8 @@ from roam_pub.roam_graph import (
     VertexType,
 )
 from roam_pub.roam_md_normalize import normalize
-from roam_pub.roam_node import NodeTree, RoamNode
+from roam_pub.roam_node import RoamNode
+from roam_pub.roam_tree import NodeTree
 from roam_pub.roam_primitives import IMAGE_LINK_RE, HeadingLevel, Id, Url
 
 logger = logging.getLogger(__name__)
@@ -214,23 +215,23 @@ def is_image_node(node: RoamNode) -> bool:
 
 @validate_call
 def vertex_type(node: RoamNode) -> VertexType:
-    r"""Classify *node* into a :class:`~roam_pub.roam_graph.VertexType`.
+    r"""Classify *node* into a :class:`~roam_pub.graph.VertexType`.
 
     Handles both native Roam headings (levels 1–3 via ``node.heading``) and Augmented
     Headings extension levels (4–6 via ``node.props['ah-level']``).
 
     Classification order:
 
-    1. ``node.title`` is set → :attr:`~roam_pub.roam_graph.VertexType.ROAM_PAGE`
-    2. ``node.string`` contains a Firestore URL → :attr:`~roam_pub.roam_graph.VertexType.ROAM_IMAGE`
-    3. Effective heading level is non-\ ``None`` → :attr:`~roam_pub.roam_graph.VertexType.ROAM_HEADING`
-    4. Otherwise → :attr:`~roam_pub.roam_graph.VertexType.ROAM_TEXT_CONTENT`
+    1. ``node.title`` is set → :attr:`~roam_pub.graph.VertexType.ROAM_PAGE`
+    2. ``node.string`` contains a Firestore URL → :attr:`~roam_pub.graph.VertexType.ROAM_IMAGE`
+    3. Effective heading level is non-\ ``None`` → :attr:`~roam_pub.graph.VertexType.ROAM_HEADING`
+    4. Otherwise → :attr:`~roam_pub.graph.VertexType.ROAM_TEXT_CONTENT`
 
     Args:
         node: The raw Roam node to classify.
 
     Returns:
-        The :class:`~roam_pub.roam_graph.VertexType` for *node*.
+        The :class:`~roam_pub.graph.VertexType` for *node*.
 
     Raises:
         ValidationError: If *node* is ``None`` or invalid.
@@ -251,7 +252,7 @@ def vertex_type(node: RoamNode) -> VertexType:
 
 @validate_call
 def to_page_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> PageVertex:
-    """Build a :class:`~roam_pub.roam_graph.PageVertex` from *node*.
+    """Build a :class:`~roam_pub.graph.PageVertex` from *node*.
 
     Args:
         node: A page node with ``node.title`` set.
@@ -259,7 +260,7 @@ def to_page_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> PageVertex:
             used to resolve child and ref stubs to UIDs.
 
     Returns:
-        A :class:`~roam_pub.roam_graph.PageVertex`.
+        A :class:`~roam_pub.graph.PageVertex`.
 
     Raises:
         ValidationError: If *node* or *id_map* is ``None`` or invalid.
@@ -278,7 +279,7 @@ def to_page_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> PageVertex:
 
 @validate_call
 def to_image_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> ImageVertex:
-    """Build an :class:`~roam_pub.roam_graph.ImageVertex` from *node*.
+    """Build an :class:`~roam_pub.graph.ImageVertex` from *node*.
 
     Args:
         node: A block node whose ``node.string`` embeds a Firestore image URL.
@@ -286,7 +287,7 @@ def to_image_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> ImageVertex:
             used to resolve child and ref stubs to UIDs.
 
     Returns:
-        An :class:`~roam_pub.roam_graph.ImageVertex`.
+        An :class:`~roam_pub.graph.ImageVertex`.
 
     Raises:
         ValidationError: If *node* or *id_map* is ``None`` or invalid.
@@ -313,7 +314,7 @@ def to_image_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> ImageVertex:
 
 @validate_call
 def to_heading_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> HeadingVertex:
-    """Build a :class:`~roam_pub.roam_graph.HeadingVertex` from *node*.
+    """Build a :class:`~roam_pub.graph.HeadingVertex` from *node*.
 
     Args:
         node: A block node with an effective heading level (native ``node.heading``
@@ -322,7 +323,7 @@ def to_heading_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> HeadingVert
             used to resolve child and ref stubs to UIDs.
 
     Returns:
-        A :class:`~roam_pub.roam_graph.HeadingVertex`.
+        A :class:`~roam_pub.graph.HeadingVertex`.
 
     Raises:
         ValidationError: If *node* or *id_map* is ``None`` or invalid.
@@ -345,7 +346,7 @@ def to_heading_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> HeadingVert
 
 @validate_call
 def to_text_content_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> TextContentVertex:
-    """Build a :class:`~roam_pub.roam_graph.TextContentVertex` from *node*.
+    """Build a :class:`~roam_pub.graph.TextContentVertex` from *node*.
 
     Args:
         node: A plain text block node with ``node.string`` set.
@@ -353,7 +354,7 @@ def to_text_content_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> TextCo
             used to resolve child and ref stubs to UIDs.
 
     Returns:
-        A :class:`~roam_pub.roam_graph.TextContentVertex`.
+        A :class:`~roam_pub.graph.TextContentVertex`.
 
     Raises:
         ValidationError: If *node* or *id_map* is ``None`` or invalid.
@@ -372,9 +373,9 @@ def to_text_content_vertex(node: RoamNode, id_map: dict[Id, RoamNode]) -> TextCo
 
 @validate_call
 def transcribe_node(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
-    r"""Transcribe *node* into a normalized :class:`~roam_pub.roam_graph.Vertex`.
+    r"""Transcribe *node* into a normalized :class:`~roam_pub.graph.Vertex`.
 
-    Determines the :class:`~roam_pub.roam_graph.VertexType` via :func:`vertex_type`,
+    Determines the :class:`~roam_pub.graph.VertexType` via :func:`vertex_type`,
     resolves raw :class:`~roam_pub.roam_primitives.IdObject` stubs in children and refs to
     stable UIDs via *id_map*, and handles both native Roam headings (levels 1–3 via
     ``node.heading``) and Augmented Headings extension levels (4–6 via
@@ -387,7 +388,7 @@ def transcribe_node(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
             from *id_map* are silently dropped.
 
     Returns:
-        A :class:`~roam_pub.roam_graph.Vertex` representing the normalized node.
+        A :class:`~roam_pub.graph.Vertex` representing the normalized node.
 
     Raises:
         ValidationError: If *node* or *id_map* is ``None`` or invalid.
@@ -406,7 +407,7 @@ def transcribe_node(node: RoamNode, id_map: dict[Id, RoamNode]) -> Vertex:
 
 
 def transcribe(node_tree: NodeTree) -> VertexTree:
-    """Transcribe every node in *node_tree* into a :class:`~roam_pub.roam_graph.VertexTree`.
+    """Transcribe every node in *node_tree* into a :class:`~roam_pub.graph.VertexTree`.
 
     Builds an id-map from *node_tree.network*, then applies :func:`transcribe_node`
     to each node in insertion order.
@@ -415,8 +416,8 @@ def transcribe(node_tree: NodeTree) -> VertexTree:
         node_tree: A validated tree of raw Roam nodes.
 
     Returns:
-        A :class:`~roam_pub.roam_graph.VertexTree` containing one
-        :class:`~roam_pub.roam_graph.Vertex` per node in *node_tree.network*.
+        A :class:`~roam_pub.graph.VertexTree` containing one
+        :class:`~roam_pub.graph.Vertex` per node in *node_tree.network*.
 
     Raises:
         ValueError: If any node has neither a ``title`` nor a ``string`` field set.

@@ -2,7 +2,7 @@
 
 A :data:`Vertex` is the normalized (transcribed) form of a single
 :class:`~roam_pub.roam_node.RoamNode`.  A :class:`VertexTree` is the normalized
-form of a :class:`~roam_pub.roam_node.NodeTree`.
+form of a :class:`~roam_pub.roam_tree.NodeTree`.
 
 Normalization (transcription) means:
 
@@ -16,7 +16,7 @@ Normalization (transcription) means:
 - The result is self-contained and portable — no Datomic dependencies remain.
 
 Normalization is performed by :func:`~roam_pub.roam_transcribe.transcribe` (for a full
-:class:`~roam_pub.roam_node.NodeTree`) or
+:class:`~roam_pub.roam_tree.NodeTree`) or
 :func:`~roam_pub.roam_transcribe.transcribe_node` (for a single
 :class:`~roam_pub.roam_node.RoamNode`).
 
@@ -38,7 +38,7 @@ Public symbols:
 - :data:`vertex_adapter` — Pydantic :class:`~pydantic.TypeAdapter` for validating a
   :data:`Vertex` from a raw dict.
 - :class:`VertexTree` — normalized (transcribed) form of a
-  :class:`~roam_pub.roam_node.NodeTree`; a portable tree of :data:`Vertex` instances.
+  :class:`~roam_pub.roam_tree.NodeTree`; a portable tree of :data:`Vertex` instances.
 - :meth:`VertexTree.dfs` — return a :class:`VertexTreeDFSIterator` for pre-order
   depth-first traversal.
 - :class:`VertexTreeDFSIterator` — pre-order depth-first iterator over a
@@ -250,11 +250,11 @@ Example::
 
 
 class VertexTree(BaseModel):
-    """Normalized (transcribed) form of a :class:`~roam_pub.roam_node.NodeTree`.
+    """Normalized (transcribed) form of a :class:`~roam_pub.roam_tree.NodeTree`.
 
     Produced by :func:`~roam_pub.roam_transcribe.transcribe`, which applies
     :func:`~roam_pub.roam_transcribe.transcribe_node` to every node in the source
-    :class:`~roam_pub.roam_node.NodeTree` and collects the results here in the
+    :class:`~roam_pub.roam_tree.NodeTree` and collects the results here in the
     same insertion order.  The resulting collection is guaranteed to have exactly
     one :data:`Vertex` per source :class:`~roam_pub.roam_node.RoamNode` and
     inherits the acyclic-tree structure of its origin.

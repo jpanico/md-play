@@ -165,6 +165,17 @@ def main(
             help="Output mode: v=vertex tree only, n=node tree only, vn=both.",
         ),
     ] = Mode.vertex,
+    include_refs: Annotated[
+        bool,
+        typer.Option(
+            "--include-refs/--no-include-refs",
+            help=(
+                "When enabled, also fetches every node referenced via :block/refs "
+                "from the target page or any of its descendants. "
+                "Ignored when TARGET is a node UID."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Dump a Roam Research page or node subtree as a Rich tree to the console.
 
@@ -174,13 +185,14 @@ def main(
     raw node tree, or both, depending on ``--mode`` (default: vertex tree only).
     """
     logger.debug(
-        "target=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, node_props=%r, mode=%r",
+        "target=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, node_props=%r, mode=%r, include_refs=%r",
         target,
         local_api_port,
         graph_name,
         api_bearer_token,
         node_props,
         mode,
+        include_refs,
     )
     api_endpoint: Final[ApiEndpoint] = ApiEndpoint.from_parts(
         local_api_port=local_api_port,
@@ -188,7 +200,7 @@ def main(
         bearer_token=api_bearer_token,
     )
 
-    trees: Final[tuple[NodeTree, VertexTree]] = fetch_roam_trees(target, api_endpoint)
+    trees: Final[tuple[NodeTree, VertexTree]] = fetch_roam_trees(target, api_endpoint, include_refs=include_refs)
     node_tree: Final[NodeTree] = trees[0]
     vertex_tree: Final[VertexTree] = trees[1]
     dump_trees(node_tree=node_tree, vertex_tree=vertex_tree, node_props=node_props, mode=mode)

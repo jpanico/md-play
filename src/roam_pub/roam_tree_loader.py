@@ -21,7 +21,7 @@ from roam_pub.roam_transcribe import transcribe
 logger = logging.getLogger(__name__)
 
 
-def fetch_roam_trees(target: str, api_endpoint: ApiEndpoint) -> tuple[NodeTree, VertexTree]:
+def fetch_roam_trees(target: str, api_endpoint: ApiEndpoint, include_refs: bool = False) -> tuple[NodeTree, VertexTree]:
     """Fetch Roam nodes for *target* and build a validated node tree and vertex tree.
 
     Resolves *target* to a :data:`~roam_pub.roam_node_fetch.TargetKind`, fetches the
@@ -36,6 +36,10 @@ def fetch_roam_trees(target: str, api_endpoint: ApiEndpoint) -> tuple[NodeTree, 
         target: Roam page title or node UID.  Treated as a node UID if it matches
             :data:`~roam_pub.roam_primitives.UID_RE`; otherwise as a page title.
         api_endpoint: Configured API endpoint used to fetch nodes.
+        include_refs: When ``True``, also fetches every node referenced via
+            ``:block/refs`` from the target page or any of its descendants.  Forwarded to
+            :func:`~roam_pub.roam_node_fetch.FetchRoamNodes.fetch_roam_nodes`; ignored
+            when *target* resolves to a node UID.
 
     Returns:
         A ``(node_tree, vertex_tree)`` pair ready for rendering or further processing.
@@ -44,7 +48,7 @@ def fetch_roam_trees(target: str, api_endpoint: ApiEndpoint) -> tuple[NodeTree, 
     logger.debug("target_kind=%r", target_kind)
     try:
         nodes: Final[list[RoamNode]] = FetchRoamNodes.fetch_roam_nodes(
-            target=target, target_kind=target_kind, api_endpoint=api_endpoint
+            target=target, target_kind=target_kind, api_endpoint=api_endpoint, include_refs=include_refs
         )
     except Exception as e:
         logger.error("Error fetching %r: %s", target, e)

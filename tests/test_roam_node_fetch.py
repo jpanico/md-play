@@ -70,11 +70,17 @@ class TestFetchRoamNodesRequest:
         """Test that payload_by_page_title() produces action 'data.q'."""
         assert FetchRoamNodes.Request.payload_by_page_title("Any Page").action == "data.q"
 
-    def test_payload_args_contains_query(self) -> None:
-        """Test that payload_by_page_title() includes the Datalog query string in args."""
-        assert (
-            FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY in FetchRoamNodes.Request.payload_by_page_title("Any Page").args
-        )
+    def test_payload_args_contains_query_with_refs(self) -> None:
+        """Test that payload_by_page_title() uses BY_PAGE_TITLE_WITH_REFS_QUERY by default."""
+        args: list[object] = FetchRoamNodes.Request.payload_by_page_title("Any Page", True).args
+        assert FetchRoamNodes.Request.BY_PAGE_TITLE_WITH_REFS_QUERY in args
+        assert FetchRoamNodes.Request.DESCENDANT_AND_PAGE_REF_RULES in args
+
+    def test_payload_args_contains_query_without_refs(self) -> None:
+        """Test that payload_by_page_title(include_refs=False) uses BY_PAGE_TITLE_QUERY."""
+        args: list[object] = FetchRoamNodes.Request.payload_by_page_title("Any Page", include_refs=False).args
+        assert FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY in args
+        assert FetchRoamNodes.Request.DESCENDANT_RULE in args
 
     def test_payload_args_contains_page_title(self) -> None:
         """Test that payload_by_page_title() includes the page title in args."""

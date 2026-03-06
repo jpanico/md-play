@@ -58,22 +58,6 @@ class FetchRoamNodes:
         :attr:`~roam_pub.roam_node.RoamNode.props` will be ``None`` for those nodes.
         """
 
-        BY_PAGE_TITLE_QUERY: Final[str] = textwrap.dedent("""\
-            [:find (pull ?node [*])
-             :in $ ?title %
-             :where
-             [?page :node/title ?title]
-             (or-join [?page ?node]
-               (and [?page :node/title ?title]
-                    [?node :node/title ?title])
-               (and [?page :node/title ?title]
-                    (descendant ?page ?node)))]""")
-        """Datalog query fetching a page and all its descendant blocks by ``:node/title``.
-
-        Input bindings: ``?title`` (page title string) and ``%`` (rules vector —
-        :attr:`DESCENDANT_RULE`).  See :attr:`DESCENDANT_RULE` for the traversal structure.
-        """
-
         DESCENDANT_RULE: Final[str] = textwrap.dedent("""\
             [
                 [(descendant ?parent ?child)
@@ -84,9 +68,8 @@ class FetchRoamNodes:
             ]""")
         """Datalog rules vector defining a recursive transitive closure over ``:block/children``.
 
-        Both query constants use an ``or-join`` with this rule to return the root node itself
-        (first branch) plus every block reachable through ``:block/children`` at any depth
-        (second branch).
+        Query constants that reference ``(descendant ?parent ?child)`` pass this vector as
+        the ``%`` rules binding to resolve the rule at query time.
 
         ``or-join`` scoping: the root variable (``?page`` or ``?root``) must appear in the
         join-variable list *and* be re-bound inside each branch.  Variables from the outer
@@ -94,6 +77,99 @@ class FetchRoamNodes:
         free variables inside the ``or-join`` — not as the outer binding.  Omitting the root
         variable would cause ``(descendant ?root ?node)`` to match every descendant pair in
         the entire graph, returning the full database instead of the target subtree.
+        """
+
+        PAGE_REF_RULE: Final[str] = textwrap.dedent("""\
+            [
+                [(page-ref ?root ?node)
+                    [?root :block/refs ?node]]
+                [(page-ref ?root ?node)
+                    (descendant ?root ?member)
+                    [?member :block/refs ?node]]
+            ]""")
+        """Datalog rules vector defining the ``page-ref`` rule for ``:block/refs`` traversal.
+
+        ``(page-ref ?root ?node)`` is satisfied when ``?node`` is referenced directly by
+        ``?root`` via ``:block/refs`` (clause 1), or when ``?node`` is referenced via
+        ``:block/refs`` by any descendant of ``?root`` (clause 2).
+
+        **Dependency**: the second clause calls ``(descendant ?root ?member)``, so
+        ``PAGE_REF_RULE`` cannot be used as a standalone rules vector.  Always combine it
+        with :attr:`DESCENDANT_RULE` by passing :attr:`DESCENDANT_AND_PAGE_REF_RULES` as the
+        ``%`` binding instead.
+        """
+
+        DESCENDANT_AND_PAGE_REF_RULES: Final[str] = textwrap.dedent("""\
+            [
+                [(descendant ?parent ?child)
+                    [?parent :block/children ?child]]
+                [(descendant ?parent ?child)
+                    [?parent :block/children ?mid]
+                    (descendant ?mid ?child)]
+                [(page-ref ?root ?node)
+                    [?root :block/refs ?node]]
+                [(page-ref ?root ?node)
+                    (descendant ?root ?member)
+                    [?member :block/refs ?node]]
+            ]""")
+        """Combined Datalog rules vector containing both :attr:`DESCENDANT_RULE` and :attr:`PAGE_REF_RULE` clauses.
+
+        Pass this as the ``%`` rules binding for any query that uses both ``(descendant ...)``
+        and ``(page-ref ...)``.  Because ``PAGE_REF_RULE`` depends on ``descendant``, the two
+        rule sets must be shipped together in a single vector.
+        """
+
+        BY_PAGE_TITLE_QUERY: Final[str] = textwrap.dedent("""\
+            [:find (pull ?node [*])
+             :in $ ?title %
+             :where
+             [?page :node/title ?title]
+             (or-join [?page ?node]
+               (and [?page :node/title ?title]
+                    [?node :node/title ?title])
+               (and [?page :node/title ?title]
+                    (descendant ?page ?node)))]""")
+        """Datalog query fetching a page and all its descendant blocks by page title.
+
+        Input bindings: ``?title`` (page title string) and ``%`` (rules vector —
+        :attr:`DESCENDANT_RULE`).  See :attr:`DESCENDANT_RULE` for the traversal structure.
+
+        The ``or-join`` has two branches:
+
+        1. The page node itself (``?node = ?page``).
+        2. Every block reachable from ``?page`` through ``:block/children`` at any depth
+           (via the ``descendant`` rule).
+
+        To also include nodes referenced via ``:block/refs``, use
+        :attr:`BY_PAGE_TITLE_WITH_REFS_QUERY` instead.
+        """
+
+        BY_PAGE_TITLE_WITH_REFS_QUERY: Final[str] = textwrap.dedent("""\
+            [:find (pull ?node [*])
+             :in $ ?title %
+             :where
+             [?page :node/title ?title]
+             (or-join [?page ?node]
+               (and [?page :node/title ?title]
+                    [?node :node/title ?title])
+               (and [?page :node/title ?title]
+                    (descendant ?page ?node))
+               (and [?page :node/title ?title]
+                    (page-ref ?page ?node)))]""")
+        """Datalog query fetching a page, all its descendants, and all ``:block/refs`` targets.
+
+        Input bindings: ``?title`` (page title string) and ``%`` (rules vector —
+        :attr:`DESCENDANT_AND_PAGE_REF_RULES`).  Must be paired with
+        :attr:`DESCENDANT_AND_PAGE_REF_RULES` (not :attr:`DESCENDANT_RULE` alone) because the
+        ``page-ref`` rule calls ``(descendant ...)`` internally.
+
+        The ``or-join`` has three branches:
+
+        1. The page node itself (``?node = ?page``).
+        2. Every block reachable from ``?page`` through ``:block/children`` at any depth
+           (via the ``descendant`` rule).
+        3. Every node referenced via ``:block/refs`` from ``?page`` directly or from any of
+           its descendants (via the ``page-ref`` rule).
         """
 
         BY_NODE_UID_QUERY: Final[str] = textwrap.dedent("""\
@@ -114,16 +190,30 @@ class FetchRoamNodes:
         """
 
         @staticmethod
-        def payload_by_page_title(page_title: str) -> LocalApiRequest.Payload:
+        def payload_by_page_title(page_title: str, include_refs: bool = False) -> LocalApiRequest.Payload:
             """Build the ``data.q`` request payload for the given page title.
 
             Args:
                 page_title: The exact title of the Roam page to fetch.
+                include_refs: When ``True``, uses :attr:`BY_PAGE_TITLE_WITH_REFS_QUERY`
+                    paired with :attr:`DESCENDANT_AND_PAGE_REF_RULES` to also pull every node
+                    referenced via ``:block/refs`` from the page or any of its descendants.
+                    When ``False`` (default), uses :attr:`BY_PAGE_TITLE_QUERY` paired with
+                    :attr:`DESCENDANT_RULE` and returns only the page node and its descendants.
 
             Returns:
-                A :class:`~roam_pub.roam_local_api.Request.Payload` with action
-                ``"data.q"`` and args ``[BY_PAGE_TITLE_QUERY, page_title]``.
+                A :class:`~roam_pub.roam_local_api.Request.Payload` with action ``"data.q"``
+                and args set according to *include_refs*.
             """
+            if include_refs:
+                return LocalApiRequest.Payload(
+                    action="data.q",
+                    args=[
+                        FetchRoamNodes.Request.BY_PAGE_TITLE_WITH_REFS_QUERY,
+                        page_title,
+                        FetchRoamNodes.Request.DESCENDANT_AND_PAGE_REF_RULES,
+                    ],
+                )
             return LocalApiRequest.Payload(
                 action="data.q",
                 args=[FetchRoamNodes.Request.BY_PAGE_TITLE_QUERY, page_title, FetchRoamNodes.Request.DESCENDANT_RULE],
@@ -197,7 +287,7 @@ class FetchRoamNodes:
 
     @staticmethod
     @validate_call
-    def fetch_by_page_title(page_title: str, api_endpoint: ApiEndpoint) -> list[RoamNode]:
+    def fetch_by_page_title(page_title: str, api_endpoint: ApiEndpoint, include_refs: bool = False) -> list[RoamNode]:
         """Fetch all Roam nodes matching the given page title from the Roam Research Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -207,22 +297,27 @@ class FetchRoamNodes:
         Args:
             page_title: The exact title of the Roam page to fetch.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
+            include_refs: When ``True``, also returns every node referenced via
+                ``:block/refs`` from the page or any of its descendants.  When ``False``
+                (default), returns only the page node and its descendant blocks.
 
         Returns:
-            A list of :class:`RoamNode` instances whose ``:node/title`` matches
-            ``page_title``.  Each node's :attr:`~roam_pub.roam_node.RoamNode.props`
-            field is populated when the block has block properties set (e.g. an
-            ``ah-level`` value from the Augmented Headings extension).
-            Returns an empty list if no matching page exists.
+            A list of :class:`RoamNode` instances comprising the page node itself and
+            all its descendant blocks; when *include_refs* is ``True``, also includes
+            every node referenced via ``:block/refs`` from the page or any descendant.
+            Each node's :attr:`~roam_pub.roam_node.RoamNode.props` field is populated
+            when the block has block properties set (e.g. an ``ah-level`` value from
+            the Augmented Headings extension).  Returns an empty list if no matching
+            page exists.
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug("api_endpoint: %s, page_title: %r", api_endpoint, page_title)
+        logger.debug("api_endpoint: %s, page_title: %r, include_refs: %r", api_endpoint, page_title, include_refs)
         return FetchRoamNodes._fetch(
-            FetchRoamNodes.Request.payload_by_page_title(page_title),
+            FetchRoamNodes.Request.payload_by_page_title(page_title, include_refs=include_refs),
             api_endpoint,
             f"page_title={page_title!r}",
         )
@@ -261,7 +356,9 @@ class FetchRoamNodes:
         )
 
     @staticmethod
-    def fetch_roam_nodes(target: str, target_kind: TargetKind, api_endpoint: ApiEndpoint) -> list[RoamNode]:
+    def fetch_roam_nodes(
+        target: str, target_kind: TargetKind, api_endpoint: ApiEndpoint, include_refs: bool = False
+    ) -> list[RoamNode]:
         """Fetch Roam nodes by page title or node UID, dispatching on *target_kind*.
 
         Routes to :meth:`fetch_by_node_uid` when *target_kind* is
@@ -272,6 +369,8 @@ class FetchRoamNodes:
             target: A Roam page title or nine-character node UID.
             target_kind: Whether *target* is a page title or a node UID.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
+            include_refs: Forwarded to :meth:`fetch_by_page_title`; ignored when
+                *target_kind* is :attr:`~TargetKind.node`.
 
         Returns:
             A list of :class:`RoamNode` instances.  Returns an empty list if nothing is found.
@@ -282,4 +381,6 @@ class FetchRoamNodes:
         """
         if target_kind is TargetKind.node:
             return FetchRoamNodes.fetch_by_node_uid(node_uid=target, api_endpoint=api_endpoint)
-        return FetchRoamNodes.fetch_by_page_title(page_title=target, api_endpoint=api_endpoint)
+        return FetchRoamNodes.fetch_by_page_title(
+            page_title=target, api_endpoint=api_endpoint, include_refs=include_refs
+        )

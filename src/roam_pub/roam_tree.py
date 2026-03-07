@@ -14,9 +14,8 @@ from collections.abc import Iterator
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from roam_pub.roam_node import (
+from roam_pub.roam_network import (
     NodeNetwork,
-    RoamNode,
     all_children_present,
     all_parents_present,
     has_single_root,
@@ -24,6 +23,7 @@ from roam_pub.roam_node import (
     is_acyclic,
     is_root,
 )
+from roam_pub.roam_node import RoamNode
 from roam_pub.roam_primitives import Id
 from roam_pub.validation import ValidationResult, validate_all
 

@@ -2,8 +2,7 @@
 
 import pytest
 
-from roam_pub.roam_node import (
-    RoamNode,
+from roam_pub.roam_network import (
     all_children_present,
     all_parents_present,
     has_single_root,
@@ -11,6 +10,7 @@ from roam_pub.roam_node import (
     is_acyclic,
     is_root,
 )
+from roam_pub.roam_node import RoamNode
 from roam_pub.roam_primitives import Id, IdObject
 from roam_pub.roam_tree import NodeTree, NodeTreeDFSIterator, is_tree
 from roam_pub.validation import ValidationError

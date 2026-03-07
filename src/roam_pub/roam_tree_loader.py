@@ -14,52 +14,51 @@ import typer
 from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_node import RoamNode
+from roam_pub.roam_node_fetch import FetchRoamNodes
+from roam_pub.roam_node_fetch_result import FetchTargetKind, NodeFetchTarget
 from roam_pub.roam_tree import NodeTree
-from roam_pub.roam_node_fetch import FetchRoamNodes, TargetKind
-from roam_pub.roam_primitives import UID_RE
 from roam_pub.roam_transcribe import transcribe
 
 logger = logging.getLogger(__name__)
 
 
-def fetch_roam_trees(target: str, api_endpoint: ApiEndpoint, include_refs: bool = False) -> tuple[NodeTree, VertexTree]:
+def fetch_roam_trees(
+    target: NodeFetchTarget, api_endpoint: ApiEndpoint, include_refs: bool = False
+) -> tuple[NodeTree, VertexTree]:
     """Fetch Roam nodes for *target* and build a validated node tree and vertex tree.
 
-    Resolves *target* to a :data:`~roam_pub.roam_node_fetch.TargetKind`, fetches the
-    corresponding :class:`~roam_pub.roam_node.RoamNode` records via *api_endpoint*,
-    constructs a :class:`~roam_pub.roam_tree.NodeTree` (with
-    :attr:`~roam_pub.roam_tree.NodeTree.is_standalone` set appropriately for the target
-    kind), transcribes it to a :class:`~roam_pub.graph.VertexTree`, and returns both.
+    Fetches :class:`~roam_pub.roam_node.RoamNode` records for *target* via
+    *api_endpoint*, constructs a :class:`~roam_pub.roam_tree.NodeTree` (with
+    :attr:`~roam_pub.roam_tree.NodeTree.is_standalone` set from
+    :attr:`~roam_pub.roam_node_fetch_result.NodeFetchTarget.kind`), transcribes it to a
+    :class:`~roam_pub.graph.VertexTree`, and returns both.
 
     Exits the CLI with code 1 when the fetch raises an exception or when no nodes are found.
 
     Args:
-        target: Roam page title or node UID.  Treated as a node UID if it matches
-            :data:`~roam_pub.roam_primitives.UID_RE`; otherwise as a page title.
+        target: The resolved fetch target, carrying both the raw string and its detected kind.
         api_endpoint: Configured API endpoint used to fetch nodes.
         include_refs: When ``True``, also fetches every node referenced via
             ``:block/refs`` from the target page or any of its descendants.  Forwarded to
             :func:`~roam_pub.roam_node_fetch.FetchRoamNodes.fetch_roam_nodes`; ignored
-            when *target* resolves to a node UID.
+            when *target* is a node UID.
 
     Returns:
         A ``(node_tree, vertex_tree)`` pair ready for rendering or further processing.
     """
-    target_kind: Final[TargetKind] = TargetKind.node if UID_RE.match(target) else TargetKind.page
-    logger.debug("target_kind=%r", target_kind)
     try:
         nodes: Final[list[RoamNode]] = FetchRoamNodes.fetch_roam_nodes(
-            target=target, target_kind=target_kind, api_endpoint=api_endpoint, include_refs=include_refs
+            target=target, api_endpoint=api_endpoint, include_refs=include_refs
         )
     except Exception as e:
-        logger.error("Error fetching %r: %s", target, e)
+        logger.error("Error fetching %r: %s", target.target, e)
         raise typer.Exit(code=1)
 
     if not nodes:
-        logger.info("No Roam nodes found for %r — aborting.", target)
+        logger.info("No Roam nodes found for %r — aborting.", target.target)
         raise typer.Exit(code=1)
 
-    node_tree: Final[NodeTree] = NodeTree(network=nodes, is_standalone=target_kind is TargetKind.page)
+    node_tree: Final[NodeTree] = NodeTree(network=nodes, is_standalone=target.kind is FetchTargetKind.PAGE_TITLE)
     vertex_tree: Final[VertexTree] = transcribe(node_tree)
     logger.debug("node_tree=%r\n\nvertex_tree=%r", node_tree, vertex_tree)
     return node_tree, vertex_tree

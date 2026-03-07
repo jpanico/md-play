@@ -2,13 +2,12 @@
 
 Public symbols:
 
-- :class:`TargetKind` — enum distinguishing a page-title target from a node-UID target.
 - :class:`FetchRoamNodes` — stateless utility class that fetches all Roam nodes
   by various criteria via the Local API's ``data.q`` action, including
-  :meth:`~FetchRoamNodes.fetch_roam_nodes` which dispatches on :class:`TargetKind`.
+  :meth:`~FetchRoamNodes.fetch_roam_nodes` which auto-detects whether *target*
+  is a page title or a node UID.
 """
 
-import enum
 import logging
 import textwrap
 from typing import Final, final
@@ -22,16 +21,10 @@ from roam_pub.roam_local_api import (
     invoke_action,
 )
 from roam_pub.roam_node import RoamNode
+from roam_pub.roam_node_fetch_result import FetchTargetKind, NodeFetchResult, NodeFetchTarget
 from roam_pub.roam_primitives import Uid
 
 logger = logging.getLogger(__name__)
-
-
-class TargetKind(enum.Enum):
-    """Whether a fetch target is a Roam page title or a node UID."""
-
-    page = "page"
-    node = "node"
 
 
 @final
@@ -237,7 +230,7 @@ class FetchRoamNodes:
     @staticmethod
     def _fetch(
         request_payload: LocalApiRequest.Payload, api_endpoint: ApiEndpoint, lookup_description: str
-    ) -> list[RoamNode]:
+    ) -> NodeFetchResult:
         """Invoke the Local API, validate the response, and extract the node list.
 
         Shared implementation used by all public ``fetch_*`` methods.  Callers are
@@ -275,7 +268,9 @@ class FetchRoamNodes:
 
     @staticmethod
     @validate_call
-    def fetch_by_page_title(page_title: str, api_endpoint: ApiEndpoint, include_refs: bool = False) -> list[RoamNode]:
+    def fetch_by_page_title(
+        target: NodeFetchTarget, api_endpoint: ApiEndpoint, include_refs: bool = False
+    ) -> NodeFetchResult:
         """Fetch all Roam nodes matching the given page title from the Roam Research Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -283,7 +278,9 @@ class FetchRoamNodes:
         graph.
 
         Args:
-            page_title: The exact title of the Roam page to fetch.
+            target: The resolved fetch target whose
+                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchTarget.target` string is
+                the exact title of the Roam page to fetch.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
             include_refs: When ``True``, also returns every node referenced via
                 ``:block/refs`` from the page or any of its descendants.  When ``False``
@@ -300,19 +297,22 @@ class FetchRoamNodes:
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.
+            ValueError: If ``target.kind`` is not :attr:`~roam_pub.roam_node_fetch_result.FetchTargetKind.PAGE_TITLE`.
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug("api_endpoint: %s, page_title: %r, include_refs: %r", api_endpoint, page_title, include_refs)
+        logger.debug("api_endpoint: %s, target: %r, include_refs: %r", api_endpoint, target.target, include_refs)
+        if target.kind is not FetchTargetKind.PAGE_TITLE:
+            raise ValueError(f"expected target.kind=FetchTargetKind.PAGE_TITLE; got {target.kind!r}")
         return FetchRoamNodes._fetch(
-            FetchRoamNodes.Request.payload_by_page_title(page_title, include_refs=include_refs),
+            FetchRoamNodes.Request.payload_by_page_title(target.target, include_refs=include_refs),
             api_endpoint,
-            f"page_title={page_title!r}",
+            f"page_title={target.target!r}",
         )
 
     @staticmethod
     @validate_call
-    def fetch_by_node_uid(node_uid: Uid, api_endpoint: ApiEndpoint) -> list[RoamNode]:
+    def fetch_by_node_uid(target: NodeFetchTarget, api_endpoint: ApiEndpoint) -> NodeFetchResult:
         """Fetch the Roam node with the given UID and all its descendants from the Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -320,7 +320,9 @@ class FetchRoamNodes:
         graph.
 
         Args:
-            node_uid: The nine-character ``:block/uid`` of the root node to fetch.
+            target: The resolved fetch target whose
+                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchTarget.target` string is
+                the nine-character ``:block/uid`` of the root node to fetch.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
         Returns:
@@ -329,36 +331,39 @@ class FetchRoamNodes:
             :attr:`~roam_pub.roam_node.RoamNode.props` field is populated when the
             block has block properties set (e.g. an ``ah-level`` value from the
             Augmented Headings extension).  Returns an empty list if no node with
-            ``node_uid`` exists in the graph.
+            the given UID exists in the graph.
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.
+            ValueError: If ``target.kind`` is not :attr:`~roam_pub.roam_node_fetch_result.FetchTargetKind.NODE_UID`.
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug("api_endpoint: %s, node_uid: %r", api_endpoint, node_uid)
+        logger.debug("api_endpoint: %s, target: %r", api_endpoint, target.target)
+        if target.kind is not FetchTargetKind.NODE_UID:
+            raise ValueError(f"expected target.kind=FetchTargetKind.NODE_UID; got {target.kind!r}")
         return FetchRoamNodes._fetch(
-            FetchRoamNodes.Request.payload_by_node_uid(node_uid),
+            FetchRoamNodes.Request.payload_by_node_uid(target.target),
             api_endpoint,
-            f"node_uid={node_uid!r}",
+            f"node_uid={target.target!r}",
         )
 
     @staticmethod
     def fetch_roam_nodes(
-        target: str, target_kind: TargetKind, api_endpoint: ApiEndpoint, include_refs: bool = False
-    ) -> list[RoamNode]:
-        """Fetch Roam nodes by page title or node UID, dispatching on *target_kind*.
+        target: NodeFetchTarget, api_endpoint: ApiEndpoint, include_refs: bool = False
+    ) -> NodeFetchResult:
+        """Fetch Roam nodes by page title or node UID, dispatching on *target* kind.
 
-        Routes to :meth:`fetch_by_node_uid` when *target_kind* is
-        :attr:`~TargetKind.node`, or to :meth:`fetch_by_page_title` when it is
-        :attr:`~TargetKind.page`.
+        Routes to :meth:`fetch_by_node_uid` when
+        :attr:`~roam_pub.roam_node_fetch_result.NodeFetchTarget.kind` is
+        :attr:`~roam_pub.roam_node_fetch_result.FetchTargetKind.NODE_UID`, or to
+        :meth:`fetch_by_page_title` otherwise.
 
         Args:
-            target: A Roam page title or nine-character node UID.
-            target_kind: Whether *target* is a page title or a node UID.
+            target: The resolved fetch target, carrying both the raw string and its kind.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
             include_refs: Forwarded to :meth:`fetch_by_page_title`; ignored when
-                *target_kind* is :attr:`~TargetKind.node`.
+                *target* is a node UID.
 
         Returns:
             A list of :class:`RoamNode` instances.  Returns an empty list if nothing is found.
@@ -367,8 +372,6 @@ class FetchRoamNodes:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        if target_kind is TargetKind.node:
-            return FetchRoamNodes.fetch_by_node_uid(node_uid=target, api_endpoint=api_endpoint)
-        return FetchRoamNodes.fetch_by_page_title(
-            page_title=target, api_endpoint=api_endpoint, include_refs=include_refs
-        )
+        if target.kind is FetchTargetKind.NODE_UID:
+            return FetchRoamNodes.fetch_by_node_uid(target=target, api_endpoint=api_endpoint)
+        return FetchRoamNodes.fetch_by_page_title(target=target, api_endpoint=api_endpoint, include_refs=include_refs)

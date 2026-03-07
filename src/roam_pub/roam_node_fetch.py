@@ -58,14 +58,25 @@ class FetchRoamNodes:
         :attr:`~roam_pub.roam_node.RoamNode.props` will be ``None`` for those nodes.
         """
 
-        DESCENDANT_RULE: Final[str] = textwrap.dedent("""\
-            [
+        _DESCENDANT_CLAUSES: Final[str] = textwrap.indent(
+            textwrap.dedent("""\
                 [(descendant ?parent ?child)
                     [?parent :block/children ?child]]
                 [(descendant ?parent ?child)
                     [?parent :block/children ?mid]
-                    (descendant ?mid ?child)]
-            ]""")
+                    (descendant ?mid ?child)]"""),
+            "    ",
+        )
+        _PAGE_REF_CLAUSES: Final[str] = textwrap.indent(
+            textwrap.dedent("""\
+                [(page-ref ?root ?node)
+                    [?root :block/refs ?node]]
+                [(page-ref ?root ?node)
+                    (descendant ?root ?member)
+                    [?member :block/refs ?node]]"""),
+            "    ",
+        )
+        DESCENDANT_RULE: Final[str] = f"[\n{_DESCENDANT_CLAUSES}\n]"
         """Datalog rules vector defining a recursive transitive closure over ``:block/children``.
 
         Query constants that reference ``(descendant ?parent ?child)`` pass this vector as
@@ -79,14 +90,7 @@ class FetchRoamNodes:
         the entire graph, returning the full database instead of the target subtree.
         """
 
-        PAGE_REF_RULE: Final[str] = textwrap.dedent("""\
-            [
-                [(page-ref ?root ?node)
-                    [?root :block/refs ?node]]
-                [(page-ref ?root ?node)
-                    (descendant ?root ?member)
-                    [?member :block/refs ?node]]
-            ]""")
+        PAGE_REF_RULE: Final[str] = f"[\n{_PAGE_REF_CLAUSES}\n]"
         """Datalog rules vector defining the ``page-ref`` rule for ``:block/refs`` traversal.
 
         ``(page-ref ?root ?node)`` is satisfied when ``?node`` is referenced directly by
@@ -99,19 +103,7 @@ class FetchRoamNodes:
         ``%`` binding instead.
         """
 
-        DESCENDANT_AND_PAGE_REF_RULES: Final[str] = textwrap.dedent("""\
-            [
-                [(descendant ?parent ?child)
-                    [?parent :block/children ?child]]
-                [(descendant ?parent ?child)
-                    [?parent :block/children ?mid]
-                    (descendant ?mid ?child)]
-                [(page-ref ?root ?node)
-                    [?root :block/refs ?node]]
-                [(page-ref ?root ?node)
-                    (descendant ?root ?member)
-                    [?member :block/refs ?node]]
-            ]""")
+        DESCENDANT_AND_PAGE_REF_RULES: Final[str] = f"[\n{_DESCENDANT_CLAUSES}\n{_PAGE_REF_CLAUSES}\n]"
         """Combined Datalog rules vector containing both :attr:`DESCENDANT_RULE` and :attr:`PAGE_REF_RULE` clauses.
 
         Pass this as the ``%`` rules binding for any query that uses both ``(descendant ...)``
@@ -119,7 +111,7 @@ class FetchRoamNodes:
         rule sets must be shipped together in a single vector.
         """
 
-        BY_PAGE_TITLE_QUERY: Final[str] = textwrap.dedent("""\
+        _BY_PAGE_TITLE_QUERY_BASE: Final[str] = textwrap.dedent("""\
             [:find (pull ?node [*])
              :in $ ?title %
              :where
@@ -128,7 +120,14 @@ class FetchRoamNodes:
                (and [?page :node/title ?title]
                     [?node :node/title ?title])
                (and [?page :node/title ?title]
-                    (descendant ?page ?node)))]""")
+                    (descendant ?page ?node))""")
+        _PAGE_REF_OR_JOIN_BRANCH: Final[str] = textwrap.indent(
+            textwrap.dedent("""\
+                (and [?page :node/title ?title]
+                     (page-ref ?page ?node))"""),
+            "   ",
+        )
+        BY_PAGE_TITLE_QUERY: Final[str] = f"{_BY_PAGE_TITLE_QUERY_BASE})]"
         """Datalog query fetching a page and all its descendant blocks by page title.
 
         Input bindings: ``?title`` (page title string) and ``%`` (rules vector —
@@ -144,18 +143,7 @@ class FetchRoamNodes:
         :attr:`BY_PAGE_TITLE_WITH_REFS_QUERY` instead.
         """
 
-        BY_PAGE_TITLE_WITH_REFS_QUERY: Final[str] = textwrap.dedent("""\
-            [:find (pull ?node [*])
-             :in $ ?title %
-             :where
-             [?page :node/title ?title]
-             (or-join [?page ?node]
-               (and [?page :node/title ?title]
-                    [?node :node/title ?title])
-               (and [?page :node/title ?title]
-                    (descendant ?page ?node))
-               (and [?page :node/title ?title]
-                    (page-ref ?page ?node)))]""")
+        BY_PAGE_TITLE_WITH_REFS_QUERY: Final[str] = f"{_BY_PAGE_TITLE_QUERY_BASE}\n{_PAGE_REF_OR_JOIN_BRANCH})]"
         """Datalog query fetching a page, all its descendants, and all ``:block/refs`` targets.
 
         Input bindings: ``?title`` (page title string) and ``%`` (rules vector —

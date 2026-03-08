@@ -219,6 +219,57 @@ class TestNodeTree:
 
 
 # ---------------------------------------------------------------------------
+# TestNodeTreeNodeIds
+# ---------------------------------------------------------------------------
+
+
+class TestNodeTreeNodeIds:
+    """Tests for NodeTree.node_ids — the set of all RoamNode.id values in the tree."""
+
+    def test_single_root_returns_singleton(self) -> None:
+        """Test that a tree with only a root node returns a set containing just root.id."""
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
+        tree = NodeTree(network=[root], root_node=root)
+        assert tree.node_ids() == {1}
+
+    def test_article_fixture_node_ids_matches_network(self) -> None:
+        """Test that node_ids() equals {n.id for n in tree.network} for the article fixture."""
+        tree = article0_node_tree()
+        assert tree.node_ids() == {n.id for n in tree.network}
+
+
+# ---------------------------------------------------------------------------
+# TestNodeTreeNodeRefsIds
+# ---------------------------------------------------------------------------
+
+
+class TestNodeTreeNodeRefsIds:
+    """Tests for NodeTree.node_refs_ids — the set of all RoamNode.refs ids across the tree."""
+
+    def test_no_refs_returns_empty_set(self) -> None:
+        """Test that a tree whose nodes have no refs returns an empty set."""
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
+        tree = NodeTree(network=[root], root_node=root)
+        assert tree.node_refs_ids() == set()
+
+    def test_block_with_ref_returns_ref_id(self) -> None:
+        """Test that a block node with a ref contributes its ref id to the result."""
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)])
+        block = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[some page]]",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=99)],
+        )
+        tree = NodeTree(network=[root, block], root_node=root)
+        assert tree.node_refs_ids() == {99}
+
+
+# ---------------------------------------------------------------------------
 # TestNodeTreeExternalRefsIds
 # ---------------------------------------------------------------------------
 

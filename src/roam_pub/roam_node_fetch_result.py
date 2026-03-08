@@ -5,7 +5,7 @@ Public symbols:
 - :class:`QueryAnchorKind` — enum discriminating a page-title anchor from a node-UID anchor.
 - :class:`NodeFetchAnchor` — immutable model pairing a raw anchor string with its detected kind.
 - :class:`NodeFetchSpec` — immutable model pairing a :class:`NodeFetchAnchor` with fetch options.
-- :class:`NodeFetchResult` — immutable model bundling the fetch anchor, its resolved node tree,
+- :class:`NodeFetchResult` — immutable model bundling the fetch specification, its resolved node tree,
   and a :data:`~roam_pub.roam_node.NodesByUid` index of all fetched nodes.
 - :data:`NodeFetchResult_Placeholder` — flat list of :class:`~roam_pub.roam_node.RoamNode` records
   returned by all :class:`~roam_pub.roam_node_fetch.FetchRoamNodes` fetch methods.
@@ -18,7 +18,7 @@ Public symbols:
 import enum
 from typing import Final
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from roam_pub.roam_network import NodeNetwork
 from roam_pub.roam_node import NodesByUid, RoamNode
@@ -88,10 +88,13 @@ class NodeFetchSpec(BaseModel):
 
 
 class NodeFetchResult(BaseModel):
-    """Immutable model bundling a fetch anchor with its resolved node tree and UID index.
+    """Immutable model bundling a fetch specification with its resolved node tree and UID index.
+
+    This class cannot be instantiated directly; use the :meth:`from_network` class method,
+    which is the sole public constructor.
 
     Attributes:
-        fetch_anchor: The anchor used to perform the fetch.
+        fetch_spec: The fetch specification used to perform the fetch.
         anchor_tree: The :class:`~roam_pub.roam_tree.NodeTree` rooted at the fetch anchor.
         nodes_by_uid: Index mapping each fetched node's UID to its
             :class:`~roam_pub.roam_node.RoamNode`.
@@ -101,9 +104,20 @@ class NodeFetchResult(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    fetch_anchor: NodeFetchAnchor = Field(description="The anchor used to perform the fetch.")
+    fetch_spec: NodeFetchSpec = Field(description="The fetch specification used to perform the fetch.")
     anchor_tree: NodeTree = Field(description="The node tree rooted at the fetch anchor.")
     nodes_by_uid: NodesByUid = Field(description="Index mapping each fetched node UID to its RoamNode.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _guard_direct_construction(cls, data: object) -> object:
+        """Block direct instantiation of :class:`NodeFetchResult`.
+
+        Raises:
+            TypeError: Always — only :meth:`from_network` may construct instances,
+                via :meth:`~pydantic.BaseModel.model_construct` which bypasses this guard.
+        """
+        raise TypeError(f"'{cls.__name__}' cannot be constructed directly; use '{cls.__name__}.from_network()' instead")
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -124,9 +138,13 @@ class NodeFetchResult(BaseModel):
     def from_network(cls, network: NodeNetwork, fetch_spec: NodeFetchSpec) -> NodeFetchResult:
         """Construct a :class:`NodeFetchResult` from a raw *network* and *fetch_spec*.
 
-        Locates the anchor node within *network* via :func:`anchor_node`, wraps the full
-        network in a :class:`~roam_pub.roam_tree.NodeTree` rooted there, and builds a
+        This is the sole public constructor for :class:`NodeFetchResult`.  It locates the
+        anchor node within *network* via :func:`anchor_node`, wraps the full network in a
+        :class:`~roam_pub.roam_tree.NodeTree` rooted there, and builds a
         :data:`~roam_pub.roam_node.NodesByUid` index over all nodes in *network*.
+
+        Uses :meth:`~pydantic.BaseModel.model_construct` to bypass the
+        :meth:`_guard_direct_construction` validator, which blocks all other construction paths.
 
         Args:
             network: The flat node network returned by the fetch.
@@ -147,7 +165,7 @@ class NodeFetchResult(BaseModel):
         root: Final[RoamNode] = anchor_node(network, fetch_spec.anchor)
         tree: Final[NodeTree] = NodeTree(network=network, root_node=root)
         by_uid: Final[NodesByUid] = {n.uid: n for n in network}
-        return cls(fetch_anchor=fetch_spec.anchor, anchor_tree=tree, nodes_by_uid=by_uid)
+        return cls.model_construct(fetch_spec=fetch_spec, anchor_tree=tree, nodes_by_uid=by_uid)
 
 
 type NodeFetchResult_Placeholder = NodeNetwork

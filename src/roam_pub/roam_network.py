@@ -5,8 +5,9 @@ Public symbols:
 - :data:`NodeNetwork` — a collection of :class:`~roam_pub.roam_node.RoamNode` instances.
 - :func:`all_children_present` — :data:`~roam_pub.validation.Validator` requiring all child ids in a
   :data:`NodeNetwork` to resolve to member nodes.
-- :func:`all_parents_present` — :data:`~roam_pub.validation.Validator` requiring all parent ids in a
-  :data:`NodeNetwork` to resolve to member nodes.
+- :func:`all_parents_present` — validator function requiring all non-root parent ids in a
+  :data:`NodeNetwork` to resolve to member nodes; accepts a *root_node* argument whose own
+  parent ids are exempt from the check.
 - :func:`has_unique_ids` — :data:`~roam_pub.validation.Validator` requiring every
   :attr:`~roam_pub.roam_node.RoamNode.id` in a :data:`NodeNetwork` to be unique.
 - :func:`is_acyclic` — :data:`~roam_pub.validation.Validator` requiring the child-edge graph of a

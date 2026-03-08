@@ -6,16 +6,16 @@ import pytest
 from pydantic import ValidationError
 
 from roam_pub.roam_network import NodeNetwork
-from roam_pub.roam_node import NodesByUid, RoamNode
+from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch_result import (
     NodeFetchAnchor,
     NodeFetchResult,
+    NodeFetchSpec,
     QueryAnchorKind,
     anchor_node,
     anchor_tree,
 )
 from roam_pub.roam_primitives import IdObject
-from roam_pub.roam_tree import NodeTree
 
 from conftest import STUB_TIME, STUB_USER
 
@@ -114,6 +114,43 @@ class TestNodeFetchAnchor:
 
 
 # ---------------------------------------------------------------------------
+# NodeFetchSpec
+# ---------------------------------------------------------------------------
+
+
+class TestNodeFetchSpec:
+    """Tests for :class:`~roam_pub.roam_node_fetch_result.NodeFetchSpec`."""
+
+    def test_anchor_and_include_refs_false_stored(self) -> None:
+        """Test that anchor and include_refs=False are stored correctly."""
+        anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(qualifier=_PAGE_TITLE)
+        spec: Final[NodeFetchSpec] = NodeFetchSpec(anchor=anchor, include_refs=False)
+        assert spec.anchor == anchor
+        assert spec.include_refs is False
+
+    def test_include_refs_true_stored(self) -> None:
+        """Test that include_refs=True is stored correctly."""
+        spec: Final[NodeFetchSpec] = NodeFetchSpec(anchor=NodeFetchAnchor(qualifier=_PAGE_TITLE), include_refs=True)
+        assert spec.include_refs is True
+
+    def test_immutability(self) -> None:
+        """Test that NodeFetchSpec instances are immutable (frozen)."""
+        spec: Final[NodeFetchSpec] = NodeFetchSpec(anchor=NodeFetchAnchor(qualifier=_PAGE_TITLE), include_refs=False)
+        with pytest.raises(Exception):
+            spec.include_refs = True  # type: ignore[misc]
+
+    def test_missing_anchor_raises_validation_error(self) -> None:
+        """Test that omitting anchor raises ValidationError."""
+        with pytest.raises(ValidationError):
+            NodeFetchSpec(include_refs=False)  # type: ignore[call-arg]
+
+    def test_missing_include_refs_raises_validation_error(self) -> None:
+        """Test that omitting include_refs raises ValidationError."""
+        with pytest.raises(ValidationError):
+            NodeFetchSpec(anchor=NodeFetchAnchor(qualifier=_PAGE_TITLE))  # type: ignore[call-arg]
+
+
+# ---------------------------------------------------------------------------
 # NodeFetchResult
 # ---------------------------------------------------------------------------
 
@@ -123,16 +160,15 @@ class TestNodeFetchResult:
 
     def _make_result(self) -> NodeFetchResult:
         """Return a minimal valid :class:`~roam_pub.roam_node_fetch_result.NodeFetchResult`."""
-        page: Final[RoamNode] = _page_node()
-        fetch_anchor: Final[NodeFetchAnchor] = NodeFetchAnchor(qualifier=_PAGE_TITLE)
-        anchor_tree: Final[NodeTree] = NodeTree(network=[page], root_node=page)
-        nodes_by_uid: Final[NodesByUid] = {page.uid: page}
-        return NodeFetchResult(fetch_anchor=fetch_anchor, anchor_tree=anchor_tree, nodes_by_uid=nodes_by_uid)
+        fetch_spec: Final[NodeFetchSpec] = NodeFetchSpec(
+            anchor=NodeFetchAnchor(qualifier=_PAGE_TITLE), include_refs=False
+        )
+        return NodeFetchResult.from_network([_page_node()], fetch_spec)
 
     def test_valid_construction(self) -> None:
         """Test that a NodeFetchResult can be constructed with all required fields."""
         result: Final[NodeFetchResult] = self._make_result()
-        assert result.fetch_anchor.qualifier == _PAGE_TITLE
+        assert result.fetch_spec.anchor.qualifier == _PAGE_TITLE
         assert len(result.anchor_tree.network) == 1
         assert result.nodes_by_uid[_PAGE_UID].title == _PAGE_TITLE
 
@@ -140,34 +176,17 @@ class TestNodeFetchResult:
         """Test that NodeFetchResult instances are immutable (frozen)."""
         result: Final[NodeFetchResult] = self._make_result()
         with pytest.raises(Exception):
-            result.fetch_anchor = NodeFetchAnchor(qualifier="Other")  # type: ignore[misc]
+            result.fetch_spec = NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="Other"), include_refs=False)  # type: ignore[misc]
 
-    def test_missing_fetch_anchor_raises_validation_error(self) -> None:
-        """Test that omitting fetch_anchor raises ValidationError."""
-        page: Final[RoamNode] = _page_node()
-        with pytest.raises(ValidationError):
-            NodeFetchResult(  # type: ignore[call-arg]
-                anchor_tree=NodeTree(network=[page], root_node=page),
-                nodes_by_uid={page.uid: page},
-            )
+    def test_network_contains_all_fetched_nodes(self) -> None:
+        """Test that network returns every node in nodes_by_uid as a flat list."""
+        result: Final[NodeFetchResult] = self._make_result()
+        assert {n.uid for n in result.network} == set(result.nodes_by_uid.keys())
 
-    def test_missing_anchor_tree_raises_validation_error(self) -> None:
-        """Test that omitting anchor_tree raises ValidationError."""
-        page: Final[RoamNode] = _page_node()
-        with pytest.raises(ValidationError):
-            NodeFetchResult(  # type: ignore[call-arg]
-                fetch_anchor=NodeFetchAnchor(qualifier=_PAGE_TITLE),
-                nodes_by_uid={page.uid: page},
-            )
-
-    def test_missing_nodes_by_uid_raises_validation_error(self) -> None:
-        """Test that omitting nodes_by_uid raises ValidationError."""
-        page: Final[RoamNode] = _page_node()
-        with pytest.raises(ValidationError):
-            NodeFetchResult(  # type: ignore[call-arg]
-                fetch_anchor=NodeFetchAnchor(qualifier=_PAGE_TITLE),
-                anchor_tree=NodeTree(network=[page], root_node=page),
-            )
+    def test_direct_construction_raises_type_error(self) -> None:
+        """Test that NodeFetchResult cannot be instantiated directly."""
+        with pytest.raises(TypeError):
+            NodeFetchResult.model_validate({})
 
 
 # ---------------------------------------------------------------------------

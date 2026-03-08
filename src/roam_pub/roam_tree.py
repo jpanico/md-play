@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 class NodeTree(BaseModel):
-    """A Pydantic-typed wrapper holding a :data:`~roam_pub.roam_node.NodeNetwork`.
+    """A Pydantic-typed wrapper holding a :data:`~roam_pub.roam_network.NodeNetwork`.
 
     All tree invariants are validated at construction time via :func:`is_tree`; a
     :exc:`pydantic.ValidationError` is raised if *network* does not satisfy them.
@@ -45,6 +45,15 @@ class NodeTree(BaseModel):
     Attributes:
         root_node: The single root node of this tree.
         network: All constituent nodes of this tree, including *root_node*.
+
+    Methods:
+        dfs: Return a :class:`NodeTreeDFSIterator` for pre-order depth-first traversal.
+        node_ids: Return the set of all :attr:`~roam_pub.roam_node.RoamNode.id` values in
+            :attr:`network`.
+        node_refs_ids: Return the set of all :attr:`~roam_pub.roam_node.RoamNode.refs` ids
+            across :attr:`network`.
+        external_refs_ids: Return the subset of :meth:`node_refs_ids` ids that are not members
+            of :meth:`node_ids` — i.e. refs that resolve to nodes outside this tree.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)

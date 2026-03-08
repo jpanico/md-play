@@ -11,7 +11,7 @@ from roam_pub.roam_node import RoamNode
 from roam_pub.roam_primitives import IdObject
 from roam_pub.validation import ValidationError
 
-from conftest import STUB_TIME, STUB_USER
+from conftest import STUB_TIME, STUB_USER, article0_node_tree
 
 
 class TestAllChildrenPresent:
@@ -748,3 +748,25 @@ class TestRefsIds:
             refs=[IdObject(id=50)],
         )
         assert refs_ids([page, block_no_refs, block_with_refs]) == {50}
+
+    def test_node_with_empty_refs_list_returns_empty_set(self) -> None:
+        """Test that a node whose refs field is an empty list contributes nothing."""
+        block = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="no links",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[],
+        )
+        assert refs_ids([block]) == set()
+
+    def test_article_fixture_has_no_refs(self) -> None:
+        """Test that the article fixture network contains no :block/refs ids.
+
+        The test_article_0 fixture has no wikilinks, so every node's refs field
+        is None and refs_ids should return an empty set.
+        """
+        assert refs_ids(article0_node_tree().network) == set()

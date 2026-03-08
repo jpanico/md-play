@@ -12,7 +12,7 @@ from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_primitives import IdObject
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_node_fetch import FetchRoamNodes
-from roam_pub.roam_node_fetch_result import NodeFetchAnchor
+from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchSpec
 
 from conftest import article0_node_tree
 
@@ -186,12 +186,15 @@ class TestFetchRoamNodesFetchByPageTitle:
     def test_null_api_endpoint_raises_validation_error(self) -> None:
         """Test that None api_endpoint raises ValidationError."""
         with pytest.raises(ValidationError):
-            FetchRoamNodes.fetch_by_page_title(anchor=NodeFetchAnchor(qualifier="My Page"), api_endpoint=None)  # type: ignore[arg-type]
+            FetchRoamNodes.fetch_by_page_title(
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="My Page"), include_refs=False),
+                api_endpoint=None,  # type: ignore[arg-type]
+            )
 
-    def test_null_target_raises_validation_error(self, api_endpoint: ApiEndpoint) -> None:
-        """Test that None target raises ValidationError."""
+    def test_null_fetch_spec_raises_validation_error(self, api_endpoint: ApiEndpoint) -> None:
+        """Test that None fetch_spec raises ValidationError."""
         with pytest.raises(ValidationError):
-            FetchRoamNodes.fetch_by_page_title(anchor=None, api_endpoint=api_endpoint)  # type: ignore[arg-type]
+            FetchRoamNodes.fetch_by_page_title(fetch_spec=None, api_endpoint=api_endpoint)  # type: ignore[arg-type]
 
     def test_http_error_response_raises_http_error(self, api_endpoint: ApiEndpoint) -> None:
         """Test that a non-200 HTTP response raises requests.exceptions.HTTPError."""
@@ -202,14 +205,16 @@ class TestFetchRoamNodesFetchByPageTitle:
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
             with pytest.raises(requests.exceptions.HTTPError):
                 FetchRoamNodes.fetch_by_page_title(
-                    anchor=NodeFetchAnchor(qualifier="My Page"), api_endpoint=api_endpoint
+                    fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="My Page"), include_refs=False),
+                    api_endpoint=api_endpoint,
                 )
 
     def test_successful_fetch_returns_roam_nodes(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
         """Test that a successful HTTP 200 response returns a list of RoamNodes."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response):
             nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
-                anchor=NodeFetchAnchor(qualifier="My Page"), api_endpoint=api_endpoint
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="My Page"), include_refs=False),
+                api_endpoint=api_endpoint,
             )
 
         assert len(nodes) == 1
@@ -224,7 +229,8 @@ class TestFetchRoamNodesFetchByPageTitle:
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
             nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
-                anchor=NodeFetchAnchor(qualifier="Nonexistent"), api_endpoint=api_endpoint
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="Nonexistent"), include_refs=False),
+                api_endpoint=api_endpoint,
             )
 
         assert nodes == []
@@ -232,14 +238,20 @@ class TestFetchRoamNodesFetchByPageTitle:
     def test_posts_to_correct_endpoint_url(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
         """Test that the POST is made to the correct endpoint URL."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            FetchRoamNodes.fetch_by_page_title(anchor=NodeFetchAnchor(qualifier="My Page"), api_endpoint=api_endpoint)
+            FetchRoamNodes.fetch_by_page_title(
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="My Page"), include_refs=False),
+                api_endpoint=api_endpoint,
+            )
 
         assert mock_post.call_args.args[0] == str(api_endpoint.url)
 
     def test_posts_data_q_action(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
         """Test that the POST body contains the data.q action."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            FetchRoamNodes.fetch_by_page_title(anchor=NodeFetchAnchor(qualifier="My Page"), api_endpoint=api_endpoint)
+            FetchRoamNodes.fetch_by_page_title(
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="My Page"), include_refs=False),
+                api_endpoint=api_endpoint,
+            )
 
         posted_json: dict[str, object] = mock_post.call_args.kwargs["json"]
         assert posted_json["action"] == "data.q"
@@ -247,7 +259,10 @@ class TestFetchRoamNodesFetchByPageTitle:
     def test_posts_page_title_in_args(self, api_endpoint: ApiEndpoint, mock_200_response: MagicMock) -> None:
         """Test that the POST body includes the page title in args."""
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            FetchRoamNodes.fetch_by_page_title(anchor=NodeFetchAnchor(qualifier="My Page"), api_endpoint=api_endpoint)
+            FetchRoamNodes.fetch_by_page_title(
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="My Page"), include_refs=False),
+                api_endpoint=api_endpoint,
+            )
 
         posted_json: dict[str, object] = mock_post.call_args.kwargs["json"]
         assert "My Page" in posted_json["args"]  # type: ignore[operator]
@@ -261,7 +276,10 @@ class TestFetchRoamNodesFetchByPageTitle:
         )
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_200_response) as mock_post:
-            FetchRoamNodes.fetch_by_page_title(anchor=NodeFetchAnchor(qualifier="My Page"), api_endpoint=token_endpoint)
+            FetchRoamNodes.fetch_by_page_title(
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="My Page"), include_refs=False),
+                api_endpoint=token_endpoint,
+            )
 
         headers: dict[str, object] = mock_post.call_args.kwargs["headers"]
         assert headers["Authorization"] == "Bearer my-secret-token"
@@ -290,7 +308,8 @@ class TestFetchRoamNodesFetchByPageTitle:
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
             nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
-                anchor=NodeFetchAnchor(qualifier="Rich Page"), api_endpoint=api_endpoint
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="Rich Page"), include_refs=False),
+                api_endpoint=api_endpoint,
             )
 
         assert len(nodes) == 1
@@ -353,7 +372,8 @@ class TestFetchRoamNodesFetchByPageTitle:
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
             nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
-                anchor=NodeFetchAnchor(qualifier="Heading Page"), api_endpoint=api_endpoint
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="Heading Page"), include_refs=False),
+                api_endpoint=api_endpoint,
             )
 
         assert len(nodes) == 3
@@ -382,7 +402,8 @@ class TestFetchRoamNodesFetchByPageTitle:
         page_title = "Test Article 0"
 
         nodes: list[RoamNode] = FetchRoamNodes.fetch_by_page_title(
-            anchor=NodeFetchAnchor(qualifier=page_title), api_endpoint=live_api_endpoint
+            fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier=page_title), include_refs=False),
+            api_endpoint=live_api_endpoint,
         )
         logger.debug("nodes: %s", nodes)
 
@@ -399,12 +420,15 @@ class TestFetchRoamNodesFetchByNodeUid:
     def test_null_api_endpoint_raises_validation_error(self) -> None:
         """Test that None api_endpoint raises ValidationError."""
         with pytest.raises(ValidationError):
-            FetchRoamNodes.fetch_by_node_uid(anchor=NodeFetchAnchor(qualifier="wdMgyBiP9"), api_endpoint=None)  # type: ignore[arg-type]
+            FetchRoamNodes.fetch_by_node_uid(
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="wdMgyBiP9"), include_refs=False),
+                api_endpoint=None,  # type: ignore[arg-type]
+            )
 
-    def test_null_target_raises_validation_error(self, api_endpoint: ApiEndpoint) -> None:
-        """Test that None target raises ValidationError."""
+    def test_null_fetch_spec_raises_validation_error(self, api_endpoint: ApiEndpoint) -> None:
+        """Test that None fetch_spec raises ValidationError."""
         with pytest.raises(ValidationError):
-            FetchRoamNodes.fetch_by_node_uid(anchor=None, api_endpoint=api_endpoint)  # type: ignore[arg-type]
+            FetchRoamNodes.fetch_by_node_uid(fetch_spec=None, api_endpoint=api_endpoint)  # type: ignore[arg-type]
 
     def test_node_not_found_returns_empty_list(self, api_endpoint: ApiEndpoint) -> None:
         """Test that an empty result (node not found) returns an empty list."""
@@ -414,7 +438,8 @@ class TestFetchRoamNodesFetchByNodeUid:
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
             nodes: list[RoamNode] = FetchRoamNodes.fetch_by_node_uid(
-                anchor=NodeFetchAnchor(qualifier="wdMgyBiP9"), api_endpoint=api_endpoint
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="wdMgyBiP9"), include_refs=False),
+                api_endpoint=api_endpoint,
             )
 
         assert nodes == []
@@ -437,7 +462,8 @@ class TestFetchRoamNodesFetchByNodeUid:
         expected_nodes: list[RoamNode] = [n for n in all_fixture_nodes if n.uid in section2_uids]
 
         nodes: list[RoamNode] = FetchRoamNodes.fetch_by_node_uid(
-            anchor=NodeFetchAnchor(qualifier=node_uid), api_endpoint=live_api_endpoint
+            fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier=node_uid), include_refs=False),
+            api_endpoint=live_api_endpoint,
         )
         logger.debug("nodes: %s", nodes)
 
@@ -471,7 +497,8 @@ class TestFetchRoamNodesFetchByNodeUid:
 
         with patch("roam_pub.roam_local_api.requests.post", return_value=mock_response):
             nodes: list[RoamNode] = FetchRoamNodes.fetch_by_node_uid(
-                anchor=NodeFetchAnchor(qualifier="wdMgyBiP9"), api_endpoint=api_endpoint
+                fetch_spec=NodeFetchSpec(anchor=NodeFetchAnchor(qualifier="wdMgyBiP9"), include_refs=False),
+                api_endpoint=api_endpoint,
             )
 
         assert len(nodes) == len(section2_uids)

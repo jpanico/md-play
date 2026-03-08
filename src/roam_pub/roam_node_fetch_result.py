@@ -95,6 +95,8 @@ class NodeFetchResult(BaseModel):
         anchor_tree: The :class:`~roam_pub.roam_tree.NodeTree` rooted at the fetch anchor.
         nodes_by_uid: Index mapping each fetched node's UID to its
             :class:`~roam_pub.roam_node.RoamNode`.
+        network: All :class:`~roam_pub.roam_node.RoamNode` instances fetched by this result,
+            as a flat :data:`~roam_pub.roam_network.NodeNetwork` list.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -102,6 +104,50 @@ class NodeFetchResult(BaseModel):
     fetch_anchor: NodeFetchAnchor = Field(description="The anchor used to perform the fetch.")
     anchor_tree: NodeTree = Field(description="The node tree rooted at the fetch anchor.")
     nodes_by_uid: NodesByUid = Field(description="Index mapping each fetched node UID to its RoamNode.")
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def network(self) -> NodeNetwork:
+        """Return all fetched nodes as a flat :data:`~roam_pub.roam_network.NodeNetwork` list.
+
+        Returns every node in :attr:`nodes_by_uid`, which includes both the structural nodes
+        of :attr:`anchor_tree` and any additional nodes fetched via ``:block/refs`` when
+        :attr:`~NodeFetchSpec.include_refs` was ``True``.
+
+        Returns:
+            A :data:`~roam_pub.roam_network.NodeNetwork` containing every
+            :class:`~roam_pub.roam_node.RoamNode` in :attr:`nodes_by_uid`.
+        """
+        return list(self.nodes_by_uid.values())
+
+    @classmethod
+    def from_network(cls, network: NodeNetwork, fetch_spec: NodeFetchSpec) -> NodeFetchResult:
+        """Construct a :class:`NodeFetchResult` from a raw *network* and *fetch_spec*.
+
+        Locates the anchor node within *network* via :func:`anchor_node`, wraps the full
+        network in a :class:`~roam_pub.roam_tree.NodeTree` rooted there, and builds a
+        :data:`~roam_pub.roam_node.NodesByUid` index over all nodes in *network*.
+
+        Args:
+            network: The flat node network returned by the fetch.
+            fetch_spec: The fetch specification whose :attr:`~NodeFetchSpec.anchor` identifies
+                the root node of *network*.
+
+        Returns:
+            A :class:`NodeFetchResult` whose :attr:`anchor_tree` is rooted at the node
+            in *network* that matches :attr:`fetch_spec.anchor <NodeFetchSpec.anchor>`, and
+            whose :attr:`nodes_by_uid` indexes every node in *network* by
+            :attr:`~roam_pub.roam_node.RoamNode.uid`.
+
+        Raises:
+            ValueError: If no node in *network* matches :attr:`fetch_spec.anchor
+                <NodeFetchSpec.anchor>`, or if *network* fails any
+                :class:`~roam_pub.roam_tree.NodeTree` invariant.
+        """
+        root: Final[RoamNode] = anchor_node(network, fetch_spec.anchor)
+        tree: Final[NodeTree] = NodeTree(network=network, root_node=root)
+        by_uid: Final[NodesByUid] = {n.uid: n for n in network}
+        return cls(fetch_anchor=fetch_spec.anchor, anchor_tree=tree, nodes_by_uid=by_uid)
 
 
 type NodeFetchResult_Placeholder = NodeNetwork

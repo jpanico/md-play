@@ -5,6 +5,10 @@ Public symbols:
 - :class:`NodeTree` — a Pydantic-typed wrapper holding a :data:`~roam_pub.roam_network.NodeNetwork`;
   validates all tree invariants at construction time via :func:`is_tree`.
 - :meth:`NodeTree.dfs` — return a :class:`NodeTreeDFSIterator` for pre-order depth-first traversal.
+- :meth:`NodeTree.node_ids` — return the set of all :attr:`~roam_pub.roam_node.RoamNode.id` values in this tree.
+- :meth:`NodeTree.node_refs_ids` — return the set of all :attr:`~roam_pub.roam_node.RoamNode.refs` ids across this tree.
+- :meth:`NodeTree.external_refs_ids` — return the subset of :meth:`NodeTree.node_refs_ids` ids that fall outside
+  :meth:`NodeTree.node_ids`.
 - :class:`NodeTreeDFSIterator` — pre-order depth-first iterator over a :class:`NodeTree`.
 - :func:`is_tree` — validate all tree invariants for a :class:`~roam_pub.roam_node.RoamNode` root
   and its :data:`~roam_pub.roam_network.NodeNetwork`; returns a
@@ -23,6 +27,7 @@ from roam_pub.roam_network import (
     all_parents_present,
     has_unique_ids,
     is_acyclic,
+    refs_ids,
 )
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_primitives import Id
@@ -67,6 +72,38 @@ class NodeTree(BaseModel):
             A :class:`NodeTreeDFSIterator` seeded at the root of this tree.
         """
         return NodeTreeDFSIterator(self)
+
+    def node_ids(self) -> set[Id]:
+        """Return the set of all :attr:`~roam_pub.roam_node.RoamNode.id` values in this tree's network.
+
+        Returns:
+            A ``set[Id]`` containing the :attr:`~roam_pub.roam_node.RoamNode.id` of every node
+            in :attr:`network`.
+        """
+        return {n.id for n in self.network}
+
+    def node_refs_ids(self) -> set[Id]:
+        """Return the set of all :attr:`~roam_pub.roam_node.RoamNode.refs` ids across this tree's network.
+
+        Delegates to :func:`~roam_pub.roam_network.refs_ids` over :attr:`network`.
+
+        Returns:
+            A ``set[Id]`` containing every id found in any node's ``refs`` list; empty if no node
+            in :attr:`network` has any ``refs``.
+        """
+        return refs_ids(self.network)
+
+    def external_refs_ids(self) -> set[Id]:
+        """Return the subset of :meth:`node_refs_ids` ids that are not members of :meth:`node_ids`.
+
+        These are ids referenced via ``:block/refs`` by nodes in this tree but resolved to nodes
+        that live outside the tree — i.e. pages or blocks not included in :attr:`network`.
+
+        Returns:
+            A ``set[Id]`` equal to ``node_refs_ids() - node_ids()``; empty when every ref id
+            resolves to a node already in :attr:`network`.
+        """
+        return self.node_refs_ids() - self.node_ids()
 
 
 class NodeTreeDFSIterator(Iterator[RoamNode]):

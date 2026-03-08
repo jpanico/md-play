@@ -11,6 +11,8 @@ Public symbols:
   :attr:`~roam_pub.roam_node.RoamNode.id` in a :data:`NodeNetwork` to be unique.
 - :func:`is_acyclic` — :data:`~roam_pub.validation.Validator` requiring the child-edge graph of a
   :data:`NodeNetwork` to be cycle-free.
+- :func:`refs_ids` — return the set of all :attr:`~roam_pub.roam_node.RoamNode.refs` ids across every
+  node in a :data:`NodeNetwork`.
 """
 
 from typing import Final
@@ -181,3 +183,20 @@ def is_acyclic(network: NodeNetwork) -> ValidationError | None:
                     validator=is_acyclic,
                 )
     return None
+
+
+def refs_ids(network: NodeNetwork) -> set[Id]:
+    """Return the set of all :attr:`~roam_pub.roam_node.RoamNode.refs` ids across every node in *network*.
+
+    Collects every :attr:`~roam_pub.roam_primitives.IdObject.id` found in the
+    :attr:`~roam_pub.roam_node.RoamNode.refs` field of every node in *network*.  Nodes whose
+    ``refs`` field is ``None`` contribute nothing.  An empty *network* returns an empty set.
+
+    Args:
+        network: The collection of nodes to examine.
+
+    Returns:
+        A ``set[Id]`` containing every id found in any node's ``refs`` list; empty if no node
+        in *network* has any ``refs``.
+    """
+    return {ref.id for n in network if n.refs for ref in n.refs}

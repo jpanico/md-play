@@ -219,6 +219,154 @@ class TestNodeTree:
 
 
 # ---------------------------------------------------------------------------
+# TestNodeTreeExternalRefsIds
+# ---------------------------------------------------------------------------
+
+
+class TestNodeTreeExternalRefsIds:
+    """Tests for NodeTree.external_refs_ids — ids in node_refs_ids but not in node_ids."""
+
+    # ------------------------------------------------------------------
+    # no refs → empty set
+    # ------------------------------------------------------------------
+
+    def test_no_refs_returns_empty_set(self) -> None:
+        """Test that a tree with no refs at all returns an empty set."""
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
+        tree = NodeTree(network=[root], root_node=root)
+        assert tree.external_refs_ids() == set()
+
+    def test_no_refs_on_block_nodes_returns_empty_set(self) -> None:
+        """Test that a tree whose block nodes have no refs returns an empty set."""
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)])
+        block = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="plain text",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+        )
+        tree = NodeTree(network=[root, block], root_node=root)
+        assert tree.external_refs_ids() == set()
+
+    # ------------------------------------------------------------------
+    # all refs internal → empty set
+    # ------------------------------------------------------------------
+
+    def test_all_refs_internal_returns_empty_set(self) -> None:
+        """Test that a tree whose every ref id resolves to a member node returns an empty set."""
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)])
+        block = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[stub]]",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=1)],  # refs back to the root page — internal
+        )
+        tree = NodeTree(network=[root, block], root_node=root)
+        assert tree.external_refs_ids() == set()
+
+    # ------------------------------------------------------------------
+    # all refs external → full refs set returned
+    # ------------------------------------------------------------------
+
+    def test_all_refs_external_returns_full_refs_set(self) -> None:
+        """Test that a tree whose every ref id is absent from node_ids returns the full refs set."""
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)])
+        block = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[External]]",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=99)],  # id=99 not in network
+        )
+        tree = NodeTree(network=[root, block], root_node=root)
+        assert tree.external_refs_ids() == {99}
+
+    # ------------------------------------------------------------------
+    # mixed internal and external refs → only external ids returned
+    # ------------------------------------------------------------------
+
+    def test_mixed_refs_returns_only_external_ids(self) -> None:
+        """Test that only ref ids absent from node_ids are returned when refs are mixed."""
+        root = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[IdObject(id=10)])
+        block = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[stub]] [[External]]",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=1), IdObject(id=99)],  # id=1 internal, id=99 external
+        )
+        tree = NodeTree(network=[root, block], root_node=root)
+        assert tree.external_refs_ids() == {99}
+
+    def test_multiple_external_refs_across_nodes(self) -> None:
+        """Test that external refs from multiple nodes are all returned."""
+        root = RoamNode(
+            uid="page00001",
+            id=1,
+            time=STUB_TIME,
+            user=STUB_USER,
+            title="stub",
+            children=[IdObject(id=10), IdObject(id=20)],
+        )
+        block_a = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[ExtA]]",
+            order=0,
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=50)],
+        )
+        block_b = RoamNode(
+            uid="block0002",
+            id=20,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[stub]] [[ExtB]]",
+            order=1,
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=1), IdObject(id=60)],  # id=1 internal, id=60 external
+        )
+        tree = NodeTree(network=[root, block_a, block_b], root_node=root)
+        assert tree.external_refs_ids() == {50, 60}
+
+    # ------------------------------------------------------------------
+    # article fixture — semantic identity check
+    # ------------------------------------------------------------------
+
+    def test_article_fixture_external_refs_are_subset_of_refs_ids(self) -> None:
+        """Test that external_refs_ids is always a subset of node_refs_ids for the article fixture."""
+        tree = article0_node_tree()
+        assert tree.external_refs_ids() <= tree.node_refs_ids()
+
+    def test_article_fixture_external_refs_disjoint_from_node_ids(self) -> None:
+        """Test that external_refs_ids has no overlap with node_ids for the article fixture."""
+        tree = article0_node_tree()
+        assert tree.external_refs_ids().isdisjoint(tree.node_ids())
+
+    def test_article_fixture_external_refs_equals_set_difference(self) -> None:
+        """Test that external_refs_ids equals node_refs_ids minus node_ids for the article fixture."""
+        tree = article0_node_tree()
+        assert tree.external_refs_ids() == tree.node_refs_ids() - tree.node_ids()
+
+
+# ---------------------------------------------------------------------------
 # TestNodeTreeDFSIterator
 # ---------------------------------------------------------------------------
 

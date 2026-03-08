@@ -5,6 +5,7 @@ from roam_pub.roam_network import (
     all_parents_present,
     has_unique_ids,
     is_acyclic,
+    refs_ids,
 )
 from roam_pub.roam_node import RoamNode
 from roam_pub.roam_primitives import IdObject
@@ -617,3 +618,133 @@ class TestIsAcyclic:
             message="child-edge graph contains a directed cycle involving node 'cycleA001'",
             validator=is_acyclic,
         )
+
+
+class TestRefsIds:
+    """Tests for refs_ids."""
+
+    # ------------------------------------------------------------------
+    # empty / no refs → empty set
+    # ------------------------------------------------------------------
+
+    def test_empty_network_returns_empty_set(self) -> None:
+        """Test that an empty network returns an empty set."""
+        assert refs_ids([]) == set()
+
+    def test_network_with_no_refs_returns_empty_set(self) -> None:
+        """Test that a network where no node has a refs field returns an empty set."""
+        page = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
+        block = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="no refs here",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+        )
+        assert refs_ids([page, block]) == set()
+
+    # ------------------------------------------------------------------
+    # refs present → correct ids returned
+    # ------------------------------------------------------------------
+
+    def test_single_node_one_ref_returns_singleton(self) -> None:
+        """Test that a single node with one ref returns a one-element set containing that ref id."""
+        block = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[Target]]",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=50)],
+        )
+        assert refs_ids([block]) == {50}
+
+    def test_single_node_multiple_refs_returns_all_ids(self) -> None:
+        """Test that a single node with multiple refs returns all their ids."""
+        block = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[A]] [[B]]",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=50), IdObject(id=60), IdObject(id=70)],
+        )
+        assert refs_ids([block]) == {50, 60, 70}
+
+    def test_multiple_nodes_refs_are_unioned(self) -> None:
+        """Test that refs from multiple nodes are unioned into a single set."""
+        block_a = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[A]]",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=50)],
+        )
+        block_b = RoamNode(
+            uid="block0002",
+            id=20,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[B]]",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=60)],
+        )
+        assert refs_ids([block_a, block_b]) == {50, 60}
+
+    def test_duplicate_ref_ids_are_deduplicated(self) -> None:
+        """Test that the same ref id appearing in multiple nodes is included only once."""
+        block_a = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[Shared]]",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=50)],
+        )
+        block_b = RoamNode(
+            uid="block0002",
+            id=20,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[Shared]] again",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=50)],
+        )
+        assert refs_ids([block_a, block_b]) == {50}
+
+    def test_mixed_nodes_with_and_without_refs_ids(self) -> None:
+        """Test that only refs from nodes that have a non-None refs field are collected."""
+        page = RoamNode(uid="page00001", id=1, time=STUB_TIME, user=STUB_USER, title="stub", children=[])
+        block_no_refs = RoamNode(
+            uid="block0001",
+            id=10,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="plain text",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+        )
+        block_with_refs = RoamNode(
+            uid="block0002",
+            id=20,
+            time=STUB_TIME,
+            user=STUB_USER,
+            string="[[Target]]",
+            parents=[IdObject(id=1)],
+            page=IdObject(id=1),
+            refs=[IdObject(id=50)],
+        )
+        assert refs_ids([page, block_no_refs, block_with_refs]) == {50}

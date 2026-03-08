@@ -21,7 +21,7 @@ from roam_pub.roam_local_api import (
     invoke_action,
 )
 from roam_pub.roam_node import RoamNode
-from roam_pub.roam_node_fetch_result import QueryAnchorKind, NodeFetchResult_Placeholder, NodeFetchAnchor
+from roam_pub.roam_node_fetch_result import QueryAnchorKind, NodeFetchResult_Placeholder, NodeFetchAnchor, NodeFetchSpec
 from roam_pub.roam_primitives import Uid
 
 logger = logging.getLogger(__name__)
@@ -249,7 +249,7 @@ class FetchRoamNodes:
 
     @staticmethod
     def _fetch(
-        request_payload: LocalApiRequest.Payload, api_endpoint: ApiEndpoint, lookup_description: str
+        request_payload: LocalApiRequest.Payload, api_endpoint: ApiEndpoint, fetch_spec: NodeFetchSpec
     ) -> NodeFetchResult_Placeholder:
         """Invoke the Local API, validate the response, and extract the node list.
 
@@ -260,8 +260,9 @@ class FetchRoamNodes:
         Args:
             request_payload: A fully-constructed ``data.q`` request payload.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
-            lookup_description: Short human-readable description of the lookup key, used
-                in the "no nodes found" log message (e.g. ``"page_title='My Page'"``).
+            fetch_spec: The fetch specification driving this request; its
+                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchSpec.anchor` is used to
+                construct the "no nodes found" log message.
 
         Returns:
             A list of :class:`RoamNode` instances extracted from the Datalog result
@@ -283,14 +284,12 @@ class FetchRoamNodes:
         result: list[list[RoamNode]] = response_payload.result
         nodes: list[RoamNode] = [row[0] for row in result]
         if not nodes:
-            logger.info("no nodes found for %s", lookup_description)
+            logger.info("no nodes found for %s", fetch_spec)
         return nodes
 
     @staticmethod
     @validate_call
-    def fetch_by_page_title(
-        anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint, include_refs: bool = False
-    ) -> NodeFetchResult_Placeholder:
+    def fetch_by_page_title(fetch_spec: NodeFetchSpec, api_endpoint: ApiEndpoint) -> NodeFetchResult_Placeholder:
         """Fetch all Roam nodes matching the given page title from the Roam Research Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -298,41 +297,51 @@ class FetchRoamNodes:
         graph.
 
         Args:
-            anchor: The resolved fetch anchor whose
-                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchAnchor.qualifier` string is
-                the exact title of the Roam page to fetch.
+            fetch_spec: The fetch specification whose
+                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchSpec.anchor` identifies
+                the exact title of the Roam page to fetch, and whose
+                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchSpec.include_refs` controls
+                whether ``:block/refs`` targets are included in the result.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
-            include_refs: When ``True``, also returns every node referenced via
-                ``:block/refs`` from the page or any of its descendants.  When ``False``
-                (default), returns only the page node and its descendant blocks.
 
         Returns:
             A list of :class:`RoamNode` instances comprising the page node itself and
-            all its descendant blocks; when *include_refs* is ``True``, also includes
-            every node referenced via ``:block/refs`` from the page or any descendant.
-            Each node's :attr:`~roam_pub.roam_node.RoamNode.props` field is populated
-            when the block has block properties set (e.g. an ``ah-level`` value from
-            the Augmented Headings extension).  Returns an empty list if no matching
+            all its descendant blocks; when
+            :attr:`~roam_pub.roam_node_fetch_result.NodeFetchSpec.include_refs` is ``True``,
+            also includes every node referenced via ``:block/refs`` from the page or any
+            descendant.  Each node's :attr:`~roam_pub.roam_node.RoamNode.props` field is
+            populated when the block has block properties set (e.g. an ``ah-level`` value
+            from the Augmented Headings extension).  Returns an empty list if no matching
             page exists.
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.
-            ValueError: If ``anchor.kind`` is not :attr:`~roam_pub.roam_node_fetch_result.QueryAnchorKind.PAGE_TITLE`.
+            ValueError: If ``fetch_spec.anchor.kind`` is not
+                :attr:`~roam_pub.roam_node_fetch_result.QueryAnchorKind.PAGE_TITLE`.
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug("api_endpoint: %s, anchor: %r, include_refs: %r", api_endpoint, anchor.qualifier, include_refs)
-        if anchor.kind is not QueryAnchorKind.PAGE_TITLE:
-            raise ValueError(f"expected anchor.kind=QueryAnchorKind.PAGE_TITLE; got {anchor.kind!r}")
-        return FetchRoamNodes._fetch(
-            FetchRoamNodes.Request.payload_by_page_title(anchor.qualifier, include_refs=include_refs),
+        logger.debug(
+            "api_endpoint: %s, anchor: %r, include_refs: %r",
             api_endpoint,
-            f"page_title={anchor.qualifier!r}",
+            fetch_spec.anchor.qualifier,
+            fetch_spec.include_refs,
+        )
+        if fetch_spec.anchor.kind is not QueryAnchorKind.PAGE_TITLE:
+            raise ValueError(
+                f"expected fetch_spec.anchor.kind=QueryAnchorKind.PAGE_TITLE; got {fetch_spec.anchor.kind!r}"
+            )
+        return FetchRoamNodes._fetch(
+            FetchRoamNodes.Request.payload_by_page_title(
+                fetch_spec.anchor.qualifier, include_refs=fetch_spec.include_refs
+            ),
+            api_endpoint,
+            fetch_spec,
         )
 
     @staticmethod
     @validate_call
-    def fetch_by_node_uid(anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint) -> NodeFetchResult_Placeholder:
+    def fetch_by_node_uid(fetch_spec: NodeFetchSpec, api_endpoint: ApiEndpoint) -> NodeFetchResult_Placeholder:
         """Fetch the Roam node with the given UID and all its descendants from the Local API.
 
         Because this goes through the Local API, the Roam Research native App must be
@@ -340,8 +349,8 @@ class FetchRoamNodes:
         graph.
 
         Args:
-            anchor: The resolved fetch anchor whose
-                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchAnchor.qualifier` string is
+            fetch_spec: The fetch specification whose
+                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchSpec.anchor` identifies
                 the nine-character ``:block/uid`` of the root node to fetch.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
@@ -355,17 +364,20 @@ class FetchRoamNodes:
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.
-            ValueError: If ``anchor.kind`` is not :attr:`~roam_pub.roam_node_fetch_result.QueryAnchorKind.NODE_UID`.
+            ValueError: If ``fetch_spec.anchor.kind`` is not
+                :attr:`~roam_pub.roam_node_fetch_result.QueryAnchorKind.NODE_UID`.
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug("api_endpoint: %s, anchor: %r", api_endpoint, anchor.qualifier)
-        if anchor.kind is not QueryAnchorKind.NODE_UID:
-            raise ValueError(f"expected anchor.kind=QueryAnchorKind.NODE_UID; got {anchor.kind!r}")
+        logger.debug("api_endpoint: %s, anchor: %r", api_endpoint, fetch_spec.anchor.qualifier)
+        if fetch_spec.anchor.kind is not QueryAnchorKind.NODE_UID:
+            raise ValueError(
+                f"expected fetch_spec.anchor.kind=QueryAnchorKind.NODE_UID; got {fetch_spec.anchor.kind!r}"
+            )
         return FetchRoamNodes._fetch(
-            FetchRoamNodes.Request.payload_by_node_uid(anchor.qualifier),
+            FetchRoamNodes.Request.payload_by_node_uid(fetch_spec.anchor.qualifier),
             api_endpoint,
-            f"node_uid={anchor.qualifier!r}",
+            fetch_spec,
         )
 
     @staticmethod
@@ -393,5 +405,11 @@ class FetchRoamNodes:
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
         if anchor.kind is QueryAnchorKind.NODE_UID:
-            return FetchRoamNodes.fetch_by_node_uid(anchor=anchor, api_endpoint=api_endpoint)
-        return FetchRoamNodes.fetch_by_page_title(anchor=anchor, api_endpoint=api_endpoint, include_refs=include_refs)
+            return FetchRoamNodes.fetch_by_node_uid(
+                fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs),
+                api_endpoint=api_endpoint,
+            )
+        return FetchRoamNodes.fetch_by_page_title(
+            fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs),
+            api_endpoint=api_endpoint,
+        )

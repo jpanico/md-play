@@ -305,8 +305,8 @@ class FetchRoamNodes:
 
         # Datalog :find returns an array-of-arrays; (pull ...) value is at row[0]
         result: Final[list[list[RoamNode]]] = response_payload.result
-        nodes: Final[NodeNetwork] = [row[0] for row in result]
-        return NodeFetchResult.from_network(nodes, fetch_spec, raw_result=raw_result)
+        network: Final[NodeNetwork] = [row[0] for row in result]
+        return NodeFetchResult.from_network(network, fetch_spec, raw_result=raw_result)
 
     @staticmethod
     @validate_call

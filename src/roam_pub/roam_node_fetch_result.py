@@ -80,8 +80,10 @@ class NodeFetchSpec(BaseModel):
         include_refs: When ``True``, the fetch includes every node referenced via
             ``:block/refs`` from the anchor node or any of its descendants.
             When ``False``, only the anchor node and its descendant blocks are fetched.
-        skip_node_parsing: When ``True``, skip :class:`~roam_pub.roam_node.RoamNode`
-            model parsing and return only the raw Datalog result.
+        include_node_tree: When ``True``, parse fetched pull-blocks into a
+            :class:`~roam_pub.roam_node.RoamNode` model tree and populate
+            :attr:`~NodeFetchResult.anchor_tree` and :attr:`~NodeFetchResult.nodes_by_uid`.
+            When ``False``, skip parsing and return only the raw Datalog result;
             :attr:`~NodeFetchResult.anchor_tree` and :attr:`~NodeFetchResult.nodes_by_uid`
             will be ``None`` in the returned :class:`NodeFetchResult`.
     """
@@ -90,10 +92,11 @@ class NodeFetchSpec(BaseModel):
 
     anchor: NodeFetchAnchor = Field(description="The fetch anchor identifying the root node.")
     include_refs: bool = Field(description="Whether to include :block/refs targets in the fetch.")
-    skip_node_parsing: bool = Field(
-        default=False,
+    include_node_tree: bool = Field(
+        default=True,
         description=(
-            "When True, skip RoamNode model parsing and return only the raw Datalog result.  "
+            "When True, parse pull-blocks into RoamNode models and populate anchor_tree and nodes_by_uid.  "
+            "When False, skip parsing and return only the raw Datalog result; "
             "anchor_tree and nodes_by_uid will be None in the returned NodeFetchResult."
         ),
     )
@@ -108,17 +111,17 @@ class NodeFetchResult(BaseModel):
     Attributes:
         fetch_spec: The fetch specification used to perform the fetch.
         anchor_tree: The :class:`~roam_pub.roam_tree.NodeTree` rooted at the fetch anchor.
-            ``None`` when :attr:`~NodeFetchSpec.skip_node_parsing` is ``True``.
+            ``None`` when :attr:`~NodeFetchSpec.include_node_tree` is ``False``.
         nodes_by_uid: Index mapping each fetched node's UID to its
             :class:`~roam_pub.roam_node.RoamNode`.
-            ``None`` when :attr:`~NodeFetchSpec.skip_node_parsing` is ``True``.
+            ``None`` when :attr:`~NodeFetchSpec.include_node_tree` is ``False``.
         raw_result: The raw Datalog query result from the Local API before
             :class:`~roam_pub.roam_node.RoamNode` parsing.  Each outer list element is a
             single-element row (Datalog ``[:find (pull ...)]`` always wraps each tuple in a
             list); the inner dict is the raw pull-block attribute map as returned by Roam.
         network: All :class:`~roam_pub.roam_node.RoamNode` instances fetched by this result,
             as a flat :data:`~roam_pub.roam_network.NodeNetwork` list.  Empty when
-            :attr:`~NodeFetchSpec.skip_node_parsing` is ``True``.
+            :attr:`~NodeFetchSpec.include_node_tree` is ``False``.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -126,12 +129,12 @@ class NodeFetchResult(BaseModel):
     fetch_spec: NodeFetchSpec = Field(description="The fetch specification used to perform the fetch.")
     anchor_tree: NodeTree | None = Field(
         default=None,
-        description=("The node tree rooted at the fetch anchor.  None when NodeFetchSpec.skip_node_parsing is True."),
+        description=("The node tree rooted at the fetch anchor.  None when NodeFetchSpec.include_node_tree is False."),
     )
     nodes_by_uid: NodesByUid | None = Field(
         default=None,
         description=(
-            "Index mapping each fetched node UID to its RoamNode.  None when NodeFetchSpec.skip_node_parsing is True."
+            "Index mapping each fetched node UID to its RoamNode.  None when NodeFetchSpec.include_node_tree is False."
         ),
     )
     raw_result: list[list[dict[str, object]]] = Field(
@@ -160,7 +163,7 @@ class NodeFetchResult(BaseModel):
         Returns every node in :attr:`nodes_by_uid`, which includes both the structural nodes
         of :attr:`anchor_tree` and any additional nodes fetched via ``:block/refs`` when
         :attr:`~NodeFetchSpec.include_refs` was ``True``.  Returns an empty list when
-        :attr:`~NodeFetchSpec.skip_node_parsing` is ``True`` (i.e. :attr:`nodes_by_uid`
+        :attr:`~NodeFetchSpec.include_node_tree` is ``False`` (i.e. :attr:`nodes_by_uid`
         is ``None``).
 
         Returns:
@@ -178,7 +181,7 @@ class NodeFetchResult(BaseModel):
     ) -> NodeFetchResult:
         """Construct a raw-only :class:`NodeFetchResult` when node parsing is skipped.
 
-        Use this factory when :attr:`~NodeFetchSpec.skip_node_parsing` is ``True``.
+        Use this factory when :attr:`~NodeFetchSpec.include_node_tree` is ``False``.
         :attr:`anchor_tree` and :attr:`nodes_by_uid` are ``None``; only :attr:`raw_result`
         carries meaningful data.
 

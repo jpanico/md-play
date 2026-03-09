@@ -295,8 +295,8 @@ class FetchRoamNodes:
             logger.info("no nodes found for %s", fetch_spec)
             raise ValueError(f"no nodes found for fetch_spec={fetch_spec!r}")
 
-        if fetch_spec.skip_node_parsing:
-            logger.debug("skip_node_parsing=True; returning raw result without RoamNode parsing")
+        if not fetch_spec.include_node_tree:
+            logger.debug("include_node_tree=False; returning raw result without RoamNode parsing")
             return NodeFetchResult.from_raw_result(fetch_spec, raw_result)
 
         response_payload: Final[FetchRoamNodes.Response.Payload] = FetchRoamNodes.Response.Payload.model_validate(
@@ -403,7 +403,7 @@ class FetchRoamNodes:
 
     @staticmethod
     def fetch_roam_nodes(
-        anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint, include_refs: bool = False, skip_node_parsing: bool = False
+        anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint, include_refs: bool = False, include_node_tree: bool = True
     ) -> NodeFetchResult:
         """Fetch Roam nodes by page title or node UID, dispatching on *anchor* kind.
 
@@ -417,8 +417,8 @@ class FetchRoamNodes:
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
             include_refs: Forwarded to :meth:`fetch_by_page_title`; ignored when
                 *anchor* is a node UID.
-            skip_node_parsing: Forwarded to :class:`~roam_pub.roam_node_fetch_result.NodeFetchSpec`;
-                when ``True``, skips :class:`~roam_pub.roam_node.RoamNode` parsing and returns
+            include_node_tree: Forwarded to :class:`~roam_pub.roam_node_fetch_result.NodeFetchSpec`;
+                when ``False``, skips :class:`~roam_pub.roam_node.RoamNode` parsing and returns
                 only the raw Datalog result.
 
         Returns:
@@ -431,10 +431,10 @@ class FetchRoamNodes:
         """
         if anchor.kind is QueryAnchorKind.NODE_UID:
             return FetchRoamNodes.fetch_by_node_uid(
-                fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs, skip_node_parsing=skip_node_parsing),
+                fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs, include_node_tree=include_node_tree),
                 api_endpoint=api_endpoint,
             )
         return FetchRoamNodes.fetch_by_page_title(
-            fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs, skip_node_parsing=skip_node_parsing),
+            fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs, include_node_tree=include_node_tree),
             api_endpoint=api_endpoint,
         )

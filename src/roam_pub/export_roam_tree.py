@@ -45,7 +45,7 @@ from typing import Annotated, Final
 import typer
 
 from roam_pub.logging_config import configure_logging
-from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchResult
+from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchResult, NodeFetchSpec
 from roam_pub.roam_tree_loader import fetch_roam_trees
 from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
@@ -155,7 +155,7 @@ def main(
     )
 
     trees: Final[tuple[NodeFetchResult, VertexTree | None]] = fetch_roam_trees(
-        NodeFetchAnchor(qualifier=target), api_endpoint
+        NodeFetchSpec(anchor=NodeFetchAnchor(qualifier=target), include_refs=False), True, api_endpoint
     )
     vertex_tree: Final[VertexTree | None] = trees[1]
     if vertex_tree is None:

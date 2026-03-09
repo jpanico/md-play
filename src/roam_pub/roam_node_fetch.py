@@ -280,6 +280,7 @@ class FetchRoamNodes:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
+        logger.debug("request_payload=%r, api_endpoint=%r, fetch_spec=%r", request_payload, api_endpoint, fetch_spec)
         local_api_response_payload: Final[LocalApiResponse.Payload] = invoke_action(request_payload, api_endpoint)
         logger.debug("local_api_response_payload: %s", local_api_response_payload)
 
@@ -402,7 +403,7 @@ class FetchRoamNodes:
 
     @staticmethod
     def fetch_roam_nodes(
-        anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint, include_refs: bool = False
+        anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint, include_refs: bool = False, skip_node_parsing: bool = False
     ) -> NodeFetchResult:
         """Fetch Roam nodes by page title or node UID, dispatching on *anchor* kind.
 
@@ -416,6 +417,9 @@ class FetchRoamNodes:
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
             include_refs: Forwarded to :meth:`fetch_by_page_title`; ignored when
                 *anchor* is a node UID.
+            skip_node_parsing: Forwarded to :class:`~roam_pub.roam_node_fetch_result.NodeFetchSpec`;
+                when ``True``, skips :class:`~roam_pub.roam_node.RoamNode` parsing and returns
+                only the raw Datalog result.
 
         Returns:
             A :class:`~roam_pub.roam_node_fetch_result.NodeFetchResult` from the
@@ -427,10 +431,10 @@ class FetchRoamNodes:
         """
         if anchor.kind is QueryAnchorKind.NODE_UID:
             return FetchRoamNodes.fetch_by_node_uid(
-                fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs),
+                fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs, skip_node_parsing=skip_node_parsing),
                 api_endpoint=api_endpoint,
             )
         return FetchRoamNodes.fetch_by_page_title(
-            fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs),
+            fetch_spec=NodeFetchSpec(anchor=anchor, include_refs=include_refs, skip_node_parsing=skip_node_parsing),
             api_endpoint=api_endpoint,
         )

@@ -62,7 +62,6 @@ from roam_pub.roam_tree_loader import fetch_roam_trees
 from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.logging_config import configure_logging
-from roam_pub.roam_tree import NodeTree
 from roam_pub.roam_primitives import UID_PATTERN
 
 configure_logging()
@@ -86,7 +85,7 @@ def _dump_raw_table(fetch_result: NodeFetchResult, console: Console) -> None:
     console.rule("[bold]Raw Results[/bold]")
     console.print()
     console.print(raw_table)
-    console.print()
+    console.print(f"{raw_table.row_count} raw pull-block(s)")
 
 
 def _dump_node_tree(fetch_result: NodeFetchResult, node_props: str | None, console: Console) -> None:
@@ -113,7 +112,10 @@ def _dump_node_tree(fetch_result: NodeFetchResult, node_props: str | None, conso
     console.rule("[bold]Node Tree[/bold]")
     console.print()
     console.print(node_rich_tree)
-    console.print()
+    console.print(
+        f"{len(fetch_result.anchor_tree.network)} node(s) in anchor tree, "
+        f"{len(fetch_result.network)} total node(s) in fetch result"
+    )
 
 
 def _dump_vertex_tree(vertex_tree: VertexTree | None, console: Console) -> None:
@@ -134,6 +136,7 @@ def _dump_vertex_tree(vertex_tree: VertexTree | None, console: Console) -> None:
     console.rule("[bold]Vertex Tree[/bold]")
     console.print()
     console.print(vertex_rich_tree)
+    console.print(f"{len(vertex_tree.vertices)} vertex/vertices in vertex tree")
 
 
 def dump_trees(
@@ -146,7 +149,7 @@ def dump_trees(
 ) -> None:
     """Dispatch to the enabled display functions and print results to the console.
 
-    Calls :func:`_dump_raw_results`, :func:`_dump_node_tree`, and/or
+    Calls :func:`_dump_raw_table`, :func:`_dump_node_tree`, and/or
     :func:`_dump_vertex_tree` based on the corresponding flags.
 
     Args:
@@ -292,10 +295,6 @@ def main(
         NodeFetchAnchor(qualifier=target), api_endpoint, include_refs=include_refs, should_transcribe=show_vertex_tree
     )
     fetch_result: Final[NodeFetchResult] = trees[0]
-    node_tree: Final[NodeTree | None] = fetch_result.anchor_tree
-    if node_tree is None:
-        logger.error("anchor_tree is None; cannot render without a node tree")
-        raise typer.Exit(code=1)
     vertex_tree: Final[VertexTree | None] = trees[1]
     dump_trees(
         fetch_result=fetch_result,

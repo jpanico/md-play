@@ -54,7 +54,7 @@ class RoamNode(BaseModel):
     construction time by :meth:`_validate_entity_type`:
 
     - **Page**: ``title`` set (non-``"embed"``), ``string`` ``None``, ``parents`` ``None``,
-      ``children`` set, ``page`` ``None``.
+      ``children`` any, ``page`` ``None``.
     - **Block**: ``string`` set, ``title`` ``None``, ``parents`` set,
       ``page`` set, ``children`` any.
     - **Embed**: ``title`` is the literal ``"embed"``, ``string`` ``None``, ``children`` ``None``.
@@ -72,7 +72,7 @@ class RoamNode(BaseModel):
         title: Page title (NODE_TITLE). Present only on Page and Embed entities (literal ``"embed"`` for Embeds).
         order: Zero-based sibling order (BLOCK_ORDER). Present only on child Blocks.
         heading: HeadingLevel (BLOCK_HEADING). Present only on heading Blocks.
-        children: Raw child block stubs (BLOCK_CHILDREN).
+        children: Raw child block stubs (BLOCK_CHILDREN). Present on Blocks and Pages with children.
         refs: Raw page/block reference stubs (BLOCK_REFS).
         page: IdObject stub for the containing page (BLOCK_PAGE). Present only on Blocks.
         open: Whether the block is expanded (BLOCK_OPEN). Present only on Blocks.
@@ -103,7 +103,8 @@ class RoamNode(BaseModel):
         default=None, description=f"{RoamAttribute.BLOCK_HEADING} — heading level; present only on heading Blocks"
     )
     children: RawChildren | None = Field(
-        default=None, description=f"{RoamAttribute.BLOCK_CHILDREN} — raw child stubs; present only on Blocks"
+        default=None,
+        description=f"{RoamAttribute.BLOCK_CHILDREN} — raw child stubs; present on Blocks and Pages with children",
     )
     refs: RawRefs | None = Field(
         default=None, description=f"{RoamAttribute.BLOCK_REFS} — raw reference stubs; present only on Blocks"
@@ -172,8 +173,7 @@ class RoamNode(BaseModel):
                 page_violations.append(f"string must be None; got {self.string!r}")
             if self.parents is not None:
                 page_violations.append("parents must be None")
-            if self.children is None:
-                page_violations.append("children must be set")
+
             if self.page is not None:
                 page_violations.append("page must be None")
             if page_violations:

@@ -43,7 +43,9 @@ class _ColorLevelFormatter(logging.Formatter):
         original_msg = record.msg
         original_args = record.args
         record.levelname = f"{color}[{record.levelname}]{_COLOR_RESET}"
-        setattr(record, "location", f"{_LOCATION_COLOR}({record.module}::{record.funcName}){_COLOR_RESET}")
+        setattr(
+            record, "location", f"{_LOCATION_COLOR}({record.module}::{record.funcName}:{record.lineno}){_COLOR_RESET}"
+        )
         record.msg = _highlight_message(record.getMessage())
         record.args = None
         result = super().format(record)

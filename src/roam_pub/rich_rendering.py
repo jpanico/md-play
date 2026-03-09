@@ -1,4 +1,4 @@
-"""Rich terminal-rendering utilities for Roam node trees and vertex trees.
+"""Rich terminal-rendering utilities for Roam node trees, vertex trees, and raw Datalog result tables.
 
 Public symbols:
 
@@ -11,11 +11,16 @@ Public symbols:
   :class:`~rich.panel.Panel`.
 - :func:`build_rich_vertex_tree` — build a Rich :class:`~rich.tree.Tree` from a
   :class:`~roam_pub.graph.VertexTree` using a depth-first traversal.
+- :func:`build_rich_raw_table` — build a Rich :class:`~rich.table.Table` of raw
+  Datalog pull-blocks from a :class:`~roam_pub.roam_node_fetch_result.NodeFetchResult`.
 """
 
 import logging
+import re
+from typing import Final, TypeGuard
 
 from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree as RichTree
 
@@ -28,8 +33,9 @@ from roam_pub.graph import (
     VertexTreeDFSIterator,
 )
 from roam_pub.roam_node import RoamNode
+from roam_pub.roam_node_fetch_result import NodeFetchResult
 from roam_pub.roam_tree import NodeTree, NodeTreeDFSIterator
-from roam_pub.roam_primitives import Id, IMAGE_LINK_RE, Uid
+from roam_pub.roam_primitives import Id, IdObject, IMAGE_LINK_RE, Uid
 
 logger = logging.getLogger(__name__)
 
@@ -228,3 +234,179 @@ def build_rich_vertex_tree(vertex_tree: VertexTree) -> RichTree:
         parent_rich: RichTree = rich_map[child_to_parent[vertex.uid]]
         rich_map[vertex.uid] = parent_rich.add(make_vertex_panel(vertex))
     return root_rich
+
+
+# ---------------------------------------------------------------------------
+# Raw-results table
+# ---------------------------------------------------------------------------
+
+
+def _is_id_ref_dict(val: object) -> TypeGuard[dict[str, object]]:
+    """Return True iff *val* is a single-entry ``{"id": <value>}`` dict."""
+    if not isinstance(val, dict):
+        return False
+    return len(val) == 1 and "id" in val  # type: ignore[arg-type]
+
+
+def _is_obj_list(val: object) -> TypeGuard[list[object]]:
+    """Return True iff *val* is a list."""
+    return isinstance(val, list)
+
+
+_RAW_RESULTS_EXCLUDED_ATTRS: Final[frozenset[str]] = frozenset({
+    "open",
+    "prevent-clean",
+    "sidebar",
+    "time",
+    "user",
+    "view-type",
+})
+"""Pull-block attribute keys suppressed from the raw-results Rich table."""
+
+_RAW_RESULTS_COL_ORDER: Final[tuple[str, ...]] = (
+    "id",
+    "uid",
+    "string",
+    "title",
+    "children",
+    "order",
+    "parents",
+    "page",
+    "heading",
+    "props",
+)
+"""Preferred left-to-right column order for the raw-results Rich table.
+
+Columns whose key appears in this tuple are placed first, in the order listed.
+All remaining (unrecognized) columns follow, sorted alphabetically.
+"""
+
+_RAW_RESULTS_COL_HEADERS: Final[dict[str, str]] = {
+    "heading": "H",
+    "order": "ord",
+}
+"""Override display headers for the raw-results Rich table (key → header label).
+
+Keys absent from this dict use the raw attribute name as the header.
+"""
+
+_RAW_RESULTS_COL_STYLES: Final[dict[str, str]] = {
+    # identity
+    "id": "bold yellow",
+    "uid": "bold yellow",
+    # text content
+    "string": "bold green",
+    "title": "bold green",
+    # structure / relationships
+    "children": "bold cyan",
+    "order": "bold cyan",
+    "parents": "bold cyan",
+    "page": "bold cyan",
+    "refs": "bold cyan",
+    # display
+    "heading": "bold magenta",
+    # extended attributes
+    "props": "bold blue",
+}
+"""Rich header styles for the raw-results table, keyed by raw attribute name.
+
+Columns absent from this dict fall back to ``"bold white"``.
+"""
+
+_RAW_RESULTS_COL_STYLE_DEFAULT: Final[str] = "bold white"
+"""Fallback Rich header style for columns not listed in :data:`_RAW_RESULTS_COL_STYLES`."""
+
+_RAW_RESULTS_COL_TRUNCATE: Final[dict[str, int]] = {
+    "string": 30,
+}
+"""Maximum display length (in characters) for specific columns in the raw-results table.
+
+Cell values longer than the limit are silently truncated to that many characters.
+"""
+
+_URL_RE: Final[re.Pattern[str]] = re.compile(r"https?://[^\s\"']+")
+"""Regex that matches ``http://`` or ``https://`` URLs, stopping before whitespace or quotes."""
+
+
+def _truncate_urls_in_cell(cell: str) -> str:
+    """Replace each URL in *cell* with its first 15 characters followed by ``…``.
+
+    URLs are detected by :data:`_URL_RE`.  Matches shorter than 15 characters
+    are left unchanged.
+    """
+
+    def _shorten(m: re.Match[str]) -> str:
+        url: Final[str] = m.group()
+        return url[:15] + "…" if len(url) > 15 else url
+
+    return _URL_RE.sub(_shorten, cell)
+
+
+def build_rich_raw_table(fetch_result: NodeFetchResult) -> Table:
+    """Build and return a Rich :class:`~rich.table.Table` of raw Datalog pull-blocks.
+
+    Rows are sorted by ``id``; columns cover every attribute key present across
+    all pull-blocks, excluding those in :data:`_RAW_RESULTS_EXCLUDED_ATTRS`, and
+    ordered according to :data:`_RAW_RESULTS_COL_ORDER` (remaining keys follow
+    alphabetically).  :class:`~roam_pub.roam_primitives.IdObject` values and
+    single-entry ``{"id": …}`` ref dicts are rendered as plain integer ids; lists
+    of such refs are rendered as a comma-separated id sequence.  Column headers
+    are overridden per :data:`_RAW_RESULTS_COL_HEADERS`; cell values are
+    truncated per :data:`_RAW_RESULTS_COL_TRUNCATE`; URLs inside ``props``
+    cells are additionally shortened to 15 characters via
+    :func:`_truncate_urls_in_cell`.
+
+    Args:
+        fetch_result: Fetch result whose :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.raw_result`
+            supplies the pull-block rows.
+
+    Returns:
+        A fully populated :class:`~rich.table.Table` ready for printing.
+    """
+    pull_blocks: Final[list[dict[str, object]]] = sorted(
+        (row[0] for row in fetch_result.raw_result),
+        key=lambda pb: v if isinstance(v := pb.get("id"), int) else 0,
+    )
+    col_rank: Final[dict[str, int]] = {k: i for i, k in enumerate(_RAW_RESULTS_COL_ORDER)}
+    all_keys: Final[list[str]] = sorted(
+        {key for pb in pull_blocks for key in pb} - _RAW_RESULTS_EXCLUDED_ATTRS,
+        key=lambda k: (col_rank.get(k, len(_RAW_RESULTS_COL_ORDER)), k),
+    )
+    raw_table: Final[Table] = Table(show_lines=True)
+    for key in all_keys:
+        raw_table.add_column(
+            _RAW_RESULTS_COL_HEADERS.get(key, key),
+            header_style=_RAW_RESULTS_COL_STYLES.get(key, _RAW_RESULTS_COL_STYLE_DEFAULT),
+            overflow="fold",
+        )
+    for pb in pull_blocks:
+        row_vals: list[str] = []
+        for key in all_keys:
+            val: object = pb.get(key, "")
+            cell: str
+            if isinstance(val, IdObject):
+                cell = str(val.id)
+            elif _is_id_ref_dict(val):
+                cell = str(val.get("id", ""))
+            elif _is_obj_list(val):
+                id_parts: list[str] = []
+                is_id_list: bool = True
+                for raw_el in val:
+                    if isinstance(raw_el, IdObject):
+                        id_parts.append(str(raw_el.id))
+                    elif _is_id_ref_dict(raw_el):
+                        id_parts.append(str(raw_el.get("id", "")))
+                    else:
+                        is_id_list = False
+                        break
+                cell = ", ".join(id_parts) if is_id_list else str(val)
+            else:
+                cell = str(val)
+            if key == "props":
+                cell = _truncate_urls_in_cell(cell)
+            trunc: int | None = _RAW_RESULTS_COL_TRUNCATE.get(key)
+            if trunc is not None:
+                cell = cell[:trunc]
+            row_vals.append(cell)
+        raw_table.add_row(*row_vals)
+    return raw_table

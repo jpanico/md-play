@@ -3,17 +3,19 @@
 
 Fetches all descendant blocks identified by ``TARGET`` via the Roam Local API,
 transcribes them into a :class:`~roam_pub.graph.VertexTree`, and renders
-one or both of the following as a colorized :class:`~rich.tree.Tree` panel
+one or more of the following as a colorized :class:`~rich.tree.Tree` panel
 hierarchy:
 
-- **Vertex tree** (default, ``--vertex-tree``) — normalized
+- **Vertex tree** (default, ``--vertex-tree`` / ``-v/-V``) — normalized
   :class:`~roam_pub.graph.VertexTree` produced by
   :func:`~roam_pub.roam_transcribe.transcribe`.
-- **Node tree** (``--node-tree``) — raw :class:`~roam_pub.roam_tree.NodeTree`
+- **Node tree** (``--node-tree`` / ``-n/-N``) — raw :class:`~roam_pub.roam_tree.NodeTree`
   as returned by the Roam Local API; each panel body lists selected
   :class:`~roam_pub.roam_node.RoamNode` fields, configurable via
   ``--node-props`` (defaults to
   :data:`~roam_pub.rich_rendering.DEFAULT_NODE_PANEL_PROPS`).
+- **Raw results** (``--raw-results`` / ``-r/-R``) — raw Datalog query results
+  as returned by the Roam Local API, before any transcription.
 
 ``TARGET`` is interpreted as a **node UID** if it matches
 :data:`~roam_pub.roam_primitives.UID_PATTERN` (exactly 9 alphanumeric/dash/underscore
@@ -27,8 +29,8 @@ configurable via the ``LOG_LEVEL`` environment variable (default: ``INFO``).
 
 Public symbols:
 
-- :func:`dump_trees` — renders and prints a flat node list as Rich tree(s) to
-  the console.
+- :func:`dump_trees` — dispatches to the enabled display functions based on
+  the ``show_*`` flags.
 - :data:`app` — the :class:`~typer.Typer` application instance.
 - :func:`main` — the CLI entry point; registered as the ``dump-roam-tree``
   console script.
@@ -37,7 +39,8 @@ Example::
 
     dump-roam-tree "Test Article" -p 3333 -g SCFH -t your-bearer-token
     dump-roam-tree wdMgyBiP9 -p 3333 -g SCFH -t tok
-    dump-roam-tree "Test Article" -p 3333 -g SCFH -t tok --node-tree --node-props heading,parents
+    dump-roam-tree "Test Article" -p 3333 -g SCFH -t tok -n --node-props heading,parents
+    dump-roam-tree "Test Article" -p 3333 -g SCFH -t tok -i -r -n -v
 """
 
 import logging
@@ -45,10 +48,16 @@ from typing import Annotated, Final
 
 import typer
 from rich.console import Console
+from rich.table import Table
 from rich.tree import Tree as RichTree
 
-from roam_pub.rich_rendering import DEFAULT_NODE_PANEL_PROPS, build_rich_node_tree, build_rich_vertex_tree
-from roam_pub.roam_node_fetch_result import NodeFetchAnchor
+from roam_pub.rich_rendering import (
+    DEFAULT_NODE_PANEL_PROPS,
+    build_rich_node_tree,
+    build_rich_raw_table,
+    build_rich_vertex_tree,
+)
+from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchResult
 from roam_pub.roam_tree_loader import fetch_roam_trees
 from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
@@ -63,44 +72,103 @@ logger = logging.getLogger(__name__)
 app = typer.Typer()
 
 
-def dump_trees(
-    node_tree: NodeTree,
-    vertex_tree: VertexTree,
-    node_props: str | None,
-    show_vertex_tree: bool,
-    show_node_tree: bool,
-) -> None:
-    """Render and print a Roam node tree as Rich tree(s) to the console.
+def _dump_raw_table(fetch_result: NodeFetchResult, console: Console) -> None:
+    """Print the raw-results Rich table for *fetch_result* to *console*.
 
-    Prints the vertex tree, the raw node tree, or both, depending on the flags.
+    Delegates table construction to :func:`build_rich_raw_table`, then prints
+    a section rule, the table, and a trailing blank line.
 
     Args:
-        node_tree: Raw :class:`~roam_pub.roam_tree.NodeTree` as returned by the
-            Roam Local API.
+        fetch_result: Fetch result passed through to :func:`build_rich_raw_table`.
+        console: Rich :class:`~rich.console.Console` to print to.
+    """
+    raw_table: Final[Table] = build_rich_raw_table(fetch_result)
+    console.rule("[bold]Raw Results[/bold]")
+    console.print()
+    console.print(raw_table)
+    console.print()
+
+
+def _dump_node_tree(fetch_result: NodeFetchResult, node_props: str | None, console: Console) -> None:
+    """Render and print the node tree from *fetch_result* as a Rich tree.
+
+    Logs a warning and returns early when
+    :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.anchor_tree` is ``None``.
+
+    Args:
+        fetch_result: Fetch result whose :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.anchor_tree`
+            is rendered.
+        node_props: Comma-separated :class:`~roam_pub.roam_node.RoamNode` field names
+            to include in each panel body, or ``None`` to use
+            :data:`~roam_pub.rich_rendering.DEFAULT_NODE_PANEL_PROPS`.
+        console: Rich :class:`~rich.console.Console` to print to.
+    """
+    if fetch_result.anchor_tree is None:
+        logger.warning("show_node_tree=True but anchor_tree is None; skipping node tree output")
+        return
+    effective_props: Final[list[str]] = (
+        [p.strip() for p in node_props.split(",")] if node_props is not None else list(DEFAULT_NODE_PANEL_PROPS)
+    )
+    node_rich_tree: Final[RichTree] = build_rich_node_tree(fetch_result.anchor_tree, effective_props)
+    console.rule("[bold]Node Tree[/bold]")
+    console.print()
+    console.print(node_rich_tree)
+    console.print()
+
+
+def _dump_vertex_tree(vertex_tree: VertexTree | None, console: Console) -> None:
+    """Render and print *vertex_tree* as a Rich tree.
+
+    Logs a warning and returns early when *vertex_tree* is ``None``.
+
+    Args:
+        vertex_tree: Normalized :class:`~roam_pub.graph.VertexTree` to render,
+            or ``None`` when vertex tree computation was skipped.
+        console: Rich :class:`~rich.console.Console` to print to.
+    """
+    if vertex_tree is None:
+        logger.warning("show_vertex_tree=True but vertex_tree is None; skipping vertex tree output")
+        return
+    vertex_rich_tree: Final[RichTree] = build_rich_vertex_tree(vertex_tree)
+    logger.debug("vertex_rich_tree=%r", vertex_rich_tree)
+    console.rule("[bold]Vertex Tree[/bold]")
+    console.print()
+    console.print(vertex_rich_tree)
+
+
+def dump_trees(
+    fetch_result: NodeFetchResult,
+    vertex_tree: VertexTree | None,
+    node_props: str | None,
+    show_raw_results: bool,
+    show_node_tree: bool,
+    show_vertex_tree: bool,
+) -> None:
+    """Dispatch to the enabled display functions and print results to the console.
+
+    Calls :func:`_dump_raw_results`, :func:`_dump_node_tree`, and/or
+    :func:`_dump_vertex_tree` based on the corresponding flags.
+
+    Args:
+        fetch_result: The :class:`~roam_pub.roam_node_fetch_result.NodeFetchResult` returned
+            by the fetch pipeline, carrying the raw node tree and Datalog results.
         vertex_tree: Normalized :class:`~roam_pub.graph.VertexTree` produced
-            by :func:`~roam_pub.roam_transcribe.transcribe`.
+            by :func:`~roam_pub.roam_transcribe.transcribe`, or ``None`` when
+            vertex tree computation was skipped.
         node_props: Comma-separated list of :class:`~roam_pub.roam_node.RoamNode`
             field names to include in each node panel body, or ``None`` to use
             :data:`~roam_pub.rich_rendering.DEFAULT_NODE_PANEL_PROPS`.
-        show_vertex_tree: When ``True``, render and print the vertex tree.
-        show_node_tree: When ``True``, render and print the node tree.
+        show_raw_results: When ``True``, call :func:`_dump_raw_table`.
+        show_node_tree: When ``True``, call :func:`_dump_node_tree`.
+        show_vertex_tree: When ``True``, call :func:`_dump_vertex_tree`.
     """
-    console: Console = Console()
-    if show_vertex_tree:
-        vertex_rich_tree: RichTree = build_rich_vertex_tree(vertex_tree)
-        logger.debug("vertex_rich_tree=%r", vertex_rich_tree)
-        console.rule("[bold]Vertex Tree[/bold]")
-        console.print()
-        console.print(vertex_rich_tree)
+    console: Final[Console] = Console()
+    if show_raw_results:
+        _dump_raw_table(fetch_result, console)
     if show_node_tree:
-        effective_props: list[str] = (
-            [p.strip() for p in node_props.split(",")] if node_props is not None else list(DEFAULT_NODE_PANEL_PROPS)
-        )
-        node_rich_tree: RichTree = build_rich_node_tree(node_tree, effective_props)
-        console.rule("[bold]Node Tree[/bold]")
-        console.print()
-        console.print(node_rich_tree)
-        console.print()
+        _dump_node_tree(fetch_result, node_props, console)
+    if show_vertex_tree:
+        _dump_vertex_tree(vertex_tree, console)
 
 
 @app.command()
@@ -158,6 +226,7 @@ def main(
         bool,
         typer.Option(
             "--include-refs/--no-include-refs",
+            "-i/-I",
             help=(
                 "When enabled, also fetches every node referenced via :block/refs "
                 "from the target page or any of its descendants. "
@@ -165,37 +234,50 @@ def main(
             ),
         ),
     ] = False,
-    show_vertex_tree: Annotated[
+    show_raw_results: Annotated[
         bool,
         typer.Option(
-            "--vertex-tree/--no-vertex-tree",
-            help="When enabled, render and print the vertex tree.",
+            "--raw-results/--no-raw-results",
+            "-r/-R",
+            help="When enabled, print the raw Datalog query results.",
         ),
-    ] = True,
+    ] = False,
     show_node_tree: Annotated[
         bool,
         typer.Option(
             "--node-tree/--no-node-tree",
+            "-n/-N",
             help="When enabled, render and print the node tree.",
         ),
     ] = False,
+    show_vertex_tree: Annotated[
+        bool,
+        typer.Option(
+            "--vertex-tree/--no-vertex-tree",
+            "-v/-V",
+            help="When enabled, render and print the vertex tree.",
+        ),
+    ] = True,
 ) -> None:
     """Dump a Roam Research page or node subtree as a Rich tree to the console.
 
     TARGET is interpreted as a node UID (fetches the subtree rooted there) if
     it matches :data:`~roam_pub.roam_primitives.UID_PATTERN`, otherwise as a
-    page title (fetches all blocks on that page).  Use ``--vertex-tree`` and
-    ``--node-tree`` to control which trees are printed (vertex tree is shown by
-    default).
+    page title (fetches all blocks on that page).  Use ``--vertex-tree`` / ``-v/-V``
+    and ``--node-tree`` / ``-n/-N`` to control which trees are printed (vertex tree
+    is shown by default).  Use ``--raw-results`` / ``-r/-R`` to also print the raw
+    Datalog query results.  Use ``--include-refs`` / ``-i/-I`` to additionally fetch
+    nodes referenced via ``:block/refs`` from the target page or its descendants.
     """
     logger.debug(
         "target=%r, local_api_port=%r, graph_name=%r, api_bearer_token=%r, node_props=%r, "
-        "show_vertex_tree=%r, show_node_tree=%r, include_refs=%r",
+        "show_raw_results=%r, show_vertex_tree=%r, show_node_tree=%r, include_refs=%r",
         target,
         local_api_port,
         graph_name,
         api_bearer_token,
         node_props,
+        show_raw_results,
         show_vertex_tree,
         show_node_tree,
         include_refs,
@@ -206,17 +288,22 @@ def main(
         bearer_token=api_bearer_token,
     )
 
-    trees: Final[tuple[NodeTree, VertexTree]] = fetch_roam_trees(
-        NodeFetchAnchor(qualifier=target), api_endpoint, include_refs=include_refs
+    trees: Final[tuple[NodeFetchResult, VertexTree | None]] = fetch_roam_trees(
+        NodeFetchAnchor(qualifier=target), api_endpoint, include_refs=include_refs, should_transcribe=show_vertex_tree
     )
-    node_tree: Final[NodeTree] = trees[0]
-    vertex_tree: Final[VertexTree] = trees[1]
+    fetch_result: Final[NodeFetchResult] = trees[0]
+    node_tree: Final[NodeTree | None] = fetch_result.anchor_tree
+    if node_tree is None:
+        logger.error("anchor_tree is None; cannot render without a node tree")
+        raise typer.Exit(code=1)
+    vertex_tree: Final[VertexTree | None] = trees[1]
     dump_trees(
-        node_tree=node_tree,
+        fetch_result=fetch_result,
         vertex_tree=vertex_tree,
         node_props=node_props,
-        show_vertex_tree=show_vertex_tree,
+        show_raw_results=show_raw_results,
         show_node_tree=show_node_tree,
+        show_vertex_tree=show_vertex_tree,
     )
 
 

@@ -3,7 +3,7 @@
 Public symbols:
 
 - :func:`fetch_roam_trees` — resolve a target to a :class:`~roam_pub.roam_tree.NodeTree`
-  and :class:`~roam_pub.graph.VertexTree`, ready for rendering or further processing.
+  and an optional :class:`~roam_pub.graph.VertexTree`, ready for rendering or further processing.
 """
 
 import logging
@@ -22,13 +22,16 @@ logger = logging.getLogger(__name__)
 
 
 def fetch_roam_trees(
-    anchor: NodeFetchAnchor, api_endpoint: ApiEndpoint, include_refs: bool = False
-) -> tuple[NodeTree, VertexTree]:
+    anchor: NodeFetchAnchor,
+    api_endpoint: ApiEndpoint,
+    include_refs: bool = False,
+    should_transcribe: bool = True,
+) -> tuple[NodeFetchResult, VertexTree | None]:
     """Fetch Roam nodes for *anchor* and build a validated node tree and vertex tree.
 
     Fetches :class:`~roam_pub.roam_node.RoamNode` records for *anchor* via
-    *api_endpoint*, constructs a :class:`~roam_pub.roam_tree.NodeTree`, transcribes it to a
-    :class:`~roam_pub.graph.VertexTree`, and returns both.
+    *api_endpoint*, constructs a :class:`~roam_pub.roam_tree.NodeTree`, and optionally
+    transcribes it to a :class:`~roam_pub.graph.VertexTree`.
 
     Exits the CLI with code 1 when the fetch raises an exception or when no nodes are found.
 
@@ -39,9 +42,13 @@ def fetch_roam_trees(
             ``:block/refs`` from the anchor page or any of its descendants.  Forwarded to
             :func:`~roam_pub.roam_node_fetch.FetchRoamNodes.fetch_roam_nodes`; ignored
             when *anchor* is a node UID.
+        should_transcribe: When ``True`` (default), transcribes the node tree to a
+            :class:`~roam_pub.graph.VertexTree` and returns it as the second element of
+            the pair.  When ``False``, skips transcription and returns ``None`` instead.
 
     Returns:
-        An ``(anchor_tree, vertex_tree)`` pair ready for rendering or further processing.
+        A ``(fetch_result, vertex_tree)`` pair ready for rendering or further processing.
+        ``vertex_tree`` is ``None`` when *should_transcribe* is ``False``.
     """
     try:
         result: Final[NodeFetchResult] = FetchRoamNodes.fetch_roam_nodes(
@@ -55,6 +62,9 @@ def fetch_roam_trees(
         logger.error("anchor_tree is None; fetch_spec has skip_node_parsing=True, which is unsupported here")
         raise typer.Exit(code=1)
     anchor_tree: Final[NodeTree] = result.anchor_tree
+    if not should_transcribe:
+        logger.debug("node_tree=%r", anchor_tree)
+        return result, None
     vertex_tree: Final[VertexTree] = transcribe(anchor_tree)
     logger.debug("node_tree=%r\n\nvertex_tree=%r", anchor_tree, vertex_tree)
-    return anchor_tree, vertex_tree
+    return result, vertex_tree

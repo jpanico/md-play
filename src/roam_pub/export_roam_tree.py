@@ -45,12 +45,11 @@ from typing import Annotated, Final
 import typer
 
 from roam_pub.logging_config import configure_logging
-from roam_pub.roam_node_fetch_result import NodeFetchAnchor
+from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchResult
 from roam_pub.roam_tree_loader import fetch_roam_trees
 from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.roam_md_bundle import bundle_md_document
-from roam_pub.roam_tree import NodeTree
 from roam_pub.roam_primitives import UID_PATTERN
 from roam_pub.md_rendering import render
 
@@ -155,8 +154,13 @@ def main(
         bearer_token=api_bearer_token,
     )
 
-    trees: Final[tuple[NodeTree, VertexTree]] = fetch_roam_trees(NodeFetchAnchor(qualifier=target), api_endpoint)
-    vertex_tree: Final[VertexTree] = trees[1]
+    trees: Final[tuple[NodeFetchResult, VertexTree | None]] = fetch_roam_trees(
+        NodeFetchAnchor(qualifier=target), api_endpoint
+    )
+    vertex_tree: Final[VertexTree | None] = trees[1]
+    if vertex_tree is None:
+        logger.error("vertex_tree is None; cannot export without a vertex tree")
+        raise typer.Exit(code=1)
     md_document: Final[str] = render(vertex_tree)
 
     if bundle:

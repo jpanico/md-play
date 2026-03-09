@@ -70,7 +70,9 @@
       "Bash(git mv src/roam_pub/rich.py src/roam_pub/rich_rendering.py)",
       "Bash(git mv src/roam_pub/roam_graph.py src/roam_pub/graph.py)",
       "Bash(git mv src/roam_pub/roam_render_md.py src/roam_pub/md_rendering.py)",
-      "Bash(ROAM_LIVE_TESTS=1 python -m pytest -m live -v)"
+      "Bash(ROAM_LIVE_TESTS=1 python -m pytest -m live -v)",
+      "Bash(_TYPER_STANDARD_TRACEBACK=1 python3 -c \":*)",
+      "Bash(_TYPER_STANDARD_TRACEBACK=1 /Users/jpanico/Documents/github/roam-pub/scripts/dump-roam-tree.sh --help)"
     ]
   }
 }

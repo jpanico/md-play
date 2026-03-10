@@ -68,7 +68,7 @@ ROAM_LIVE_TESTS=1 pytest -m live -v  # requires Roam Desktop running locally
 - Docstrings: PEP 257 format (pydocstringformatter), Google style convention (Ruff)
 - Tests: pytest, files named `test_*.py`
 - **Strong typing**: all Python code must use type annotations throughout; no `Any` types; enforced by pyright in strict mode
-- **Bash tool calls**: never chain multiple different commands with `&&` in a single Bash tool call; use separate Bash tool calls instead. Exception: chaining is fine when all sub-commands share the same base command (e.g., `git add . && git commit ... && git push`).
+- **Bash tool calls**: never chain multiple commands with `&&` in a single Bash tool call; use separate Bash tool calls instead.
 - **Logging format**: all `logger.*()` calls must use `%`-style format strings (e.g., `logger.info("x=%s", x)`) — never f-strings (e.g., `logger.info(f"x={x}")`); this enables lazy interpolation and better log aggregation in monitoring tools.
 - **Immutable locals**: all local variables must be annotated `Final[T]` by default (e.g., `x: Final[int] = 1`); only omit `Final` when the variable genuinely needs to be reassigned.
 

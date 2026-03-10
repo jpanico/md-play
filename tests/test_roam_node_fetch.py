@@ -100,6 +100,22 @@ class TestFetchRoamNodesRequest:
         """Test that payload_by_page_title() includes the page title in args."""
         assert "My Page" in FetchRoamNodes.Request.payload_by_page_title("My Page").args
 
+    def test_payload_uid_args_contains_query_with_refs(self) -> None:
+        """Test that payload_by_node_uid(include_refs=True) uses BY_NODE_UID_WITH_REFS_QUERY."""
+        args: list[object] = FetchRoamNodes.Request.payload_by_node_uid("wdMgyBiP9", include_refs=True).args
+        assert FetchRoamNodes.Request.BY_NODE_UID_WITH_REFS_QUERY in args
+        assert FetchRoamNodes.Request.DESCENDANT_AND_PAGE_REF_RULES in args
+
+    def test_payload_uid_args_contains_query_without_refs(self) -> None:
+        """Test that payload_by_node_uid(include_refs=False) uses BY_NODE_UID_QUERY."""
+        args: list[object] = FetchRoamNodes.Request.payload_by_node_uid("wdMgyBiP9", include_refs=False).args
+        assert FetchRoamNodes.Request.BY_NODE_UID_QUERY in args
+        assert FetchRoamNodes.Request.DESCENDANT_RULE in args
+
+    def test_payload_uid_args_contains_node_uid(self) -> None:
+        """Test that payload_by_node_uid() includes the node UID in args."""
+        assert "wdMgyBiP9" in FetchRoamNodes.Request.payload_by_node_uid("wdMgyBiP9").args
+
 
 class TestFetchRoamNodesResponsePayload:
     """Tests for FetchRoamNodes.Response.Payload validation."""

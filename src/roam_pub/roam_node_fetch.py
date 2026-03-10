@@ -184,7 +184,7 @@ class FetchRoamNodes:
            subtrees are not included.
         """
 
-        BY_NODE_UID_QUERY: Final[str] = textwrap.dedent("""\
+        _BY_NODE_UID_QUERY_BASE: Final[str] = textwrap.dedent("""\
             [:find (pull ?node [*])
              :in $ ?uid %
              :where
@@ -193,7 +193,24 @@ class FetchRoamNodes:
                (and [?anchor :block/uid ?uid]
                     [?node :block/uid ?uid])
                (and [?anchor :block/uid ?uid]
-                    (descendant ?anchor ?node)))]""")
+                    (descendant ?anchor ?node))""")
+        _PAGE_REF_OR_JOIN_BRANCH_UID: Final[str] = textwrap.indent(
+            textwrap.dedent("""\
+                (and [?anchor :block/uid ?uid]
+                     (page-ref ?anchor ?node))"""),
+            "   ",
+        )
+        _REF_DESCENDANT_OR_JOIN_BRANCH_UID: Final[str] = textwrap.indent(
+            textwrap.dedent("""\
+                (and [?anchor :block/uid ?uid]
+                     (descendant ?anchor ?block)
+                     [?block :block/string ?block-str]
+                     [(clojure.string/includes? ?block-str "{{[[embed]]:")]
+                     [?block :block/refs ?ref]
+                     (descendant ?ref ?node))"""),
+            "   ",
+        )
+        BY_NODE_UID_QUERY: Final[str] = f"{_BY_NODE_UID_QUERY_BASE})]"
         """Datalog query fetching a node and all its descendant blocks by ``:block/uid``.
 
         Input bindings: ``?uid`` (nine-character ``:block/uid`` string) and ``%`` (rules
@@ -211,6 +228,33 @@ class FetchRoamNodes:
         variables inside the ``or-join`` — not as the outer binding.  Omitting ``?anchor``
         would cause ``(descendant ?anchor ?node)`` to match every descendant pair in the
         entire graph, returning the full database instead of the target subtree.
+
+        To also include nodes referenced via ``:block/refs``, use
+        :attr:`BY_NODE_UID_WITH_REFS_QUERY` instead.
+        """
+
+        BY_NODE_UID_WITH_REFS_QUERY: Final[str] = (
+            f"{_BY_NODE_UID_QUERY_BASE}\n{_PAGE_REF_OR_JOIN_BRANCH_UID}\n{_REF_DESCENDANT_OR_JOIN_BRANCH_UID})]"
+        )
+        """Datalog query fetching a node, all its descendants, all ``:block/refs`` targets, and their descendants.
+
+        Input bindings: ``?uid`` (nine-character ``:block/uid`` string) and ``%`` (rules
+        vector — :attr:`DESCENDANT_AND_PAGE_REF_RULES`).  Must be paired with
+        :attr:`DESCENDANT_AND_PAGE_REF_RULES` (not :attr:`DESCENDANT_RULE` alone) because the
+        ``page-ref`` rule calls ``(descendant ...)`` internally.
+
+        The ``or-join`` has four branches:
+
+        1. The anchor node itself (``?node = ?anchor``).
+        2. Every block reachable from ``?anchor`` through ``:block/children`` at any depth
+           (via the ``descendant`` rule).
+        3. Every node referenced via ``:block/refs`` from ``?anchor`` directly or from any of
+           its descendants (via the ``page-ref`` rule).
+        4. Every block reachable through ``:block/children`` from any ``:block/refs`` target
+           of a descendant block of the anchor whose ``:block/string`` contains the embed
+           prefix ``{{[[embed]]:``.  This restricts descendant expansion to embedded
+           references only; non-embed refs are fetched as single nodes by branch 3 but their
+           subtrees are not included.
         """
 
         @staticmethod
@@ -243,20 +287,33 @@ class FetchRoamNodes:
             return LocalApiRequest.Payload(action="data.q", args=[query, page_title, rules])
 
         @staticmethod
-        def payload_by_node_uid(node_uid: Uid) -> LocalApiRequest.Payload:
+        def payload_by_node_uid(node_uid: Uid, include_refs: bool = False) -> LocalApiRequest.Payload:
             """Build the ``data.q`` request payload for the given node UID.
 
             Args:
                 node_uid: The nine-character ``:block/uid`` of the node to fetch.
+                include_refs: When ``True``, uses :attr:`BY_NODE_UID_WITH_REFS_QUERY`
+                    paired with :attr:`DESCENDANT_AND_PAGE_REF_RULES` to also pull every node
+                    referenced via ``:block/refs`` from the anchor or any of its descendants.
+                    When ``False`` (default), uses :attr:`BY_NODE_UID_QUERY` paired with
+                    :attr:`DESCENDANT_RULE` and returns only the anchor node and its descendants.
 
             Returns:
-                A :class:`~roam_pub.roam_local_api.Request.Payload` with action
-                ``"data.q"`` and args ``[BY_NODE_UID_QUERY, node_uid, DESCENDANT_RULE]``.
+                A :class:`~roam_pub.roam_local_api.Request.Payload` with action ``"data.q"``
+                and args set according to *include_refs*.
             """
-            return LocalApiRequest.Payload(
-                action="data.q",
-                args=[FetchRoamNodes.Request.BY_NODE_UID_QUERY, node_uid, FetchRoamNodes.Request.DESCENDANT_RULE],
+            query, rules = (
+                (
+                    FetchRoamNodes.Request.BY_NODE_UID_WITH_REFS_QUERY,
+                    FetchRoamNodes.Request.DESCENDANT_AND_PAGE_REF_RULES,
+                )
+                if include_refs
+                else (
+                    FetchRoamNodes.Request.BY_NODE_UID_QUERY,
+                    FetchRoamNodes.Request.DESCENDANT_RULE,
+                )
             )
+            return LocalApiRequest.Payload(action="data.q", args=[query, node_uid, rules])
 
     class Response:
         """Namespace for ``data.q`` page response types."""
@@ -388,7 +445,9 @@ class FetchRoamNodes:
         Args:
             fetch_spec: The fetch specification whose
                 :attr:`~roam_pub.roam_node_fetch_result.NodeFetchSpec.anchor` identifies
-                the nine-character ``:block/uid`` of the root node to fetch.
+                the nine-character ``:block/uid`` of the root node to fetch, and whose
+                :attr:`~roam_pub.roam_node_fetch_result.NodeFetchSpec.include_refs` controls
+                whether ``:block/refs`` targets are included in the result.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
 
         Returns:
@@ -396,7 +455,9 @@ class FetchRoamNodes:
             :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.anchor_tree` is rooted
             at the matched node and whose
             :attr:`~roam_pub.roam_node_fetch_result.NodeFetchResult.network` contains that
-            node and every block reachable through ``:block/children`` at any depth.
+            node and every block reachable through ``:block/children`` at any depth (plus
+            any ``:block/refs`` targets when
+            :attr:`~roam_pub.roam_node_fetch_result.NodeFetchSpec.include_refs` is ``True``).
 
         Raises:
             ValidationError: If any parameter is ``None`` or invalid.
@@ -406,13 +467,18 @@ class FetchRoamNodes:
             requests.exceptions.ConnectionError: If unable to connect to the Local API.
             requests.exceptions.HTTPError: If the Local API returns a non-200 status.
         """
-        logger.debug("api_endpoint: %s, anchor: %r", api_endpoint, fetch_spec.anchor.qualifier)
+        logger.debug(
+            "api_endpoint: %s, anchor: %r, include_refs: %r",
+            api_endpoint,
+            fetch_spec.anchor.qualifier,
+            fetch_spec.include_refs,
+        )
         if fetch_spec.anchor.kind is not QueryAnchorKind.NODE_UID:
             raise ValueError(
                 f"expected fetch_spec.anchor.kind=QueryAnchorKind.NODE_UID; got {fetch_spec.anchor.kind!r}"
             )
         return FetchRoamNodes._fetch(
-            FetchRoamNodes.Request.payload_by_node_uid(fetch_spec.anchor.qualifier),
+            FetchRoamNodes.Request.payload_by_node_uid(fetch_spec.anchor.qualifier, include_refs=fetch_spec.include_refs),
             api_endpoint,
             fetch_spec,
         )
@@ -431,8 +497,8 @@ class FetchRoamNodes:
         Args:
             anchor: The resolved fetch anchor, carrying both the raw string and its kind.
             api_endpoint: The API endpoint (URL + bearer token) for the target Roam graph.
-            include_refs: Forwarded to :meth:`fetch_by_page_title`; ignored when
-                *anchor* is a node UID.
+            include_refs: Forwarded to the dispatched fetch method; controls whether
+                ``:block/refs`` targets are included in the result.
             include_node_tree: Forwarded to :class:`~roam_pub.roam_node_fetch_result.NodeFetchSpec`;
                 when ``False``, skips :class:`~roam_pub.roam_node.RoamNode` parsing and returns
                 only the raw Datalog result.

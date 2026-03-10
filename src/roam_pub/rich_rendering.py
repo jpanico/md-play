@@ -7,6 +7,8 @@ Public symbols:
   :class:`~rich.panel.Panel`.
 - :func:`build_rich_node_tree` — build a Rich :class:`~rich.tree.Tree` from a
   :class:`~roam_pub.roam_tree.NodeTree` using a depth-first traversal.
+- :func:`build_rich_refs_box` — build a Rich :class:`~rich.panel.Panel` summarising the
+  back-reference nodes in a :class:`~roam_pub.roam_tree.NodeTree`.
 - :func:`make_vertex_panel` — render a :data:`~roam_pub.graph.Vertex` as a Rich
   :class:`~rich.panel.Panel`.
 - :func:`build_rich_vertex_tree` — build a Rich :class:`~rich.tree.Tree` from a
@@ -19,6 +21,7 @@ import logging
 import re
 from typing import Final, TypeGuard
 
+from rich.console import Group
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -170,6 +173,45 @@ def build_rich_node_tree(tree: NodeTree, props: list[str] = DEFAULT_NODE_PANEL_P
         parent_rich: RichTree = rich_node_map[child_to_parent[node.id]]
         rich_node_map[node.id] = parent_rich.add(make_node_panel(node, props))
     return root_rich
+
+
+def build_rich_refs_box(tree: NodeTree, props: list[str] = DEFAULT_NODE_PANEL_PROPS) -> Panel | None:
+    """Build a Rich :class:`~rich.panel.Panel` summarising the back-reference nodes in *tree*.
+
+    For each node in :attr:`~roam_pub.roam_tree.NodeTree.refs_by_id`, renders a
+    two-column grid row containing a :func:`make_node_panel` on the left and a
+    *referenced by* panel listing the ids of tree nodes that cite it on the right.
+    All rows are collected into a single ``refs`` panel.
+
+    Returns ``None`` when :attr:`~roam_pub.roam_tree.NodeTree.refs_by_id` is empty.
+
+    Args:
+        tree: The :class:`~roam_pub.roam_tree.NodeTree` whose
+            :attr:`~roam_pub.roam_tree.NodeTree.refs_by_id` and
+            :attr:`~roam_pub.roam_tree.NodeTree.tree_network` are used.
+        props: Ordered list of :class:`~roam_pub.roam_node.RoamNode` field names
+            to include in each node panel body.  Defaults to :data:`DEFAULT_NODE_PANEL_PROPS`.
+
+    Returns:
+        A :class:`~rich.panel.Panel` titled ``refs`` grouping one row per referenced
+        node, or ``None`` when *tree* has no refs.
+    """
+    if not tree.refs_by_id:
+        return None
+    referencing_ids_by_ref_id: Final[dict[Id, list[Id]]] = {
+        ref_id: [n.id for n in tree.tree_network if n.refs is not None and any(r.id == ref_id for r in n.refs)]
+        for ref_id in tree.refs_by_id
+    }
+    ref_rows: Final[list[Table]] = []
+    for ref_node in tree.refs_by_id.values():
+        back_ref_text: str = "  ".join(str(i) for i in referencing_ids_by_ref_id[ref_node.id])
+        back_refs_panel: Panel = Panel(back_ref_text or "(none)", title="referenced by")
+        row: Table = Table.grid(padding=(0, 1))
+        row.add_column()
+        row.add_column()
+        row.add_row(make_node_panel(ref_node, props), back_refs_panel)
+        ref_rows.append(row)
+    return Panel(Group(*ref_rows), title="refs")
 
 
 def make_vertex_panel(vertex: Vertex) -> Panel:

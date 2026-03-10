@@ -46,7 +46,7 @@ import logging
 from typing import Annotated, Final
 
 import typer
-from rich.console import Console, Group
+from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree as RichTree
@@ -55,15 +55,15 @@ from roam_pub.rich_rendering import (
     DEFAULT_NODE_PANEL_PROPS,
     build_rich_node_tree,
     build_rich_raw_table,
+    build_rich_refs_box,
     build_rich_vertex_tree,
-    make_node_panel,
 )
 from roam_pub.roam_node_fetch_result import NodeFetchAnchor, NodeFetchResult, NodeFetchSpec
 from roam_pub.roam_tree_loader import fetch_roam_trees
 from roam_pub.graph import VertexTree
 from roam_pub.roam_local_api import ApiEndpoint
 from roam_pub.logging_config import configure_logging
-from roam_pub.roam_primitives import Id, UID_PATTERN
+from roam_pub.roam_primitives import UID_PATTERN
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -116,25 +116,8 @@ def _dump_node_tree(fetch_result: NodeFetchResult, node_props: str | None, conso
     console.rule("[bold]Node Tree[/bold]")
     console.print()
     console.print(node_rich_tree)
-    if fetch_result.anchor_tree.refs_by_id:
-        referencing_ids_by_ref_id: Final[dict[Id, list[Id]]] = {
-            ref_id: [
-                n.id
-                for n in fetch_result.anchor_tree.tree_network
-                if n.refs is not None and any(r.id == ref_id for r in n.refs)
-            ]
-            for ref_id in fetch_result.anchor_tree.refs_by_id
-        }
-        ref_rows: Final[list[Table]] = []
-        for ref_node in fetch_result.anchor_tree.refs_by_id.values():
-            back_ref_text: str = "  ".join(str(i) for i in referencing_ids_by_ref_id[ref_node.id])
-            back_refs_panel: Panel = Panel(back_ref_text or "(none)", title="referenced by")
-            row: Table = Table.grid(padding=(0, 1))
-            row.add_column()
-            row.add_column()
-            row.add_row(make_node_panel(ref_node, effective_props), back_refs_panel)
-            ref_rows.append(row)
-        refs_box: Final[Panel] = Panel(Group(*ref_rows), title="refs")
+    refs_box: Final[Panel | None] = build_rich_refs_box(fetch_result.anchor_tree, effective_props)
+    if refs_box is not None:
         console.print(refs_box)
     console.print(
         f"{len(fetch_result.anchor_tree.tree_network)} node(s) in anchor tree, "
@@ -260,7 +243,7 @@ def main(
                 "Ignored when TARGET is a node UID."
             ),
         ),
-    ] = False,
+    ] = True,
     show_raw_results: Annotated[
         bool,
         typer.Option(

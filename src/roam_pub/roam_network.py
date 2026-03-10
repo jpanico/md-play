@@ -15,6 +15,11 @@ Public symbols:
   :data:`NodeNetwork` to be cycle-free.
 - :func:`refs_ids` — return the set of all :attr:`~roam_pub.roam_node.RoamNode.refs` ids across every
   node in a :data:`NodeNetwork`.
+- :func:`direct_refs_nodes` — return the :data:`NodeNetwork` of nodes in a :data:`NodeNetwork` whose
+  :attr:`~roam_pub.roam_node.RoamNode.id` is referenced by any node's
+  :attr:`~roam_pub.roam_node.RoamNode.refs` list.
+- :func:`refs_nodes` — return the :data:`NodeNetwork` of all direct-ref target nodes in a
+  :data:`NodeNetwork` plus all of their transitive descendants available in that network.
 """
 
 from typing import Final
@@ -251,3 +256,59 @@ def refs_ids(network: NodeNetwork) -> set[Id]:
         in *network* has any ``refs``.
     """
     return {ref.id for n in network if n.refs for ref in n.refs}
+
+
+def direct_refs_nodes(network: NodeNetwork) -> NodeNetwork:
+    """Return the nodes in *network* that are referenced by any node's ``refs`` list.
+
+    Finds all ids across *network* via :func:`refs_ids`, then returns the subset of nodes
+    in *network* whose :attr:`~roam_pub.roam_node.RoamNode.id` appears in that set.  Ref
+    targets that resolve to nodes outside *network* are not included; use
+    :attr:`~roam_pub.roam_tree.NodeTree.refs_by_id` when the full ref-node pool may be
+    broader than *network* itself.
+
+    Args:
+        network: The collection of nodes to examine.
+
+    Returns:
+        A :data:`NodeNetwork` containing every node in *network* whose id is referenced via
+        ``:block/refs`` by at least one other node in *network*; empty if no such node exists.
+        The order follows the original *network* order; duplicate ids cannot arise because
+        :data:`NodeNetwork` members are deduplicated by id in well-formed networks.
+    """
+    target_ids: Final[set[Id]] = refs_ids(network)
+    return [n for n in network if n.id in target_ids]
+
+
+def refs_nodes(network: NodeNetwork) -> NodeNetwork:
+    """Return all direct-ref target nodes from *network* plus all their transitive descendants.
+
+    First identifies direct ref targets via :func:`direct_refs_nodes`, then performs an
+    iterative DFS over each target's child edges, collecting every reachable descendant
+    present in *network*.  Each node appears at most once in the result regardless of how
+    many paths lead to it.
+
+    Args:
+        network: The collection of nodes to examine.
+
+    Returns:
+        A :data:`NodeNetwork` containing every direct-ref target node in *network* and every
+        node transitively reachable from those targets via child edges within *network*;
+        empty if *network* has no nodes whose ids are referenced via ``:block/refs``.
+
+    Raises:
+        ValueError: If any child id encountered during traversal cannot be resolved to a
+            node in *network*.
+    """
+    visited: Final[set[Id]] = set()
+    result: Final[list[RoamNode]] = []
+    for ref_node in direct_refs_nodes(network):
+        if ref_node.id in visited:
+            continue
+        visited.add(ref_node.id)
+        result.append(ref_node)
+        for desc in all_descendants(ref_node, network):
+            if desc.id not in visited:
+                visited.add(desc.id)
+                result.append(desc)
+    return result

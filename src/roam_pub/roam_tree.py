@@ -51,8 +51,9 @@ class NodeTree(BaseModel):
         root_node: The single root node of this tree.
         tree_network: All constituent nodes of this tree, including *root_node*.
         refs_by_id: Map of id → :class:`~roam_pub.roam_node.RoamNode` for every node in
-            the source *super_network* whose id appears in the :func:`~roam_pub.roam_network.refs_ids`
-            set of :attr:`tree_network`; may be empty.
+            the source *super_network* that is either directly referenced via ``:block/refs``
+            by a member of :attr:`tree_network`, or is a transitive descendant of such a
+            node available in *super_network*; may be empty.
 
     Methods:
         build: Factory method — the only supported way to create a :class:`NodeTree`.
@@ -74,7 +75,9 @@ class NodeTree(BaseModel):
     refs_by_id: dict[Id, RoamNode] = Field(
         ...,
         description=(
-            "Map of id → RoamNode for every node in super_network whose id appears in the refs_ids set of tree_network."
+            "Map of id → RoamNode for every node in super_network that is either directly referenced via "
+            ":block/refs by a member of tree_network, or is a transitive descendant of such a node "
+            "available in super_network; may be empty."
         ),
     )
 
@@ -83,17 +86,19 @@ class NodeTree(BaseModel):
         """Create a validated :class:`NodeTree` — the only supported construction path.
 
         Uses :func:`~roam_pub.roam_network.all_descendants` to extract the subtree rooted
-        at *root_node* from *super_network*, builds :attr:`refs_by_id` from the remaining
-        nodes in *super_network* whose ids appear in the refs set of the extracted
-        :attr:`tree_network`, then delegates to the Pydantic constructor (which runs all
+        at *root_node* from *super_network*, builds :attr:`refs_by_id` from the direct ref
+        targets of :attr:`tree_network` plus all their transitive descendants available in
+        *super_network*, then delegates to the Pydantic constructor (which runs all
         validators including :meth:`_validate_is_tree`).
 
         Args:
             root_node: The single root node of the tree.
             super_network: Source node pool from which the tree's constituent nodes are
-                drawn; the :class:`~roam_pub.roam_node.RoamNode` instances in
+                drawn.  The :class:`~roam_pub.roam_node.RoamNode` instances in
                 *super_network* are a superset of the nodes that will form
-                :attr:`tree_network`.
+                :attr:`tree_network`.  Nodes outside :attr:`tree_network` are also
+                searched for :attr:`refs_by_id` — both direct ref targets and all of
+                their transitive descendants.
 
         Returns:
             A fully validated :class:`NodeTree`.
@@ -101,21 +106,27 @@ class NodeTree(BaseModel):
         Raises:
             ValueError: If *root_node* is not present in *super_network*, if any child
                 id encountered during tree extraction cannot be resolved within
-                *super_network*, or if any refs id from :attr:`tree_network` cannot be
-                resolved within *super_network*.
+                *super_network*, if any direct refs id from :attr:`tree_network` cannot
+                be resolved within *super_network*, or if any child id encountered while
+                expanding the descendants of a direct ref node cannot be resolved within
+                *super_network*.
             pydantic.ValidationError: If the extracted :attr:`tree_network` violates any
                 tree invariant.
         """
         tree_ids: Final[set[Id]] = {root_node.id} | {n.id for n in all_descendants(root_node, super_network)}
         tree_network: Final[NodeNetwork] = [n for n in super_network if n.id in tree_ids]
         tree_refs_ids: Final[set[Id]] = refs_ids(tree_network)
-        refs_by_id: Final[dict[Id, RoamNode]] = {n.id: n for n in super_network if n.id in tree_refs_ids}
-        unresolvable_refs: Final[set[Id]] = tree_refs_ids - refs_by_id.keys()
+        direct_refs: Final[dict[Id, RoamNode]] = {n.id: n for n in super_network if n.id in tree_refs_ids}
+        unresolvable_refs: Final[set[Id]] = tree_refs_ids - direct_refs.keys()
         if unresolvable_refs:
             raise ValueError(
                 f"refs id(s) {sorted(unresolvable_refs)!r} referenced in tree_network"
                 " cannot be resolved in super_network"
             )
+        refs_by_id: Final[dict[Id, RoamNode]] = dict(direct_refs)
+        for ref_node in direct_refs.values():
+            for desc in all_descendants(ref_node, super_network):
+                refs_by_id[desc.id] = desc
         cls._creating = True
         try:
             return cls(root_node=root_node, tree_network=tree_network, refs_by_id=refs_by_id)
